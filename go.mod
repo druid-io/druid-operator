@@ -1,6 +1,7 @@
 module github.com/druid-io/druid-operator
 
 require (
+	github.com/ghodss/yaml v1.0.0
 	github.com/go-openapi/spec v0.17.2
 	github.com/operator-framework/operator-sdk v0.11.1-0.20191021213754-e7135197e816
 	github.com/spf13/pflag v1.0.3
