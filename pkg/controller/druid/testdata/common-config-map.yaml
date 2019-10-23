@@ -18,7 +18,7 @@ data:
     # Store indexing logs in an S3 bucket named 'druid-deep-storage' with the
     # prefix 'druid/indexing-logs'
     druid.indexer.logs.type=s3
-    druid.indexer.logs.s3Bucket=cja-druid-test
+    druid.indexer.logs.s3Bucket=mybucket
     druid.indexer.logs.s3Prefix=druid/indexing-logs
 
     #
@@ -42,16 +42,16 @@ data:
     druid.zk.service.compress=false
 
     druid.metadata.storage.type=postgresql
-    druid.metadata.storage.connector.connectURI=jdbc:postgresql://cja-druid-postgres.c6vjpac00ruy.us-west-2.rds.amazonaws.com:5432/druiddb
-    druid.metadata.storage.connector.user=cjadev
-    druid.metadata.storage.connector.password=itissunnytoday
+    druid.metadata.storage.connector.connectURI=jdbc:postgresql://rdsaddr.us-west-2.rds.amazonaws.com:5432/druiddb
+    druid.metadata.storage.connector.user=iamuser
+    druid.metadata.storage.connector.password=changeme
     druid.metadata.storage.connector.createTables=true
 
     druid.storage.type=s3
-    druid.storage.bucket=cja-druid-test
+    druid.storage.bucket=mybucket
     druid.storage.baseKey=druid/segments
-    druid.s3.accessKey=AKIAIU4MELUMJCNX5FWQ
-    druid.s3.secretKey=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
+    druid.s3.accessKey=accesskey
+    druid.s3.secretKey=secretkey
 kind: ConfigMap
 metadata:
   labels:

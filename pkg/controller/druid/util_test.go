@@ -1,7 +1,7 @@
-package stub
+package druid
 
 import (
-	"druid-app-operator/pkg/apis/druid/v1alpha1"
+	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	"encoding/json"
 	"k8s.io/api/core/v1"
 	"testing"

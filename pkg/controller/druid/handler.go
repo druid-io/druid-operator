@@ -1,9 +1,9 @@
-package stub
+package druid
 
 import (
 	"context"
 	"crypto/sha1"
-	"druid-app-operator/pkg/apis/druid/v1alpha1"
+	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -11,15 +11,12 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/operator-framework/operator-sdk/pkg/k8sclient"
-	"github.com/operator-framework/operator-sdk/pkg/sdk"
-	"github.com/operator-framework/operator-sdk/pkg/util/k8sutil"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -37,45 +34,17 @@ const (
 
 var logger *loggerT
 
-func NewHandler() sdk.Handler {
-	// Initialized here so that it gets created after main() is called.
-	logger = getLogger()
-
-	return &Handler{}
-}
-
-type Handler struct {
-}
-
-func (h *Handler) Handle(ctx context.Context, event sdk.Event) error {
-	switch o := event.Object.(type) {
-	case *v1alpha1.Druid:
-		druid := o
-
-		// Ignore the delete event since the garbage collector will clean up all secondary resources for the CR
-		// All secondary resources must have the CR set as their OwnerReference for this to be the case
-		if event.Deleted {
-			return nil
-		}
-		if err := deployDruidCluster(druid); err != nil {
-			logger.Error(err.Error())
-			return err
-		}
-	}
-	return nil
-}
-
-func deployDruidCluster(m *v1alpha1.Druid) error {
+func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	if err := verifyDruidSpec(m); err != nil {
 		e := fmt.Errorf("Invalid DruidSpec[%s:%s] due to [%s].", m.Kind, m.Name, err.Error())
-		sendEvent(m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+		sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
 		return nil
 	}
 
 	allNodeSpecs, err := getAllNodeSpecsInDruidPrescribedOrder(m)
 	if err != nil {
 		e := fmt.Errorf("Invalid DruidSpec[%s:%s] due to [%s].", m.Kind, m.Name, err.Error())
-		sendEvent(m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+		sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
 		return nil
 	}
 
@@ -95,7 +64,7 @@ func deployDruidCluster(m *v1alpha1.Druid) error {
 		return err
 	}
 
-	if err := sdkCreateOrUpdateAsNeeded(
+	if err := sdkCreateOrUpdateAsNeeded(sdk,
 		func() (object, error) { return makeCommonConfigMap(m, ls) },
 		func() object { return makeConfigMapEmptyObj() },
 		nil, m, configMapNames); err != nil {
@@ -123,7 +92,7 @@ func deployDruidCluster(m *v1alpha1.Druid) error {
 			return err
 		}
 
-		if err := sdkCreateOrUpdateAsNeeded(
+		if err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) { return nodeConfig, nil },
 			func() object { return makeConfigMapEmptyObj() },
 			nil, m, configMapNames); err != nil {
@@ -132,7 +101,7 @@ func deployDruidCluster(m *v1alpha1.Druid) error {
 
 		//create service before creating statefulset
 		if nodeSpec.Service != nil {
-			if err := sdkCreateOrUpdateAsNeeded(
+			if err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) { return makeLoadBalancerService(&nodeSpec, m, lm, nodeSpecUniqueStr) },
 				func() object { return makeServiceEmptyObj() },
 				func(prev, curr object) { (curr.(*v1.Service)).Spec.ClusterIP = (prev.(*v1.Service)).Spec.ClusterIP },
@@ -142,7 +111,7 @@ func deployDruidCluster(m *v1alpha1.Druid) error {
 		}
 
 		// one more headless service required for stateful
-		if err := sdkCreateOrUpdateAsNeeded(
+		if err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) {
 				return makeHeadlessService(fmt.Sprintf("%s", nodeSpecUniqueStr), m.Namespace, lm, nodeSpec.DruidPort)
 			},
@@ -154,7 +123,7 @@ func deployDruidCluster(m *v1alpha1.Druid) error {
 		nodeSpec.Ports = append(nodeSpec.Ports, v1.ContainerPort{ContainerPort: nodeSpec.DruidPort, Name: "druid-port"})
 
 		// Create StatefulSet
-		if err := sdkCreateOrUpdateAsNeeded(
+		if err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) {
 				return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA))
 			},
@@ -165,7 +134,7 @@ func deployDruidCluster(m *v1alpha1.Druid) error {
 
 		// Create PodDisruptionBudget
 		if nodeSpec.PodDisruptionBudgetSpec != nil {
-			if err := sdkCreateOrUpdateAsNeeded(
+			if err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) { return makePodDisruptionBudget(&nodeSpec, m, lm, nodeSpecUniqueStr) },
 				func() object { return makePodDisruptionBudgetEmptyObj() },
 				nil, m, podDisruptionBudgetNames); err != nil {
@@ -177,7 +146,7 @@ func deployDruidCluster(m *v1alpha1.Druid) error {
 	//update status and delete unwanted resources
 	updatedStatus := v1alpha1.DruidClusterStatus{}
 
-	updatedStatus.StatefulSets = deleteUnusedResources(m, statefulSetNames, ls,
+	updatedStatus.StatefulSets = deleteUnusedResources(sdk, m, statefulSetNames, ls,
 		func() runtime.Object { return makeStatefulSetListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*appsv1.StatefulSetList).Items
@@ -189,7 +158,7 @@ func deployDruidCluster(m *v1alpha1.Druid) error {
 		})
 	sort.Strings(updatedStatus.StatefulSets)
 
-	updatedStatus.PodDisruptionBudgets = deleteUnusedResources(m, podDisruptionBudgetNames, ls,
+	updatedStatus.PodDisruptionBudgets = deleteUnusedResources(sdk, m, podDisruptionBudgetNames, ls,
 		func() runtime.Object { return makePodDisruptionBudgetListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*v1beta1.PodDisruptionBudgetList).Items
@@ -201,7 +170,7 @@ func deployDruidCluster(m *v1alpha1.Druid) error {
 		})
 	sort.Strings(updatedStatus.PodDisruptionBudgets)
 
-	updatedStatus.Services = deleteUnusedResources(m, serviceNames, ls,
+	updatedStatus.Services = deleteUnusedResources(sdk, m, serviceNames, ls,
 		func() runtime.Object { return makeServiceListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*v1.ServiceList).Items
@@ -213,7 +182,7 @@ func deployDruidCluster(m *v1alpha1.Druid) error {
 		})
 	sort.Strings(updatedStatus.Services)
 
-	updatedStatus.ConfigMaps = deleteUnusedResources(m, configMapNames, ls,
+	updatedStatus.ConfigMaps = deleteUnusedResources(sdk, m, configMapNames, ls,
 		func() runtime.Object { return makeConfigMapListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*v1.ConfigMapList).Items
@@ -226,21 +195,27 @@ func deployDruidCluster(m *v1alpha1.Druid) error {
 	sort.Strings(updatedStatus.ConfigMaps)
 
 	podList := podList()
-	labelSelector := labels.SelectorFromSet(makeLabelsForDruid(m.Name)).String()
-	listOps := &metav1.ListOptions{LabelSelector: labelSelector}
+	listOpts := []client.ListOption{
+		client.InNamespace(m.Namespace),
+		client.MatchingLabels(makeLabelsForDruid(m.Name)),
+	}
 
-	if err := sdk.List(m.Namespace, podList, sdk.WithListOptions(listOps)); err != nil {
+	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
 		e := fmt.Errorf("Failed to list pods for [%s:%s] due to [%s].", m.Kind, m.Name, err.Error())
-		sendEvent(m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
+		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
 		logger.Errorf("[%s:%s]%s", m.Namespace, m.Name, e.Error())
 	}
 	updatedStatus.Pods = getPodNames(podList.Items)
 	sort.Strings(updatedStatus.Pods)
 
 	if !reflect.DeepEqual(updatedStatus, m.Status) {
-		if err := sdkPatch(map[string]v1alpha1.DruidClusterStatus{"status": updatedStatus}, m, types.MergePatchType); err != nil {
+		patchBytes, err := json.Marshal(map[string]v1alpha1.DruidClusterStatus{"status": updatedStatus})
+		if err != nil {
+			return fmt.Errorf("failed to serialize status patch to bytes: %v", err)
+		}
+		if err := sdk.Patch(context.TODO(), m, client.ConstantPatch(types.MergePatchType, patchBytes)); err != nil {
 			e := fmt.Errorf("Failed to update status for [%s:%s] due to [%s].", m.Kind, m.Name, err.Error())
-			sendEvent(m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
+			sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
 			logger.Errorf("[%s:%s]%s", m.Namespace, m.Name, e.Error())
 		}
 	}
@@ -248,60 +223,31 @@ func deployDruidCluster(m *v1alpha1.Druid) error {
 	return nil
 }
 
-// This should be removed once https://github.com/operator-framework/operator-sdk/pull/389 is available.
-func sdkPatch(patch interface{}, object runtime.Object, pt types.PatchType) (err error) {
-	name, namespace, err := k8sutil.GetNameAndNamespace(object)
-	if err != nil {
-		return err
-	}
-	gvk := object.GetObjectKind().GroupVersionKind()
-	apiVersion, kind := gvk.ToAPIVersionAndKind()
-
-	resourceClient, _, err := k8sclient.GetResourceClient(apiVersion, kind, namespace)
-	if err != nil {
-		return fmt.Errorf("failed to get resource client: %v", err)
-	}
-
-	bytes, err := json.Marshal(patch)
-	if err != nil {
-		return fmt.Errorf("failed to serialize patch to bytes: %v", err)
-	}
-
-	unstructObj, err := resourceClient.Patch(name, pt, bytes)
-	if err != nil {
-		return err
-	}
-
-	// Update the arg object with the result
-	err = k8sutil.UnstructuredIntoRuntimeObject(unstructObj, object)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal the retrieved data: %v", err)
-	}
-	return nil
-}
-
-func deleteUnusedResources(drd *v1alpha1.Druid,
+func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 	names map[string]bool, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, itemsExtractorFn func(obj runtime.Object) []object) []string {
 
-	listOps := &metav1.ListOptions{LabelSelector: labels.SelectorFromSet(selectorLabels).String()}
+	listOpts := []client.ListOption{
+		client.InNamespace(drd.Namespace),
+		client.MatchingLabels(selectorLabels),
+	}
 
 	survivorNames := make([]string, 0, len(names))
 
 	listObj := emptyListObjFn()
-	if err := sdk.List(drd.Namespace, listObj, sdk.WithListOptions(listOps)); err != nil {
+	if err := sdk.List(context.TODO(), listObj, listOpts...); err != nil {
 		e := fmt.Errorf("Failed to list [%s] due to [%s].", listObj.GetObjectKind().GroupVersionKind().Kind, err.Error())
-		sendEvent(drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
+		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
 		logger.Errorf("[%s:%s]:%s", drd.Namespace, drd.Name, e.Error())
 	} else {
 		for _, s := range itemsExtractorFn(listObj) {
 			if names[s.GetName()] == false {
-				if err := sdk.Delete(s, sdk.WithDeleteOptions(&metav1.DeleteOptions{})); err != nil {
+				if err := sdk.Delete(context.TODO(), s); err != nil {
 					e := fmt.Errorf("Failed to delete [%s:%s] due to [%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName(), err.Error())
-					sendEvent(drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
+					sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
 					logger.Errorf("[%s:%s]:%s", drd.Namespace, drd.Name, e.Error())
 					survivorNames = append(survivorNames, s.GetName())
 				} else {
-					sendEvent(drd, v1.EventTypeNormal, "DELETE_SUCCESS", fmt.Sprintf("Deleted [%s:%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName()))
+					sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", fmt.Sprintf("Deleted [%s:%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName()))
 				}
 			} else {
 				survivorNames = append(survivorNames, s.GetName())
@@ -317,7 +263,7 @@ type object interface {
 	runtime.Object
 }
 
-func sdkCreateOrUpdateAsNeeded(objFn func() (object, error), emptyObjFn func() object, updaterFn func(prev, curr object), drd *v1alpha1.Druid, names map[string]bool) error {
+func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), emptyObjFn func() object, updaterFn func(prev, curr object), drd *v1alpha1.Druid, names map[string]bool) error {
 	if obj, err := objFn(); err != nil {
 		return err
 	} else {
@@ -326,15 +272,13 @@ func sdkCreateOrUpdateAsNeeded(objFn func() (object, error), emptyObjFn func() o
 		addOwnerRefToObject(obj, asOwner(drd))
 		addHashToObject(obj)
 
-		if err := sdk.Create(obj); err != nil {
+		if err := sdk.Create(context.TODO(), obj); err != nil {
 			if apierrors.IsAlreadyExists(err) {
 				prevObj := emptyObjFn()
-				prevObj.SetName(obj.GetName())
-				prevObj.SetNamespace(obj.GetNamespace())
-				if err := sdk.Get(prevObj); err != nil {
+				if err := sdk.Get(context.TODO(), *namespacedName(obj.GetName(), obj.GetNamespace()), prevObj); err != nil {
 					e := fmt.Errorf("Failed to get [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 					logger.Errorf("[%s:%s]%s\nPrev object [%s]\n.", drd.Namespace, drd.Name, e.Error(), stringifyForLogging(prevObj, drd))
-					sendEvent(drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
+					sendEvent(sdk, drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
 				} else {
 					if obj.GetAnnotations()[druidOpResourceHash] != prevObj.GetAnnotations()[druidOpResourceHash] {
 
@@ -343,30 +287,30 @@ func sdkCreateOrUpdateAsNeeded(objFn func() (object, error), emptyObjFn func() o
 							updaterFn(prevObj, obj)
 						}
 
-						if err := sdk.Update(obj); err != nil {
+						if err := sdk.Update(context.TODO(), obj); err != nil {
 							e := fmt.Errorf("Failed to update [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 							logger.Errorf("[%s:%s]%s\nCurrent object [%s]\nUpdate object [%s]\n.", drd.Namespace, drd.Name, e.Error(), stringifyForLogging(prevObj, drd), stringifyForLogging(obj, drd))
-							sendEvent(drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
+							sendEvent(sdk, drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
 						} else {
 							msg := fmt.Sprintf("Updated [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
 							if logger.IsDebugEnabled() {
 								logger.Debugf("[%s:%s]%s\n Prev [%s]\n Current [%s]\n", drd.Namespace, drd.Name, msg, stringifyForLogging(prevObj, drd), stringifyForLogging(obj, drd))
 							}
-							sendEvent(drd, v1.EventTypeNormal, "UPDATE_SUCCESS", msg)
+							sendEvent(sdk, drd, v1.EventTypeNormal, "UPDATE_SUCCESS", msg)
 						}
 					}
 				}
 			} else {
 				e := fmt.Errorf("Failed to create [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 				logger.Errorf("[%s:%s]%s\nobject [%s]\n.", drd.Namespace, drd.Name, e.Error(), stringifyForLogging(obj, drd))
-				sendEvent(drd, v1.EventTypeWarning, "CREATE_FAIL", e.Error())
+				sendEvent(sdk, drd, v1.EventTypeWarning, "CREATE_FAIL", e.Error())
 			}
 		} else {
 			msg := fmt.Sprintf("Created [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
 			if logger.IsDebugEnabled() {
 				logger.Debugf("[%s:%s]%s\nobject [%s]\n", drd.Namespace, drd.Name, msg, stringifyForLogging(obj, drd))
 			}
-			sendEvent(drd, v1.EventTypeNormal, "CREATE_SUCCESS", msg)
+			sendEvent(sdk, drd, v1.EventTypeNormal, "CREATE_SUCCESS", msg)
 		}
 	}
 
@@ -807,7 +751,7 @@ func getPodNames(pods []v1.Pod) []string {
 	return podNames
 }
 
-func sendEvent(drd *v1alpha1.Druid, eventtype, reason, message string) {
+func sendEvent(sdk client.Client, drd *v1alpha1.Druid, eventtype, reason, message string) {
 
 	ref := &v1.ObjectReference{
 		Kind:            drd.Kind,
@@ -843,7 +787,7 @@ func sendEvent(drd *v1alpha1.Druid, eventtype, reason, message string) {
 		Source:         v1.EventSource{Component: "druid-operator"},
 	}
 
-	if err := sdk.Create(event); err != nil {
+	if err := sdk.Create(context.TODO(), event); err != nil {
 		logger.Errorf("Failed to push event [%v] due to error [%s].", event, err.Error())
 	}
 }
@@ -898,4 +842,8 @@ func getAllNodeSpecsInDruidPrescribedOrder(m *v1alpha1.Druid) ([]keyAndNodeSpec,
 	allNodeSpecs = append(allNodeSpecs, nodeSpecsByNodeType[router]...)
 
 	return allNodeSpecs, nil
+}
+
+func namespacedName(name, namespace string) *types.NamespacedName {
+	return &types.NamespacedName{Name: name, Namespace: namespace}
 }

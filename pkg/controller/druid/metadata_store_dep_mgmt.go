@@ -1,8 +1,8 @@
-package stub
+package druid
 
 import (
-	"druid-app-operator/pkg/apis/druid/v1alpha1"
-	"druid-app-operator/pkg/ext"
+	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
+	"github.com/druid-io/druid-operator/pkg/controller/druid/ext"
 	"encoding/json"
 	"fmt"
 	"reflect"

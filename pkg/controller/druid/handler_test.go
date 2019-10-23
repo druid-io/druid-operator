@@ -1,7 +1,7 @@
-package stub
+package druid
 
 import (
-	"druid-app-operator/pkg/apis/druid/v1alpha1"
+	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	"fmt"
 	"io/ioutil"
 	"reflect"
@@ -95,7 +95,7 @@ func TestMakeBrokerConfigMap(t *testing.T) {
 }
 
 func readSampleDruidClusterSpec(t *testing.T) *v1alpha1.Druid {
-	bytes, err := ioutil.ReadFile("../../deploy/cr.yaml")
+	bytes, err := ioutil.ReadFile("testdata/druid-test-cr.yaml")
 	if err != nil {
 		t.Errorf("Failed to read druid cluster spec")
 	}
