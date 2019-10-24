@@ -75,18 +75,18 @@ type DruidNodeSpec struct {
 }
 
 type ZookeeperSpec struct {
-	Type string
-	Spec json.RawMessage
+	Type string             `json:"type"`
+	Spec json.RawMessage    `json:"spec"`
 }
 
 type MetadataStoreSpec struct {
-	Type string
-	Spec json.RawMessage
+	Type string             `json:"type"`
+	Spec json.RawMessage    `json:"spec"`
 }
 
 type DeepStorageSpec struct {
-	Type string
-	Spec json.RawMessage
+	Type string             `json:"type"`
+	Spec json.RawMessage    `json:"spec"`
 }
 
 type DruidClusterStatus struct {
