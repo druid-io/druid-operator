@@ -1,3 +1,0 @@
-apiVersion: druid.splunk.com/v1alpha1
-kind: Druid
-projectName: druid-app-operator
