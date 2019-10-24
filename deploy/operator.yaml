@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: druid-app-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: druid-app-operator
+  template:
+    metadata:
+      labels:
+        name: druid-app-operator
+    spec:
+      containers:
+        - name: druid-app-operator
+          image: cloudrepo-docker.jfrog.io/cja/druid-app-operator:0.1-7638d06
+          command:
+          - druid-app-operator
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
