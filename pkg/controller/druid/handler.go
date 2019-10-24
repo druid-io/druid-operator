@@ -3,15 +3,15 @@ package druid
 import (
 	"context"
 	"crypto/sha1"
-	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"reflect"
 	"regexp"
 	"sort"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -244,7 +245,7 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 	} else {
 		for _, s := range itemsExtractorFn(listObj) {
 			if names[s.GetName()] == false {
-				if err := sdk.Delete(context.TODO(), s); err != nil {
+				if err := sdkDelete(sdk, context.TODO(), s); err != nil {
 					e := fmt.Errorf("Failed to delete [%s:%s] due to [%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName(), err.Error())
 					sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
 					logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
@@ -275,7 +276,7 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 		addOwnerRefToObject(obj, asOwner(drd))
 		addHashToObject(obj)
 
-		if err := sdk.Create(context.TODO(), obj); err != nil {
+		if err := sdkCreate(sdk, context.TODO(), obj); err != nil {
 			if apierrors.IsAlreadyExists(err) {
 				prevObj := emptyObjFn()
 				if err := sdk.Get(context.TODO(), *namespacedName(obj.GetName(), obj.GetNamespace()), prevObj); err != nil {
@@ -850,3 +851,29 @@ func getAllNodeSpecsInDruidPrescribedOrder(m *v1alpha1.Druid) ([]keyAndNodeSpec,
 func namespacedName(name, namespace string) *types.NamespacedName {
 	return &types.NamespacedName{Name: name, Namespace: namespace}
 }
+
+//-------------------------------------------
+// resetGroupVersionKind func is copied from controller-runtime/pkg/client/client.go to retain TypeMeta
+// on sdk.Create/Delete , PATCH/UPDATE already retain that
+
+// resetGroupVersionKind is a helper function to restore and preserve GroupVersionKind on an object.
+// TODO(vincepri): Remove this function and its calls once    controller-runtime dependencies are upgraded to 1.15.
+func resetGroupVersionKind(obj runtime.Object, gvk schema.GroupVersionKind) {
+	if gvk != schema.EmptyObjectKind.GroupVersionKind() {
+		if v, ok := obj.(schema.ObjectKind); ok {
+			v.SetGroupVersionKind(gvk)
+		}
+	}
+}
+
+// Create implements client.Client
+func sdkCreate(sdk client.Client, ctx context.Context, obj runtime.Object) error {
+	defer resetGroupVersionKind(obj, obj.GetObjectKind().GroupVersionKind())
+	return sdk.Create(ctx, obj)
+}
+
+func sdkDelete(sdk client.Client, ctx context.Context, obj runtime.Object) error {
+	defer resetGroupVersionKind(obj, obj.GetObjectKind().GroupVersionKind())
+	return sdk.Delete(ctx, obj)
+}
+//--------------------------------------------------------------------------------------------------------------------
