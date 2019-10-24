@@ -34,8 +34,6 @@ const (
 	router              = "router"
 )
 
-
-var isDebugEnabled = true
 var logger = logf.Log.WithName("druid_operator_handler")
 
 func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
@@ -297,9 +295,7 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 							sendEvent(sdk, drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
 						} else {
 							msg := fmt.Sprintf("Updated [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
-							if isDebugEnabled {
-								logger.Info(msg, "Prev Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
-							}
+							logger.Info(msg, "Prev Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
 							sendEvent(sdk, drd, v1.EventTypeNormal, "UPDATE_SUCCESS", msg)
 						}
 					}
@@ -311,9 +307,7 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 			}
 		} else {
 			msg := fmt.Sprintf("Created [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
-			if isDebugEnabled {
-				logger.Info(msg, "Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
-			}
+			logger.Info(msg, "Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
 			sendEvent(sdk, drd, v1.EventTypeNormal, "CREATE_SUCCESS", msg)
 		}
 	}
