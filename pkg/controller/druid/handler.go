@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -32,7 +33,9 @@ const (
 	router              = "router"
 )
 
-var logger *loggerT
+
+var isDebugEnabled = true
+var logger = logf.Log.WithName("druid_operator_handler")
 
 func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	if err := verifyDruidSpec(m); err != nil {
@@ -203,7 +206,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
 		e := fmt.Errorf("Failed to list pods for [%s:%s] due to [%s].", m.Kind, m.Name, err.Error())
 		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Errorf("[%s:%s]%s", m.Namespace, m.Name, e.Error())
+		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 	}
 	updatedStatus.Pods = getPodNames(podList.Items)
 	sort.Strings(updatedStatus.Pods)
@@ -216,7 +219,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		if err := sdk.Patch(context.TODO(), m, client.ConstantPatch(types.MergePatchType, patchBytes)); err != nil {
 			e := fmt.Errorf("Failed to update status for [%s:%s] due to [%s].", m.Kind, m.Name, err.Error())
 			sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-			logger.Errorf("[%s:%s]%s", m.Namespace, m.Name, e.Error())
+			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 		}
 	}
 
@@ -237,14 +240,14 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 	if err := sdk.List(context.TODO(), listObj, listOpts...); err != nil {
 		e := fmt.Errorf("Failed to list [%s] due to [%s].", listObj.GetObjectKind().GroupVersionKind().Kind, err.Error())
 		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Errorf("[%s:%s]:%s", drd.Namespace, drd.Name, e.Error())
+		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 	} else {
 		for _, s := range itemsExtractorFn(listObj) {
 			if names[s.GetName()] == false {
 				if err := sdk.Delete(context.TODO(), s); err != nil {
 					e := fmt.Errorf("Failed to delete [%s:%s] due to [%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName(), err.Error())
 					sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
-					logger.Errorf("[%s:%s]:%s", drd.Namespace, drd.Name, e.Error())
+					logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 					survivorNames = append(survivorNames, s.GetName())
 				} else {
 					sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", fmt.Sprintf("Deleted [%s:%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName()))
@@ -277,7 +280,7 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 				prevObj := emptyObjFn()
 				if err := sdk.Get(context.TODO(), *namespacedName(obj.GetName(), obj.GetNamespace()), prevObj); err != nil {
 					e := fmt.Errorf("Failed to get [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
-					logger.Errorf("[%s:%s]%s\nPrev object [%s]\n.", drd.Namespace, drd.Name, e.Error(), stringifyForLogging(prevObj, drd))
+					logger.Error(e, e.Error(), "Prev object", stringifyForLogging(prevObj, drd), "name", drd.Name, "namespace", drd.Namespace)
 					sendEvent(sdk, drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
 				} else {
 					if obj.GetAnnotations()[druidOpResourceHash] != prevObj.GetAnnotations()[druidOpResourceHash] {
@@ -289,12 +292,12 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 
 						if err := sdk.Update(context.TODO(), obj); err != nil {
 							e := fmt.Errorf("Failed to update [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
-							logger.Errorf("[%s:%s]%s\nCurrent object [%s]\nUpdate object [%s]\n.", drd.Namespace, drd.Name, e.Error(), stringifyForLogging(prevObj, drd), stringifyForLogging(obj, drd))
+							logger.Error(e, e.Error(), "Current Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
 							sendEvent(sdk, drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
 						} else {
 							msg := fmt.Sprintf("Updated [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
-							if logger.IsDebugEnabled() {
-								logger.Debugf("[%s:%s]%s\n Prev [%s]\n Current [%s]\n", drd.Namespace, drd.Name, msg, stringifyForLogging(prevObj, drd), stringifyForLogging(obj, drd))
+							if isDebugEnabled {
+								logger.Info(msg, "Prev Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
 							}
 							sendEvent(sdk, drd, v1.EventTypeNormal, "UPDATE_SUCCESS", msg)
 						}
@@ -302,13 +305,13 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 				}
 			} else {
 				e := fmt.Errorf("Failed to create [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
-				logger.Errorf("[%s:%s]%s\nobject [%s]\n.", drd.Namespace, drd.Name, e.Error(), stringifyForLogging(obj, drd))
+				logger.Error(e, e.Error(), "object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
 				sendEvent(sdk, drd, v1.EventTypeWarning, "CREATE_FAIL", e.Error())
 			}
 		} else {
 			msg := fmt.Sprintf("Created [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
-			if logger.IsDebugEnabled() {
-				logger.Debugf("[%s:%s]%s\nobject [%s]\n", drd.Namespace, drd.Name, msg, stringifyForLogging(obj, drd))
+			if isDebugEnabled {
+				logger.Info(msg, "Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
 			}
 			sendEvent(sdk, drd, v1.EventTypeNormal, "CREATE_SUCCESS", msg)
 		}
@@ -319,7 +322,7 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 
 func stringifyForLogging(obj object, drd *v1alpha1.Druid) string {
 	if bytes, err := json.Marshal(obj); err != nil {
-		logger.Errorf("[%s:%s]Failed to serialize [%s:%s] due to [%s]\n.", drd.Namespace, drd.Name, obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
+		logger.Error(err, err.Error(), fmt.Sprintf("Failed to serialize [%s:%s]", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName()), "name", drd.Name, "namespace", drd.Namespace)
 		return fmt.Sprintf("%v", obj)
 	} else {
 		return string(bytes)
@@ -788,7 +791,7 @@ func sendEvent(sdk client.Client, drd *v1alpha1.Druid, eventtype, reason, messag
 	}
 
 	if err := sdk.Create(context.TODO(), event); err != nil {
-		logger.Errorf("Failed to push event [%v] due to error [%s].", event, err.Error())
+		logger.Error(err, fmt.Sprintf("Failed to push event [%v]", event))
 	}
 }
 
