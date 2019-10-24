@@ -2,6 +2,7 @@ package druid
 
 import (
 	"context"
+	"time"
 
 	druidv1alpha1 "github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -79,8 +80,8 @@ type ReconcileDruid struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileDruid) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling Druid")
+	//reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	//reqLogger.Info("Reconciling Druid")
 
 	// Fetch the Druid instance
 	instance := &druidv1alpha1.Druid{}
@@ -96,6 +97,10 @@ func (r *ReconcileDruid) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{}, err
 	}
 
-	return reconcile.Result{}, deployDruidCluster(r.client, instance)
+	if err := deployDruidCluster(r.client, instance); err != nil {
+		return reconcile.Result{}, deployDruidCluster(r.client, instance)
+	} else {
+		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+	}
 }
 
