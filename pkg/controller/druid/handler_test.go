@@ -20,6 +20,7 @@ func TestMakeStatefulSetForBroker(t *testing.T) {
 	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
 
 	actual, _ := makeStatefulSet(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr, "blah")
+	addHashToObject(actual)
 
 	expected := new(appsv1.StatefulSet)
 	readAndUnmarshallResource("testdata/broker-statefulset.yaml", &expected, t)
@@ -34,6 +35,7 @@ func TestMakePodDisruptionBudgetForBroker(t *testing.T) {
 	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
 
 	actual, _ := makePodDisruptionBudget(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr)
+	addHashToObject(actual)
 
 	expected := new(v1beta1.PodDisruptionBudget)
 	readAndUnmarshallResource("testdata/broker-pod-disruption-budget.yaml", &expected, t)
@@ -48,6 +50,7 @@ func TestMakeHeadlessService(t *testing.T) {
 	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
 
 	actual, _ := makeHeadlessServiceForPod(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr, 0)
+	addHashToObject(actual)
 
 	expected := new(corev1.Service)
 	readAndUnmarshallResource("testdata/broker-pod-headless-service.yaml", &expected, t)
@@ -62,6 +65,7 @@ func TestMakeLoadBalancerService(t *testing.T) {
 	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
 
 	actual, _ := makeLoadBalancerService(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr)
+	addHashToObject(actual)
 
 	expected := new(corev1.Service)
 	readAndUnmarshallResource("testdata/broker-load-balancer-service.yaml", &expected, t)
@@ -73,6 +77,7 @@ func TestMakeConfigMap(t *testing.T) {
 	clusterSpec := readSampleDruidClusterSpec(t)
 
 	actual, _ := makeCommonConfigMap(clusterSpec, makeLabelsForDruid(clusterSpec.Name))
+	addHashToObject(actual)
 
 	expected := new(corev1.ConfigMap)
 	readAndUnmarshallResource("testdata/common-config-map.yaml", &expected, t)
@@ -87,6 +92,7 @@ func TestMakeBrokerConfigMap(t *testing.T) {
 	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
 
 	actual, _ := makeConfigMapForNodeSpec(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr)
+	addHashToObject(actual)
 
 	expected := new(corev1.ConfigMap)
 	readAndUnmarshallResource("testdata/broker-config-map.yaml", &expected, t)

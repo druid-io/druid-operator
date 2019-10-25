@@ -7,6 +7,8 @@ metadata:
     nodeSpecUniqueStr: druid-druid-test-brokers
     statefulset.kubernetes.io/pod-name: druid-druid-test-brokers-0
   name: druid-druid-test-brokers-0
+  annotations:
+    druidOpResourceHash: jhJgU43EiE8azkTdXjSsHS1KWvk=
 spec:
   clusterIP: None
   ports:

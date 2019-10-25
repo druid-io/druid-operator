@@ -6,6 +6,8 @@ metadata:
     druid_cr: druid-test
     nodeSpecUniqueStr: druid-druid-test-brokers
   name: druid-druid-test-brokers
+  annotations:
+    druidOpResourceHash: 7K/RvZ/1w3KCtKGVDN08vWS3HIc=
 spec:
   maxUnavailable: 1
   selector:

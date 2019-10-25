@@ -3,6 +3,7 @@ kind: Service
 metadata:
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
+    druidOpResourceHash: 3SjIU2OdG17GCisgH0LfZy06hJY=
   labels:
     app: druid
     druid_cr: druid-test
