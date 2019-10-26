@@ -436,17 +436,17 @@ func makeLoadBalancerService(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid
 			svc.ObjectMeta.Labels[k] = v
 		}
 	}
-	var servicePort int
+	var servicePort int32
 	if m.Spec.ServicePort == 0 {
-		servicePort = int(nodeSpec.DruidPort)
+		servicePort = nodeSpec.DruidPort
 	} else {
-		servicePort = m.Spec.ServicePort
+		servicePort = int32(m.Spec.ServicePort)
 	}
 	svc.Spec.Ports = []v1.ServicePort{
 		{
 			Name:       "service-port",
-			Port:       nodeSpec.DruidPort,
-			TargetPort: intstr.FromInt(servicePort),
+			Port:       servicePort,
+			TargetPort: intstr.FromInt(int(nodeSpec.DruidPort)),
 		},
 	}
 

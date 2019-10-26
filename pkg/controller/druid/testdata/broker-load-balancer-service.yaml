@@ -3,7 +3,7 @@ kind: Service
 metadata:
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
-    druidOpResourceHash: 3SjIU2OdG17GCisgH0LfZy06hJY=
+    druidOpResourceHash: 3Ro77RTj3QlhV7zkvNIbGaitXYY=
   labels:
     app: druid
     druid_cr: druid-test
@@ -12,7 +12,7 @@ metadata:
 spec:
   ports:
   - name: service-port
-    port: 8080
+    port: 8090
     targetPort: 8080
   selector:
     app: druid

@@ -4,6 +4,7 @@ metadata:
   name: druid-test
 spec:
   image: himanshu01/druid:druid-0.12.0-1
+  servicePort: 8090
   podAnnotations:
     key1: value1
     key2: value2
