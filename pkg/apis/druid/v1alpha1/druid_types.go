@@ -29,6 +29,7 @@ import (
 type DruidClusterSpec struct {
 	Image                   string `json:"image"`
 	CommonRuntimeProperties string `json:"common.runtime.properties"`
+	StartScript             string `json:"startScript"`
 	ConfigMountPath         string `json:"configMountPath,omitempty"`
 
 	Env                  []v1.EnvVar                `json:"env,omitempty"`

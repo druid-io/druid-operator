@@ -588,7 +588,7 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 						{
 							Image:        firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),
 							Name:         fmt.Sprintf("%s", nodeSpecUniqueStr),
-							Command:      []string{"bin/run-druid.sh", nodeSpec.NodeType},
+							Command:      []string{firstNonEmptyStr(m.Spec.StartScript, "bin/run-druid.sh"), nodeSpec.NodeType},
 							Ports:        nodeSpec.Ports,
 							Resources:    nodeSpec.Resources,
 							Env:          envHolder,
