@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
@@ -505,13 +506,20 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		templateHolder = append(templateHolder, val)
 	}
 
+	mountPathBase := m.Spec.ConfigMountPath
+	if mountPathBase == "" {
+		mountPathBase = "/druid/conf/druid"
+	} else {
+		mountPathBase = strings.TrimRight(mountPathBase, "/")
+	}
+
 	volumeMountHolder := []v1.VolumeMount{
 		{
-			MountPath: "/druid/conf/druid/_common",
+			MountPath: fmt.Sprintf("%s/%s", mountPathBase, "_common"),
 			Name:      "common-config-volume",
 		},
 		{
-			MountPath: fmt.Sprintf("/druid/conf/druid/%s", nodeSpec.NodeType),
+			MountPath: fmt.Sprintf("%s/%s", mountPathBase, nodeSpec.NodeType),
 			Name:      "nodetype-config-volume",
 		},
 	}
