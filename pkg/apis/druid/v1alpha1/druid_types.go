@@ -51,6 +51,8 @@ type DruidClusterSpec struct {
 	MetadataStore *MetadataStoreSpec `json:"metadataStore"`
 	DeepStorage   *DeepStorageSpec   `json:"deepStorage"`
 	NodeSelector  map[string]string  `json:"nodeSelector,omitempty"`
+
+	Ignored       bool               `json:"ignored,omitempty"`
 }
 
 type DruidNodeSpec struct {

@@ -37,6 +37,10 @@ const (
 var logger = logf.Log.WithName("druid_operator_handler")
 
 func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
+	if m.Spec.Ignored {
+		return nil
+	}
+
 	if err := verifyDruidSpec(m); err != nil {
 		e := fmt.Errorf("Invalid DruidSpec[%s:%s] due to [%s].", m.Kind, m.Name, err.Error())
 		sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
