@@ -47,13 +47,12 @@ func TestMakeHeadlessService(t *testing.T) {
 	clusterSpec := readSampleDruidClusterSpec(t)
 
 	nodeSpecUniqueStr := makeNodeSpecificUniqueString(clusterSpec, "brokers")
-	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
 
-	actual, _ := makeHeadlessServiceForPod(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr, 0)
+	actual, _ := makeHeadlessService(nodeSpecUniqueStr, "test-namespace", makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), 8080)
 	addHashToObject(actual)
 
 	expected := new(corev1.Service)
-	readAndUnmarshallResource("testdata/broker-pod-headless-service.yaml", &expected, t)
+	readAndUnmarshallResource("testdata/broker-headless-service.yaml", &expected, t)
 
 	assertEquals(expected, actual, t)
 }

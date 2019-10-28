@@ -465,20 +465,6 @@ func makeLoadBalancerService(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid
 	return svc, nil
 }
 
-func makeHeadlessServiceForPod(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, labels map[string]string, nodeSpecUniqueStr string, replicaNum int) (*v1.Service, error) {
-	podLabels := make(map[string]string)
-	for k, v := range labels {
-		podLabels[k] = v
-	}
-	podLabels["statefulset.kubernetes.io/pod-name"] = fmt.Sprintf("%s-%d", nodeSpecUniqueStr, replicaNum)
-
-	return makeHeadlessService(
-		fmt.Sprintf("%s-%d", nodeSpecUniqueStr, replicaNum),
-		m.Namespace,
-		podLabels,
-		nodeSpec.DruidPort)
-}
-
 func makeHeadlessService(name string, namespace string, labels map[string]string, port int32) (*v1.Service, error) {
 	l := &v1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -496,6 +482,7 @@ func makeHeadlessService(name string, namespace string, labels map[string]string
 				{
 					Name: "service-port",
 					Port: port,
+					TargetPort: intstr.FromInt(int(port)),
 				},
 			},
 			Selector:  labels,
