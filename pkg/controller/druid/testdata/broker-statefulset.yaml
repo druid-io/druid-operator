@@ -6,8 +6,9 @@ metadata:
     druid_cr: druid-test
     nodeSpecUniqueStr: druid-druid-test-brokers
   name: druid-druid-test-brokers
+  namespace: test-namespace
   annotations:
-    druidOpResourceHash: +Wf+vWfMw4nTSqYM7dLLNNgId0k=
+    druidOpResourceHash: EQVRDWKNxoXucu6pZIIoUMCPbZQ=
 spec:
   podManagementPolicy: Parallel
   replicas: 2

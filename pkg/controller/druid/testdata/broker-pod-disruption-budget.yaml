@@ -6,8 +6,9 @@ metadata:
     druid_cr: druid-test
     nodeSpecUniqueStr: druid-druid-test-brokers
   name: druid-druid-test-brokers
+  namespace: test-namespace
   annotations:
-    druidOpResourceHash: LoygiLUqC0L0ZgSvz3stR3eNpVU=
+    druidOpResourceHash: iF0BSmXKN+Oi1rBfod127UnVkR0=
 spec:
   maxUnavailable: 1
   selector:

@@ -45,5 +45,6 @@ metadata:
     druid_cr: druid-test
     nodeSpecUniqueStr: druid-druid-test-brokers
   name: druid-druid-test-brokers-config
+  namespace: test-namespace
   annotations:
-    druidOpResourceHash: c7TBHjo/KKFQ/8mFQwCulRqW1oU=
+    druidOpResourceHash: 9kOh5Qyj7xud9ED6REtjhXM6zJU=

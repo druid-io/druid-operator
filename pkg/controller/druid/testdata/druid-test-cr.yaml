@@ -2,6 +2,7 @@ apiVersion: "druid.apache.org/v1alpha1"
 kind: "Druid"
 metadata:
   name: druid-test
+  namespace: test-namespace
 spec:
   image: himanshu01/druid:druid-0.12.0-1
   servicePort: 8090
@@ -103,8 +104,8 @@ spec:
       services:
          -
           spec:
-          type: ClusterIP
-          clusterIP: None
+            type: ClusterIP
+            clusterIP: None
          -
           metadata:
             name: broker-%s-service
