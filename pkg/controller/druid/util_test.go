@@ -1,8 +1,8 @@
 package druid
 
 import (
-	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	"encoding/json"
+	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	"k8s.io/api/core/v1"
 	"testing"
 )

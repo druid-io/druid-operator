@@ -103,4 +103,3 @@ func (r *ReconcileDruid) Reconcile(request reconcile.Request) (reconcile.Result,
 		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 	}
 }
-

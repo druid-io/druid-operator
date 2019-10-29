@@ -13,17 +13,17 @@ import (
 // DruidSpec defines the desired state of Druid
 // +k8s:openapi-gen=true
 //type DruidSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
+// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 //}
 
 // DruidStatus defines the observed state of Druid
 // +k8s:openapi-gen=true
 //type DruidStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
+// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 //}
 
 type DruidClusterSpec struct {
@@ -53,7 +53,7 @@ type DruidClusterSpec struct {
 	DeepStorage   *DeepStorageSpec   `json:"deepStorage"`
 	NodeSelector  map[string]string  `json:"nodeSelector,omitempty"`
 
-	Ignored       bool               `json:"ignored,omitempty"`
+	Ignored bool `json:"ignored,omitempty"`
 }
 
 type DruidNodeSpec struct {
@@ -79,18 +79,18 @@ type DruidNodeSpec struct {
 }
 
 type ZookeeperSpec struct {
-	Type string             `json:"type"`
-	Spec json.RawMessage    `json:"spec"`
+	Type string          `json:"type"`
+	Spec json.RawMessage `json:"spec"`
 }
 
 type MetadataStoreSpec struct {
-	Type string             `json:"type"`
-	Spec json.RawMessage    `json:"spec"`
+	Type string          `json:"type"`
+	Spec json.RawMessage `json:"spec"`
 }
 
 type DeepStorageSpec struct {
-	Type string             `json:"type"`
-	Spec json.RawMessage    `json:"spec"`
+	Type string          `json:"type"`
+	Spec json.RawMessage `json:"spec"`
 }
 
 type DruidClusterStatus struct {

@@ -1,10 +1,10 @@
 package druid
 
 import (
-	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
-	"github.com/druid-io/druid-operator/pkg/controller/druid/ext"
 	"encoding/json"
 	"fmt"
+	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
+	"github.com/druid-io/druid-operator/pkg/controller/druid/ext"
 	"reflect"
 )
 

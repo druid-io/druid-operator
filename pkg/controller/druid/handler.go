@@ -761,7 +761,7 @@ func verifyDruidSpec(drd *v1alpha1.Druid) error {
 		return err
 	}
 
-	for key, _ := range drd.Spec.Nodes {
+	for key := range drd.Spec.Nodes {
 		if !keyValidationRegex.MatchString(key) {
 			return fmt.Errorf("Key[%s] must match k8s resource name regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'", key)
 		}

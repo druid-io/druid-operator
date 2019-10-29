@@ -1,8 +1,8 @@
 package druid
 
 import (
-	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	"fmt"
+	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	"io/ioutil"
 	"reflect"
 	"testing"
