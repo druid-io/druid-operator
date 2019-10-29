@@ -7,22 +7,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"reflect"
-	"regexp"
-	"sort"
-	"strings"
-
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"reflect"
+	"regexp"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sort"
 )
 
 const (
@@ -506,20 +504,16 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		templateHolder = append(templateHolder, val)
 	}
 
-	mountPathBase := m.Spec.ConfigMountPath
-	if mountPathBase == "" {
-		mountPathBase = "/druid/conf/druid"
-	} else {
-		mountPathBase = strings.TrimRight(mountPathBase, "/")
-	}
+	defaultCommonConfigMountPath := "/druid/conf/druid/_common"
+	defaultNodeConfigMountPath := fmt.Sprintf("/druid/conf/druid/%s", nodeSpec.NodeType)
 
 	volumeMountHolder := []v1.VolumeMount{
 		{
-			MountPath: fmt.Sprintf("%s/%s", mountPathBase, "_common"),
+			MountPath: firstNonEmptyStr(m.Spec.CommonConfigMountPath, defaultCommonConfigMountPath),
 			Name:      "common-config-volume",
 		},
 		{
-			MountPath: fmt.Sprintf("%s/%s", mountPathBase, nodeSpec.NodeType),
+			MountPath: firstNonEmptyStr(nodeSpec.NodeConfigMountPath, defaultNodeConfigMountPath),
 			Name:      "nodetype-config-volume",
 		},
 	}

@@ -30,7 +30,7 @@ type DruidClusterSpec struct {
 	Image                   string `json:"image"`
 	CommonRuntimeProperties string `json:"common.runtime.properties"`
 	StartScript             string `json:"startScript"`
-	ConfigMountPath         string `json:"configMountPath,omitempty"`
+	CommonConfigMountPath   string `json:"commonConfigMountPath,omitempty"`
 
 	Env                  []v1.EnvVar                `json:"env,omitempty"`
 	JvmOptions           string                     `json:"jvm.options,omitempty"`
@@ -66,6 +66,7 @@ type DruidNodeSpec struct {
 	JvmOptions              string                           `json:"jvm.options,omitempty"`
 	ExtraJvmOptions         string                           `json:"extra.jvm.options,omitempty"`
 	Log4jConfig             string                           `json:"log4j.config,omitempty"`
+	NodeConfigMountPath     string                           `json:"nodeConfigMountPath,omitempty"`
 
 	Service              *v1.Service                `json:"service,omitempty"`
 	Ports                []v1.ContainerPort         `json:"ports,omitempty"`
