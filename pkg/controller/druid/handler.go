@@ -104,25 +104,20 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			return err
 		}
 
-		//create service before creating statefulset
-		if nodeSpec.Service != nil {
+		//create services before creating statefulset
+		firstServiceName := ""
+		services := firstNonNilValue(nodeSpec.Services, m.Spec.Services).([]v1.Service)
+		for _, svc := range services {
 			if err := sdkCreateOrUpdateAsNeeded(sdk,
-				func() (object, error) { return makeLoadBalancerService(&nodeSpec, m, lm, nodeSpecUniqueStr) },
+				func() (object, error) { return makeService(&svc, &nodeSpec, m, lm, nodeSpecUniqueStr) },
 				func() object { return makeServiceEmptyObj() },
 				func(prev, curr object) { (curr.(*v1.Service)).Spec.ClusterIP = (prev.(*v1.Service)).Spec.ClusterIP },
 				m, serviceNames); err != nil {
 				return err
 			}
-		}
-
-		// one more headless service required for stateful
-		if err := sdkCreateOrUpdateAsNeeded(sdk,
-			func() (object, error) {
-				return makeHeadlessService(fmt.Sprintf("%s", nodeSpecUniqueStr), m.Namespace, lm, nodeSpec.DruidPort)
-			},
-			func() object { return makeServiceEmptyObj() },
-			nil, m, serviceNames); err != nil {
-			return err
+			if firstServiceName == "" {
+				firstServiceName = svc.ObjectMeta.Name
+			}
 		}
 
 		nodeSpec.Ports = append(nodeSpec.Ports, v1.ContainerPort{ContainerPort: nodeSpec.DruidPort, Name: "druid-port"})
@@ -130,7 +125,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		// Create StatefulSet
 		if err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) {
-				return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA))
+				return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
 			},
 			func() object { return makeStatefulSetEmptyObj() },
 			nil, m, statefulSetNames); err != nil {
@@ -416,21 +411,15 @@ func makeConfigMap(name string, namespace string, labels map[string]string, data
 	}, nil
 }
 
-func makeLoadBalancerService(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*v1.Service, error) {
-	svc := nodeSpec.Service
-
+func makeService(svc *v1.Service, nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*v1.Service, error) {
 	svc.TypeMeta = metav1.TypeMeta{
 		APIVersion: "v1",
 		Kind:       "Service",
 	}
 
-	if svc.ObjectMeta.Name == "" {
-		svc.ObjectMeta.Name = fmt.Sprintf("%s-%s-service", nodeSpec.NodeType, nodeSpecUniqueStr)
-	}
+	svc.ObjectMeta.Name = getServiceName(svc.ObjectMeta.Name, nodeSpecUniqueStr)
 
-	if svc.ObjectMeta.Namespace == "" {
-		svc.ObjectMeta.Namespace = m.Namespace
-	}
+	svc.ObjectMeta.Namespace = m.Namespace
 
 	if svc.ObjectMeta.Labels == nil {
 		svc.ObjectMeta.Labels = ls
@@ -438,19 +427,6 @@ func makeLoadBalancerService(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid
 		for k, v := range ls {
 			svc.ObjectMeta.Labels[k] = v
 		}
-	}
-	var servicePort int32
-	if m.Spec.ServicePort == 0 {
-		servicePort = nodeSpec.DruidPort
-	} else {
-		servicePort = int32(m.Spec.ServicePort)
-	}
-	svc.Spec.Ports = []v1.ServicePort{
-		{
-			Name:       "service-port",
-			Port:       servicePort,
-			TargetPort: intstr.FromInt(int(nodeSpec.DruidPort)),
-		},
 	}
 
 	if svc.Spec.Selector == nil {
@@ -461,39 +437,28 @@ func makeLoadBalancerService(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid
 		}
 	}
 
+	if svc.Spec.Ports == nil {
+		svc.Spec.Ports = []v1.ServicePort{
+			{
+				Name:       "service-port",
+				Port:       nodeSpec.DruidPort,
+				TargetPort: intstr.FromInt(int(nodeSpec.DruidPort)),
+			},
+		}
+	}
+
 	return svc, nil
 }
 
-func makeHeadlessService(name string, namespace string, labels map[string]string, port int32) (*v1.Service, error) {
-	l := &v1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    labels,
-		},
-		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{
-				{
-					Name: "service-port",
-					Port: port,
-					TargetPort: intstr.FromInt(int(port)),
-				},
-			},
-			Selector:  labels,
-			Type:      "ClusterIP",
-			ClusterIP: "None",
-		},
+func getServiceName(nameTemplate, nodeSpecUniqueStr string) string {
+	if nameTemplate == "" {
+		return nodeSpecUniqueStr
+	} else {
+		return fmt.Sprintf(nameTemplate, nodeSpecUniqueStr)
 	}
-
-	return l, nil
 }
 
-func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA string) (*appsv1.StatefulSet, error) {
+func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA, serviceName string) (*appsv1.StatefulSet, error) {
 	templateHolder := []v1.PersistentVolumeClaim{}
 
 	for _, val := range m.Spec.VolumeClaimTemplates {
@@ -565,7 +530,7 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		},
 
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName:         fmt.Sprintf("%s", nodeSpecUniqueStr),
+			ServiceName:         serviceName,
 			Replicas:            &nodeSpec.Replicas,
 			PodManagementPolicy: appsv1.ParallelPodManagement,
 			Selector: &metav1.LabelSelector{
@@ -863,4 +828,5 @@ func sdkDelete(sdk client.Client, ctx context.Context, obj runtime.Object) error
 	defer resetGroupVersionKind(obj, obj.GetObjectKind().GroupVersionKind())
 	return sdk.Delete(ctx, obj)
 }
+
 //--------------------------------------------------------------------------------------------------------------------

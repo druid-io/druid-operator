@@ -104,6 +104,13 @@ func (in *DruidClusterSpec) DeepCopyInto(out *DruidClusterSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.Services != nil {
+		in, out := &in.Services, &out.Services
+		*out = make([]v1.Service, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.Nodes != nil {
 		in, out := &in.Nodes, &out.Nodes
 		*out = make(map[string]DruidNodeSpec, len(*in))
@@ -228,10 +235,12 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 		*out = new(v1beta1.PodDisruptionBudgetSpec)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Service != nil {
-		in, out := &in.Service, &out.Service
-		*out = new(v1.Service)
-		(*in).DeepCopyInto(*out)
+	if in.Services != nil {
+		in, out := &in.Services, &out.Services
+		*out = make([]v1.Service, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 	if in.Ports != nil {
 		in, out := &in.Ports, &out.Ports

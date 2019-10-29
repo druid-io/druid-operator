@@ -19,7 +19,7 @@ func TestMakeStatefulSetForBroker(t *testing.T) {
 	nodeSpecUniqueStr := makeNodeSpecificUniqueString(clusterSpec, "brokers")
 	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
 
-	actual, _ := makeStatefulSet(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr, "blah")
+	actual, _ := makeStatefulSet(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr, "blah", nodeSpecUniqueStr)
 	addHashToObject(actual)
 
 	expected := new(appsv1.StatefulSet)
@@ -47,8 +47,9 @@ func TestMakeHeadlessService(t *testing.T) {
 	clusterSpec := readSampleDruidClusterSpec(t)
 
 	nodeSpecUniqueStr := makeNodeSpecificUniqueString(clusterSpec, "brokers")
+	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
 
-	actual, _ := makeHeadlessService(nodeSpecUniqueStr, "test-namespace", makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), 8080)
+	actual, _ := makeService(&nodeSpec.Services[0], &nodeSpec, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr)
 	addHashToObject(actual)
 
 	expected := new(corev1.Service)
@@ -63,7 +64,7 @@ func TestMakeLoadBalancerService(t *testing.T) {
 	nodeSpecUniqueStr := makeNodeSpecificUniqueString(clusterSpec, "brokers")
 	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
 
-	actual, _ := makeLoadBalancerService(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr)
+	actual, _ := makeService(&nodeSpec.Services[1], &nodeSpec, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr)
 	addHashToObject(actual)
 
 	expected := new(corev1.Service)

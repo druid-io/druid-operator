@@ -100,12 +100,23 @@ spec:
   nodes:
     brokers:
       nodeType: "broker"
-      service:
-         metadata:
-           annotations:
-             service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
-         spec:
-             type: LoadBalancer
+      services:
+         -
+          spec:
+          type: ClusterIP
+          clusterIP: None
+         -
+          metadata:
+            name: broker-%s-service
+            annotations:
+              service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
+          spec:
+            type: LoadBalancer
+            ports:
+              -
+                name: service-port
+                port: 8090
+                targetPort: 8080
       druid.port: 8080
       replicas: 2
       podDisruptionBudgetSpec:
@@ -152,12 +163,6 @@ spec:
 
     coordinators:
       nodeType: "coordinator"
-      service:
-         metadata:
-           annotations:
-             service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
-         spec:
-             type: LoadBalancer
       druid.port: 8080
       replicas: 1
       ports:
@@ -239,12 +244,6 @@ spec:
 
     overlords:
       nodeType: "overlord"
-      service:
-         metadata:
-           annotations:
-             service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
-         spec:
-             type: LoadBalancer
       druid.port: 8080
       replicas: 1
       ports:

@@ -40,8 +40,7 @@ type DruidClusterSpec struct {
 	VolumeMounts         []v1.VolumeMount           `json:"volumeMounts,omitempty"`
 	Volumes              []v1.Volume                `json:"volumes,omitempty"`
 	PodAnnotations       map[string]string          `json:"podAnnotations,omitempty"`
-	//Common service port to expose druid API on LB
-	ServicePort int `json:"servicePort,omitempty"`
+	Services             []v1.Service               `json:"services,omitempty"`
 
 	// Key can be arbitrary string that helps you identify resources(pods, statefulsets etc) for specific nodeSpec.
 	// But, it is used in the resource names, so it must be compliant with restrictions
@@ -68,7 +67,7 @@ type DruidNodeSpec struct {
 	Log4jConfig             string                           `json:"log4j.config,omitempty"`
 	NodeConfigMountPath     string                           `json:"nodeConfigMountPath,omitempty"`
 
-	Service              *v1.Service                `json:"service,omitempty"`
+	Services             []v1.Service               `json:"services,omitempty"`
 	Ports                []v1.ContainerPort         `json:"ports,omitempty"`
 	Image                string                     `json:"image,omitempty"`
 	Env                  []v1.EnvVar                `json:"env,omitempty"`
