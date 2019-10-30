@@ -26,53 +26,119 @@ import (
 // Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 //}
 
+// druid-operator deploys a druid cluster from given spec below, based on the spec it would create following
+// k8s resources
+// - one ConfigMap containing common.runtime.properties
+// - for each item in the "nodes" field in spec
+//   - one StatefulSet that manages one or more Druid pods with same config)
+//   - one ConfigMap containing runtime.properties, jvm.config, log4j.xml contents to be used by above Pods
+//   - zero or more Headless/ClusterIP/LoadBalancer etc Service resources backed by above Pods
+//   - optional PodDisruptionBudget resource for the StatefulSet
+//
 type DruidClusterSpec struct {
-	Image                   string `json:"image"`
-	CommonRuntimeProperties string `json:"common.runtime.properties"`
-	StartScript             string `json:"startScript"`
-	CommonConfigMountPath   string `json:"commonConfigMountPath,omitempty"`
+	// Optional: If true, this spec would be ignored by the operator
+	Ignored bool `json:"ignored,omitempty"`
 
-	Env                  []v1.EnvVar                `json:"env,omitempty"`
-	JvmOptions           string                     `json:"jvm.options,omitempty"`
-	Log4jConfig          string                     `json:"log4j.config,omitempty"`
-	SecurityContext      *v1.PodSecurityContext     `json:"securityContext,omitempty"`
+	// Required: common.runtime.properties contents
+	CommonRuntimeProperties string `json:"common.runtime.properties"`
+
+	// Required: in-container directory to mount with common.runtime.properties
+	CommonConfigMountPath string `json:"commonConfigMountPath"`
+
+	// Required: path to druid start script to be run on container start
+	StartScript string `json:"startScript"`
+
+	// Required: Druid Docker Image
+	Image string `json:"image"`
+
+	// Optional: environment variables for druid containers
+	Env []v1.EnvVar `json:"env,omitempty"`
+
+	// Optional: jvm options for druid jvm processes
+	JvmOptions string `json:"jvm.options,omitempty"`
+
+	// Optional: log4j config contents
+	Log4jConfig string `json:"log4j.config,omitempty"`
+
+	// Optional: druid pods security-context
+	SecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
+
+	// Optional: volumes etc for the Druid pods
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 	VolumeMounts         []v1.VolumeMount           `json:"volumeMounts,omitempty"`
 	Volumes              []v1.Volume                `json:"volumes,omitempty"`
-	PodAnnotations       map[string]string          `json:"podAnnotations,omitempty"`
-	Services             []v1.Service               `json:"services,omitempty"`
 
-	// Key can be arbitrary string that helps you identify resources(pods, statefulsets etc) for specific nodeSpec.
-	// But, it is used in the resource names, so it must be compliant with restrictions
+	// Optional: custom annotations to be populated in Druid pods
+	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
+
+	// Optional: k8s service resources to be created for each Druid statefulsets
+	Services []v1.Service `json:"services,omitempty"`
+
+	// Optional: node selector to be used by Druid statefulsets
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Spec used to create StatefulSet specs etc, Many of the fields above can be overridden at the specific
+	// node spec level.
+
+	// Key in following map can be arbitrary string that helps you identify resources(pods, statefulsets etc) for specific nodeSpec.
+	// But, it is used in the k8s resource names, so it must be compliant with restrictions
 	// placed on k8s resource names.
 	// that is, it must match regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
 	Nodes map[string]DruidNodeSpec `json:"nodes"`
 
+	// futuristic stuff to make Druid dependency setup extensible from within Druid operator
+	// ignore for now.
 	Zookeeper     *ZookeeperSpec     `json:"zookeeper"`
 	MetadataStore *MetadataStoreSpec `json:"metadataStore"`
 	DeepStorage   *DeepStorageSpec   `json:"deepStorage"`
-	NodeSelector  map[string]string  `json:"nodeSelector,omitempty"`
-
-	Ignored bool `json:"ignored,omitempty"`
 }
 
 type DruidNodeSpec struct {
-	NodeType                string                           `json:"nodeType"`
-	DruidPort               int32                            `json:"druid.port"`
-	Replicas                int32                            `json:"replicas"`
-	PodDisruptionBudgetSpec *v1beta1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec"`
-	RuntimeProperties       string                           `json:"runtime.properties"`
-	JvmOptions              string                           `json:"jvm.options,omitempty"`
-	ExtraJvmOptions         string                           `json:"extra.jvm.options,omitempty"`
-	Log4jConfig             string                           `json:"log4j.config,omitempty"`
-	NodeConfigMountPath     string                           `json:"nodeConfigMountPath,omitempty"`
+	// Required: Druid node type e.g. Broker, Coordinator, Historical, MiddleManager, Router, Overlord etc
+	NodeType string `json:"nodeType"`
 
-	Services             []v1.Service               `json:"services,omitempty"`
-	Ports                []v1.ContainerPort         `json:"ports,omitempty"`
-	Image                string                     `json:"image,omitempty"`
-	Env                  []v1.EnvVar                `json:"env,omitempty"`
-	Resources            v1.ResourceRequirements    `json:"resources,omitempty"`
-	SecurityContext      *v1.PodSecurityContext     `json:"securityContext,omitempty"`
+	// Required: Port used by Druid Process
+	DruidPort int32 `json:"druid.port"`
+
+	// Required
+	Replicas int32 `json:"replicas"`
+
+	// Optional
+	PodDisruptionBudgetSpec *v1beta1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec"`
+
+	// Required
+	RuntimeProperties string `json:"runtime.properties"`
+
+	// Optional: This overrides JvmOptions at top level
+	JvmOptions string `json:"jvm.options,omitempty"`
+
+	// Optional: This appends extra jvm options to JvmOptions field
+	ExtraJvmOptions string `json:"extra.jvm.options,omitempty"`
+
+	// Optional: This overrides Log4jConfig at top level
+	Log4jConfig string `json:"log4j.config,omitempty"`
+
+	// Required: in-container directory to mount with runtime.properties, jvm.config, log4j2.xml files
+	NodeConfigMountPath string `json:"nodeConfigMountPath,omitempty"`
+
+	// Optional: Overrides services at top level
+	Services []v1.Service `json:"services,omitempty"`
+
+	// Optional: extra ports to be added to pod spec
+	Ports []v1.ContainerPort `json:"ports,omitempty"`
+
+	// Optional: Overrides image from top level
+	Image string `json:"image,omitempty"`
+
+	// Optional: Extra environment variables
+	Env []v1.EnvVar `json:"env,omitempty"`
+
+	// Optional: CPU/Memory Resources
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Optional: Overrides securityContext at top level
+	SecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
+
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 	VolumeMounts         []v1.VolumeMount           `json:"volumeMounts,omitempty"`
 	Volumes              []v1.Volume                `json:"volumes,omitempty"`
