@@ -111,6 +111,13 @@ func (in *DruidClusterSpec) DeepCopyInto(out *DruidClusterSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.NodeSelector != nil {
+		in, out := &in.NodeSelector, &out.NodeSelector
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.Nodes != nil {
 		in, out := &in.Nodes, &out.Nodes
 		*out = make(map[string]DruidNodeSpec, len(*in))
@@ -132,13 +139,6 @@ func (in *DruidClusterSpec) DeepCopyInto(out *DruidClusterSpec) {
 		in, out := &in.DeepStorage, &out.DeepStorage
 		*out = new(DeepStorageSpec)
 		(*in).DeepCopyInto(*out)
-	}
-	if in.NodeSelector != nil {
-		in, out := &in.NodeSelector, &out.NodeSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
 	}
 	return
 }

@@ -122,7 +122,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 		nodeSpec.Ports = append(nodeSpec.Ports, v1.ContainerPort{ContainerPort: nodeSpec.DruidPort, Name: "druid-port"})
 
-		// Create StatefulSet
+		// Create/Update StatefulSet
 		if err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) {
 				return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
@@ -130,6 +130,14 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			func() object { return makeStatefulSetEmptyObj() },
 			nil, m, statefulSetNames); err != nil {
 			return err
+		}
+
+		// Check StatefulSet rolling update status, if in-progress then stop here Or Create/Update StatefulSet
+		if m.Spec.RollingDeploy {
+			done, err := isStsFullyDeployed(sdk, nodeSpecUniqueStr, m)
+			if !done {
+				return err
+			}
 		}
 
 		// Create PodDisruptionBudget
@@ -311,6 +319,25 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 	}
 
 	return nil
+}
+
+// Checks if all replicas corresponding to latest updated sts have been deployed
+func isStsFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bool, error) {
+	sts := makeStatefulSetEmptyObj()
+	if err := sdk.Get(context.TODO(), *namespacedName(name, drd.Namespace), sts); err != nil {
+		e := fmt.Errorf("Failed to get [StatefuleSet:%s] due to [%s].", name, err.Error())
+		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+		sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
+		return false, e
+	} else {
+		if sts.Status.CurrentRevision != sts.Status.UpdateRevision {
+			msg := fmt.Sprintf("StatefulSet[%s] roll out is in progress CurrentRevision[%s] != UpdateRevision[%s], UpdatedReplicas[%d/%d]", name, sts.Status.CurrentRevision, sts.Status.UpdateRevision, sts.Status.UpdatedReplicas, sts.Spec.Replicas)
+			sendEvent(sdk, drd, v1.EventTypeNormal, "ROLLING_DEPLOYMENT_WAIT", msg)
+			return false, nil
+		} else {
+			return true, nil
+		}
+	}
 }
 
 func stringifyForLogging(obj object, drd *v1alpha1.Druid) string {

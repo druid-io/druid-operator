@@ -86,6 +86,12 @@ type DruidClusterSpec struct {
 	// that is, it must match regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
 	Nodes map[string]DruidNodeSpec `json:"nodes"`
 
+	// Operator deploys above list of nodes in the Druid prescribed order of Historical, Overlord, MiddleManager,
+	// Broker, Coordinator etc.
+	// Optional: If set to true then operator checks the rollout status of previous version StateSets before updating next.
+	// Used only for updates.
+	RollingDeploy bool `json:"rollingDeploy,omitempty"`
+
 	// futuristic stuff to make Druid dependency setup extensible from within Druid operator
 	// ignore for now.
 	Zookeeper     *ZookeeperSpec     `json:"zookeeper"`

@@ -98,7 +98,7 @@ func (r *ReconcileDruid) Reconcile(request reconcile.Request) (reconcile.Result,
 	}
 
 	if err := deployDruidCluster(r.client, instance); err != nil {
-		return reconcile.Result{}, deployDruidCluster(r.client, instance)
+		return reconcile.Result{}, err
 	} else {
 		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 	}
