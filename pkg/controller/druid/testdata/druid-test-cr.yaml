@@ -5,13 +5,15 @@ metadata:
   namespace: test-namespace
 spec:
   image: himanshu01/druid:druid-0.12.0-1
-  servicePort: 8090
   podAnnotations:
     key1: value1
     key2: value2
   securityContext:
     fsGroup: 107
     runAsUser: 106
+  readinessProbe:
+    httpGet:
+      path: /status
   zookeeper:
     type: default
     spec:
@@ -122,6 +124,9 @@ spec:
       replicas: 2
       podDisruptionBudgetSpec:
         maxUnavailable: 1
+      livenessProbe:
+        httpGet:
+          path: /status
       ports:
         -
           name: random

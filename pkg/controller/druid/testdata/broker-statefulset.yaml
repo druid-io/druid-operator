@@ -8,7 +8,7 @@ metadata:
   name: druid-druid-test-brokers
   namespace: test-namespace
   annotations:
-    druidOpResourceHash: EQVRDWKNxoXucu6pZIIoUMCPbZQ=
+    druidOpResourceHash: 9GZp2OIKjL1N4ns2dkviiChhWLw=
 spec:
   podManagementPolicy: Parallel
   replicas: 2
@@ -40,6 +40,14 @@ spec:
         ports:
         - containerPort: 8083
           name: random
+        readinessProbe:
+          httpGet:
+            path: /status
+            port: 8080
+        livenessProbe:
+          httpGet:
+            path: /status
+            port: 8080
         resources:
           limits:
             cpu: "4"

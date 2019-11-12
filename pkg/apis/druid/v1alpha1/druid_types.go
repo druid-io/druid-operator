@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,6 +71,18 @@ type DruidClusterSpec struct {
 
 	// Optional: custom annotations to be populated in Druid pods
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
+
+	// Optional: By default it is set to "parallel"
+	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
+
+	// Optional
+	UpdateStrategy *appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
+
+	// Optional, port is set to druid.port if not specified with httpGet handler
+	LivenessProbe *v1.Probe `json:"livenessProbe,omitempty"`
+
+	// Optional, port is set to druid.port if not specified with httpGet handler
+	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 
 	// Optional: k8s service resources to be created for each Druid statefulsets
 	Services []v1.Service `json:"services,omitempty"`
@@ -144,6 +157,21 @@ type DruidNodeSpec struct {
 
 	// Optional: Overrides securityContext at top level
 	SecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
+
+	// Optional: custom annotations to be populated in Druid pods
+	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
+
+	// Optional: By default it is set to "parallel"
+	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
+
+	// Optional
+	UpdateStrategy *appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
+
+	// Optional
+	LivenessProbe *v1.Probe `json:"livenessProbe,omitempty"`
+
+	// Optional
+	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 	VolumeMounts         []v1.VolumeMount           `json:"volumeMounts,omitempty"`
