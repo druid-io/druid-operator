@@ -29,6 +29,7 @@ const (
 	coordinator         = "coordinator"
 	overlord            = "overlord"
 	middleManager       = "middleManager"
+	indexer             = "indexer"
 	historical          = "historical"
 	router              = "router"
 )
@@ -831,6 +832,7 @@ func getAllNodeSpecsInDruidPrescribedOrder(m *v1alpha1.Druid) ([]keyAndNodeSpec,
 		historical:    make([]keyAndNodeSpec, 0, 1),
 		overlord:      make([]keyAndNodeSpec, 0, 1),
 		middleManager: make([]keyAndNodeSpec, 0, 1),
+		indexer:       make([]keyAndNodeSpec, 0, 1),
 		router:        make([]keyAndNodeSpec, 0, 1),
 	}
 
@@ -848,6 +850,7 @@ func getAllNodeSpecsInDruidPrescribedOrder(m *v1alpha1.Druid) ([]keyAndNodeSpec,
 	allNodeSpecs = append(allNodeSpecs, nodeSpecsByNodeType[historical]...)
 	allNodeSpecs = append(allNodeSpecs, nodeSpecsByNodeType[overlord]...)
 	allNodeSpecs = append(allNodeSpecs, nodeSpecsByNodeType[middleManager]...)
+	allNodeSpecs = append(allNodeSpecs, nodeSpecsByNodeType[indexer]...)
 	allNodeSpecs = append(allNodeSpecs, nodeSpecsByNodeType[broker]...)
 	allNodeSpecs = append(allNodeSpecs, nodeSpecsByNodeType[coordinator]...)
 	allNodeSpecs = append(allNodeSpecs, nodeSpecsByNodeType[router]...)
