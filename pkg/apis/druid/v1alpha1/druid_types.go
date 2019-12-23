@@ -32,7 +32,7 @@ import (
 // k8s resources
 // - one ConfigMap containing common.runtime.properties
 // - for each item in the "nodes" field in spec
-//   - one StatefulSet that manages one or more Druid pods with same config)
+//   - one StatefulSet that manages one or more Druid pods with same config
 //   - one ConfigMap containing runtime.properties, jvm.config, log4j.xml contents to be used by above Pods
 //   - zero or more Headless/ClusterIP/LoadBalancer etc Service resources backed by above Pods
 //   - optional PodDisruptionBudget resource for the StatefulSet

@@ -615,7 +615,6 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 			VolumeClaimTemplates: templateHolder,
 		},
 	}
-
 	return result, nil
 }
 
@@ -665,7 +664,7 @@ func addOwnerRefToObject(obj metav1.Object, ownerRef metav1.OwnerReference) {
 	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), ownerRef))
 }
 
-// asOwner returns an OwnerReference set as the memcached CR
+// asOwner returns an OwnerReference set as the druid CR
 func asOwner(m *v1alpha1.Druid) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{
