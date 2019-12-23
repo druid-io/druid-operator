@@ -2,8 +2,9 @@ package v1alpha1
 
 import (
 	"encoding/json"
+
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -89,6 +90,9 @@ type DruidClusterSpec struct {
 
 	// Optional: node selector to be used by Druid statefulsets
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Optional: toleration to be used in order to run Druid on nodes tainted
+	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
 
 	// Spec used to create StatefulSet specs etc, Many of the fields above can be overridden at the specific
 	// node spec level.
