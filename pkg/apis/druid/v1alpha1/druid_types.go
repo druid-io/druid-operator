@@ -94,6 +94,8 @@ type DruidClusterSpec struct {
 	// Optional: toleration to be used in order to run Druid on nodes tainted
 	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
 
+	// Optional: affinity to be used to for enabling node, pod affinity and anti-affinity
+	Affinity *v1.Affinity `json:"affinity,omitempty"`
 	// Spec used to create StatefulSet specs etc, Many of the fields above can be overridden at the specific
 	// node spec level.
 
