@@ -43,14 +43,14 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	}
 
 	if err := verifyDruidSpec(m); err != nil {
-		e := fmt.Errorf("Invalid DruidSpec[%s:%s] due to [%s].", m.Kind, m.Name, err.Error())
+		e := fmt.Errorf("invalid DruidSpec[%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
 		sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
 		return nil
 	}
 
 	allNodeSpecs, err := getAllNodeSpecsInDruidPrescribedOrder(m)
 	if err != nil {
-		e := fmt.Errorf("Invalid DruidSpec[%s:%s] due to [%s].", m.Kind, m.Name, err.Error())
+		e := fmt.Errorf("invalid DruidSpec[%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
 		sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
 		return nil
 	}
@@ -211,7 +211,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	}
 
 	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
-		e := fmt.Errorf("Failed to list pods for [%s:%s] due to [%s].", m.Kind, m.Name, err.Error())
+		e := fmt.Errorf("failed to list pods for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
 		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
 		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 	}
@@ -224,7 +224,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			return fmt.Errorf("failed to serialize status patch to bytes: %v", err)
 		}
 		if err := sdk.Patch(context.TODO(), m, client.ConstantPatch(types.MergePatchType, patchBytes)); err != nil {
-			e := fmt.Errorf("Failed to update status for [%s:%s] due to [%s].", m.Kind, m.Name, err.Error())
+			e := fmt.Errorf("failed to update status for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
 			sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
 			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 		}
@@ -245,14 +245,14 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 
 	listObj := emptyListObjFn()
 	if err := sdk.List(context.TODO(), listObj, listOpts...); err != nil {
-		e := fmt.Errorf("Failed to list [%s] due to [%s].", listObj.GetObjectKind().GroupVersionKind().Kind, err.Error())
+		e := fmt.Errorf("failed to list [%s] due to [%s]", listObj.GetObjectKind().GroupVersionKind().Kind, err.Error())
 		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
 		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 	} else {
 		for _, s := range itemsExtractorFn(listObj) {
 			if names[s.GetName()] == false {
-				if err := sdkDelete(sdk, context.TODO(), s); err != nil {
-					e := fmt.Errorf("Failed to delete [%s:%s] due to [%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName(), err.Error())
+				if err := sdkDelete(context.TODO(), sdk, s); err != nil {
+					e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName(), err.Error())
 					sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
 					logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 					survivorNames = append(survivorNames, s.GetName())
@@ -282,11 +282,11 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 		addOwnerRefToObject(obj, asOwner(drd))
 		addHashToObject(obj)
 
-		if err := sdkCreate(sdk, context.TODO(), obj); err != nil {
+		if err := sdkCreate(context.TODO(), sdk, obj); err != nil {
 			if apierrors.IsAlreadyExists(err) {
 				prevObj := emptyObjFn()
 				if err := sdk.Get(context.TODO(), *namespacedName(obj.GetName(), obj.GetNamespace()), prevObj); err != nil {
-					e := fmt.Errorf("Failed to get [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
+					e := fmt.Errorf("failed to get [%s:%s] due to [%s]", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 					logger.Error(e, e.Error(), "Prev object", stringifyForLogging(prevObj, drd), "name", drd.Name, "namespace", drd.Namespace)
 					sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
 					return e
@@ -299,7 +299,7 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 						}
 
 						if err := sdk.Update(context.TODO(), obj); err != nil {
-							e := fmt.Errorf("Failed to update [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
+							e := fmt.Errorf("failed to update [%s:%s] due to [%s]", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 							logger.Error(e, e.Error(), "Current Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
 							sendEvent(sdk, drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
 							return e
@@ -311,7 +311,7 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 					}
 				}
 			} else {
-				e := fmt.Errorf("Failed to create [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
+				e := fmt.Errorf("failed to create [%s:%s] due to [%s]", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 				logger.Error(e, e.Error(), "object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
 				sendEvent(sdk, drd, v1.EventTypeWarning, "CREATE_FAIL", e.Error())
 				return e
@@ -330,7 +330,7 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 func isStsFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bool, error) {
 	sts := makeStatefulSetEmptyObj()
 	if err := sdk.Get(context.TODO(), *namespacedName(name, drd.Namespace), sts); err != nil {
-		e := fmt.Errorf("Failed to get [StatefuleSet:%s] due to [%s].", name, err.Error())
+		e := fmt.Errorf("failed to get [StatefuleSet:%s] due to [%s]", name, err.Error())
 		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 		sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
 		return false, e
@@ -844,7 +844,7 @@ func getAllNodeSpecsInDruidPrescribedOrder(m *v1alpha1.Druid) ([]keyAndNodeSpec,
 	for key, nodeSpec := range m.Spec.Nodes {
 		nodeSpecs := nodeSpecsByNodeType[nodeSpec.NodeType]
 		if nodeSpecs == nil {
-			return nil, fmt.Errorf("DruidSpec[%s:%s] has invalid NodeType[%s]. Deployment aborted.", m.Kind, m.Name, nodeSpec.NodeType)
+			return nil, fmt.Errorf("druidSpec[%s:%s] has invalid NodeType[%s]. Deployment aborted", m.Kind, m.Name, nodeSpec.NodeType)
 		} else {
 			nodeSpecsByNodeType[nodeSpec.NodeType] = append(nodeSpecs, keyAndNodeSpec{key, nodeSpec})
 		}
@@ -882,12 +882,12 @@ func resetGroupVersionKind(obj runtime.Object, gvk schema.GroupVersionKind) {
 }
 
 // Create implements client.Client
-func sdkCreate(sdk client.Client, ctx context.Context, obj runtime.Object) error {
+func sdkCreate(ctx context.Context, sdk client.Client, obj runtime.Object) error {
 	defer resetGroupVersionKind(obj, obj.GetObjectKind().GroupVersionKind())
 	return sdk.Create(ctx, obj)
 }
 
-func sdkDelete(sdk client.Client, ctx context.Context, obj runtime.Object) error {
+func sdkDelete(ctx context.Context, sdk client.Client, obj runtime.Object) error {
 	defer resetGroupVersionKind(obj, obj.GetObjectKind().GroupVersionKind())
 	return sdk.Delete(ctx, obj)
 }
