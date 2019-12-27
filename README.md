@@ -2,6 +2,18 @@
 
 druid-operator is a kubernetes operator for deploying Druid clusters. It is built using the [operator-sdk](https://github.com/operator-framework/operator-sdk/tree/v0.11.0) . 
 
+# How to run druid-operator locally
+```
+druid-operator$ kubectl create -f deploy/service_account.yaml
+# Setup RBAC
+druid-operator$ kubectl create -f deploy/role.yaml
+druid-operator$ kubectl create -f deploy/role_binding.yaml
+# Setup the CRD
+druid-operator$ kubectl create -f deploy/crds/druid.apache.org_druids_crd.yaml
+# Run operator locally, by default operator shall look for current context in the kubeconfig
+druid-operator$ operator-sdk up local
+```
+
 # How to build druid-operator docker image
 
 Pre-built docker images are available in [DockerHub](https://hub.docker.com/r/druidio/druid-operator). You can build docker image from source code using the command below.

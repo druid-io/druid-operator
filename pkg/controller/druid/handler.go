@@ -595,6 +595,7 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 				Spec: v1.PodSpec{
 					NodeSelector: m.Spec.NodeSelector,
 					Tolerations:  m.Spec.Tolerations,
+					Affinity:     m.Spec.Affinity,
 					Containers: []v1.Container{
 						{
 							Image:          firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),
