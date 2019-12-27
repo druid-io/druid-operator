@@ -134,6 +134,18 @@ func (in *DruidClusterSpec) DeepCopyInto(out *DruidClusterSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.Tolerations != nil {
+		in, out := &in.Tolerations, &out.Tolerations
+		*out = make([]v1.Toleration, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.Affinity != nil {
+		in, out := &in.Affinity, &out.Affinity
+		*out = new(v1.Affinity)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Nodes != nil {
 		in, out := &in.Nodes, &out.Nodes
 		*out = make(map[string]DruidNodeSpec, len(*in))
