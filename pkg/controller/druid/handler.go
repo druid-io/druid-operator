@@ -6,9 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"regexp"
+	"sort"
+
 	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,11 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"reflect"
-	"regexp"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sort"
 )
 
 const (
@@ -593,6 +594,7 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 				},
 				Spec: v1.PodSpec{
 					NodeSelector: m.Spec.NodeSelector,
+					Tolerations:  m.Spec.Tolerations,
 					Containers: []v1.Container{
 						{
 							Image:          firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),
@@ -613,7 +615,6 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 			VolumeClaimTemplates: templateHolder,
 		},
 	}
-
 	return result, nil
 }
 
@@ -663,7 +664,7 @@ func addOwnerRefToObject(obj metav1.Object, ownerRef metav1.OwnerReference) {
 	obj.SetOwnerReferences(append(obj.GetOwnerReferences(), ownerRef))
 }
 
-// asOwner returns an OwnerReference set as the memcached CR
+// asOwner returns an OwnerReference set as the druid CR
 func asOwner(m *v1alpha1.Druid) metav1.OwnerReference {
 	trueVar := true
 	return metav1.OwnerReference{

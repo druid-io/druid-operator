@@ -47,6 +47,8 @@ druid-operator$ kubectl apply -f examples/tiny-cluster.yaml
 
 # Debugging Problems
 
+ - For kubernetes version 1.11 make sure to disable ```type: object``` in the CRD root spec. 
+
 ```
 # get druid-operator pod name
 druid-operator$ kubectl get po | grep druid-operator
