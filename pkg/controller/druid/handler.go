@@ -522,6 +522,15 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		},
 	}
 
+	tolerations := []v1.Toleration{}
+
+	for _, val := range m.Spec.Tolerations {
+		tolerations = append(tolerations, val)
+	}
+	for _, val := range nodeSpec.Tolerations {
+		tolerations = append(tolerations, val)
+	}
+
 	volumeMountHolder = append(volumeMountHolder, m.Spec.VolumeMounts...)
 	volumeMountHolder = append(volumeMountHolder, nodeSpec.VolumeMounts...)
 
@@ -557,6 +566,9 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 
 	updateStrategy := firstNonNilValue(m.Spec.UpdateStrategy, &appsv1.StatefulSetUpdateStrategy{}).(*appsv1.StatefulSetUpdateStrategy)
 	updateStrategy = firstNonNilValue(nodeSpec.UpdateStrategy, updateStrategy).(*appsv1.StatefulSetUpdateStrategy)
+
+	affinity := firstNonNilValue(m.Spec.Affinity, &v1.Affinity{}).(*v1.Affinity)
+	affinity = firstNonNilValue(nodeSpec.Affinity, affinity).(*v1.Affinity)
 
 	livenessProbe := updateDefaultPortInProbe(
 		firstNonNilValue(nodeSpec.LivenessProbe, m.Spec.LivenessProbe).(*v1.Probe),
@@ -594,8 +606,8 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 				},
 				Spec: v1.PodSpec{
 					NodeSelector: m.Spec.NodeSelector,
-					Tolerations:  m.Spec.Tolerations,
-					Affinity:     m.Spec.Affinity,
+					Tolerations:  tolerations,
+					Affinity:     affinity,
 					Containers: []v1.Container{
 						{
 							Image:          firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),

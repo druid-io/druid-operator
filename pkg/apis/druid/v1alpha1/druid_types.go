@@ -149,6 +149,12 @@ type DruidNodeSpec struct {
 	// Optional: Overrides services at top level
 	Services []v1.Service `json:"services,omitempty"`
 
+	// Optional: toleration to be used in order to run Druid on nodes tainted
+	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
+
+	// Optional: affinity to be used to for enabling node, pod affinity and anti-affinity
+	Affinity *v1.Affinity `json:"affinity,omitempty"`
+
 	// Optional: extra ports to be added to pod spec
 	Ports []v1.ContainerPort `json:"ports,omitempty"`
 
