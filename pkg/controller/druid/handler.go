@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"sort"
 
+	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
+
 	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -59,6 +61,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	serviceNames := make(map[string]bool)
 	configMapNames := make(map[string]bool)
 	podDisruptionBudgetNames := make(map[string]bool)
+	hpaName := make(map[string]bool)
 
 	ls := makeLabelsForDruid(m.Name)
 
@@ -148,6 +151,18 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				func() (object, error) { return makePodDisruptionBudget(&nodeSpec, m, lm, nodeSpecUniqueStr) },
 				func() object { return makePodDisruptionBudgetEmptyObj() },
 				nil, m, podDisruptionBudgetNames); err != nil {
+				return err
+			}
+		}
+
+		// Create HPA Spec
+		if nodeSpec.AutoScale != nil {
+			if err := sdkCreateOrUpdateAsNeeded(sdk,
+				func() (object, error) {
+					return makeHorizontalPodAutoscaler(&nodeSpec, m, ls, nodeSpecUniqueStr)
+				},
+				func() object { return makeHorizontalPodAutoscalerEmptyObj() },
+				nil, m, hpaName); err != nil {
 				return err
 			}
 		}
@@ -660,6 +675,25 @@ func makePodDisruptionBudget(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid
 	return pdb, nil
 }
 
+func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*autoscalev2beta1.HorizontalPodAutoscaler, error) {
+	nodeHSpec := *nodeSpec.AutoScale
+
+	hpa := &autoscalev2beta1.HorizontalPodAutoscaler{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "autoscaling/v2beta1",
+			Kind:       "HorizontalPodAutoscaler",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nodeSpecUniqueStr,
+			Namespace: m.Namespace,
+			Labels:    ls,
+		},
+		Spec: nodeHSpec,
+	}
+
+	return hpa, nil
+}
+
 // makeLabelsForDruid returns the labels for selecting the resources
 // belonging to the given memcached CR name.
 func makeLabelsForDruid(name string) map[string]string {
@@ -749,6 +783,15 @@ func makePodDisruptionBudgetEmptyObj() *v1beta1.PodDisruptionBudget {
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policy/v1beta1",
 			Kind:       "PodDisruptionBudget",
+		},
+	}
+}
+
+func makeHorizontalPodAutoscalerEmptyObj() *autoscalev2beta1.HorizontalPodAutoscaler {
+	return &autoscalev2beta1.HorizontalPodAutoscaler{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "autoscaling/v2beta1",
+			Kind:       "HorizontalPodAutoscaler",
 		},
 	}
 }

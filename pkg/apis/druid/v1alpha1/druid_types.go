@@ -2,10 +2,12 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -185,11 +187,18 @@ type DruidNodeSpec struct {
 	// Optional
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 
+	// Optional
+	AutoScale *autoscalev2beta1.HorizontalPodAutoscalerSpec `json:"autoscale,omitempty"`
+
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 	VolumeMounts         []v1.VolumeMount           `json:"volumeMounts,omitempty"`
 	Volumes              []v1.Volume                `json:"volumes,omitempty"`
 }
 
+type Autoscale struct {
+	MinReplicas *int32 `json:"minReplicas"`
+	MaxReplicas int32  `json:"maxReplicas"`
+}
 type ZookeeperSpec struct {
 	Type string          `json:"type"`
 	Spec json.RawMessage `json:"spec"`

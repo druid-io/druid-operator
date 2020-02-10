@@ -11,9 +11,7 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"./pkg/apis/druid/v1alpha1.Druid":       schema_pkg_apis_druid_v1alpha1_Druid(ref),
-		"./pkg/apis/druid/v1alpha1.DruidSpec":   schema_pkg_apis_druid_v1alpha1_DruidSpec(ref),
-		"./pkg/apis/druid/v1alpha1.DruidStatus": schema_pkg_apis_druid_v1alpha1_DruidStatus(ref),
+		"github.com/druid-operator/pkg/apis/druid/v1alpha1.Druid": schema_pkg_apis_druid_v1alpha1_Druid(ref),
 	}
 }
 
@@ -45,40 +43,18 @@ func schema_pkg_apis_druid_v1alpha1_Druid(ref common.ReferenceCallback) common.O
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/druid/v1alpha1.DruidSpec"),
+							Ref: ref("github.com/druid-operator/pkg/apis/druid/v1alpha1.DruidClusterSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/druid/v1alpha1.DruidStatus"),
+							Ref: ref("github.com/druid-operator/pkg/apis/druid/v1alpha1.DruidClusterStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/druid/v1alpha1.DruidSpec", "./pkg/apis/druid/v1alpha1.DruidStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
-	}
-}
-
-func schema_pkg_apis_druid_v1alpha1_DruidSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DruidSpec defines the desired state of Druid",
-				Type:        []string{"object"},
-			},
-		},
-	}
-}
-
-func schema_pkg_apis_druid_v1alpha1_DruidStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DruidStatus defines the observed state of Druid",
-				Type:        []string{"object"},
-			},
-		},
+			"github.com/druid-operator/pkg/apis/druid/v1alpha1.DruidClusterSpec", "github.com/druid-operator/pkg/apis/druid/v1alpha1.DruidClusterStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
