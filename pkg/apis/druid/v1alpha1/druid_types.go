@@ -195,10 +195,6 @@ type DruidNodeSpec struct {
 	Volumes              []v1.Volume                `json:"volumes,omitempty"`
 }
 
-type Autoscale struct {
-	MinReplicas *int32 `json:"minReplicas"`
-	MaxReplicas int32  `json:"maxReplicas"`
-}
 type ZookeeperSpec struct {
 	Type string          `json:"type"`
 	Spec json.RawMessage `json:"spec"`
