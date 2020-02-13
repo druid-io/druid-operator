@@ -130,7 +130,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		// Create/Update StatefulSet
 		if err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) {
-				return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
+				return makeStatefulSet(&nodeSpec, sdk, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
 			},
 			func() object { return makeStatefulSetEmptyObj() },
 			nil, m, statefulSetNames); err != nil {
@@ -512,7 +512,7 @@ func getServiceName(nameTemplate, nodeSpecUniqueStr string) string {
 	}
 }
 
-func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA, serviceName string) (*appsv1.StatefulSet, error) {
+func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, sdk client.Client, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA, serviceName string) (*appsv1.StatefulSet, error) {
 	templateHolder := []v1.PersistentVolumeClaim{}
 
 	for _, val := range m.Spec.VolumeClaimTemplates {
@@ -607,8 +607,12 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		},
 
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName:         serviceName,
-			Replicas:            &nodeSpec.Replicas,
+			ServiceName: serviceName,
+			Replicas: IntPointer(GetHPAReplicaCountOrDefault(sdk, types.NamespacedName{
+				Name:      serviceName,
+				Namespace: m.Namespace,
+			}, nodeSpec.Replicas,
+			)),
 			PodManagementPolicy: appsv1.PodManagementPolicyType(firstNonEmptyStr(firstNonEmptyStr(string(nodeSpec.PodManagementPolicy), string(m.Spec.PodManagementPolicy)), string(appsv1.ParallelPodManagement))),
 			UpdateStrategy:      *updateStrategy,
 			Selector: &metav1.LabelSelector{
@@ -920,6 +924,22 @@ func getAllNodeSpecsInDruidPrescribedOrder(m *v1alpha1.Druid) ([]keyAndNodeSpec,
 
 func namespacedName(name, namespace string) *types.NamespacedName {
 	return &types.NamespacedName{Name: name, Namespace: namespace}
+}
+func IntPointer(i int32) *int32 {
+	return &i
+}
+func GetHPAReplicaCountOrDefault(client client.Client, name types.NamespacedName, defaultReplicaCount int32) int32 {
+	var hpa autoscalev2beta1.HorizontalPodAutoscaler
+	err := client.Get(context.Background(), name, &hpa)
+	if err != nil {
+		return defaultReplicaCount
+	}
+
+	if hpa.Spec.MinReplicas != nil && hpa.Status.DesiredReplicas < *hpa.Spec.MinReplicas {
+		return *hpa.Spec.MinReplicas
+	}
+
+	return hpa.Status.DesiredReplicas
 }
 
 //-------------------------------------------
