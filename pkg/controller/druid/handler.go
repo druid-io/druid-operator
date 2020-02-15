@@ -61,7 +61,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	serviceNames := make(map[string]bool)
 	configMapNames := make(map[string]bool)
 	podDisruptionBudgetNames := make(map[string]bool)
-	hpaName := make(map[string]bool)
+	hpaNames := make(map[string]bool)
 
 	ls := makeLabelsForDruid(m.Name)
 
@@ -130,7 +130,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		// Create/Update StatefulSet
 		if err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) {
-				return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
+				return makeStatefulSet(&nodeSpec, sdk, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
 			},
 			func() object { return makeStatefulSetEmptyObj() },
 			nil, m, statefulSetNames); err != nil {
@@ -156,13 +156,13 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 
 		// Create HPA Spec
-		if nodeSpec.AutoScale != nil {
+		if nodeSpec.AutoScaler != nil {
 			if err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) {
 					return makeHorizontalPodAutoscaler(&nodeSpec, m, ls, nodeSpecUniqueStr)
 				},
 				func() object { return makeHorizontalPodAutoscalerEmptyObj() },
-				nil, m, hpaName); err != nil {
+				nil, m, hpaNames); err != nil {
 				return err
 			}
 		}
@@ -512,7 +512,7 @@ func getServiceName(nameTemplate, nodeSpecUniqueStr string) string {
 	}
 }
 
-func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA, serviceName string) (*appsv1.StatefulSet, error) {
+func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, sdk client.Client, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA, serviceName string) (*appsv1.StatefulSet, error) {
 	templateHolder := []v1.PersistentVolumeClaim{}
 
 	for _, val := range m.Spec.VolumeClaimTemplates {
@@ -607,8 +607,12 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		},
 
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName:         serviceName,
-			Replicas:            &nodeSpec.Replicas,
+			ServiceName: serviceName,
+			Replicas: IntPointer(GetHPAReplicaCountOrDefault(sdk, types.NamespacedName{
+				Name:      serviceName,
+				Namespace: m.Namespace,
+			}, nodeSpec.Replicas,
+			)),
 			PodManagementPolicy: appsv1.PodManagementPolicyType(firstNonEmptyStr(firstNonEmptyStr(string(nodeSpec.PodManagementPolicy), string(m.Spec.PodManagementPolicy)), string(appsv1.ParallelPodManagement))),
 			UpdateStrategy:      *updateStrategy,
 			Selector: &metav1.LabelSelector{
@@ -676,7 +680,7 @@ func makePodDisruptionBudget(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid
 }
 
 func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*autoscalev2beta1.HorizontalPodAutoscaler, error) {
-	nodeHSpec := *nodeSpec.AutoScale
+	nodeHSpec := *nodeSpec.AutoScaler
 
 	hpa := &autoscalev2beta1.HorizontalPodAutoscaler{
 		TypeMeta: metav1.TypeMeta{
@@ -920,6 +924,26 @@ func getAllNodeSpecsInDruidPrescribedOrder(m *v1alpha1.Druid) ([]keyAndNodeSpec,
 
 func namespacedName(name, namespace string) *types.NamespacedName {
 	return &types.NamespacedName{Name: name, Namespace: namespace}
+}
+
+// IntPointer returns a pointer to int32.
+func IntPointer(i int32) *int32 {
+	return &i
+}
+
+// GetHPAReplicaCountOrDefault returns the count of pods in case hpa is mentioned.
+func GetHPAReplicaCountOrDefault(client client.Client, name types.NamespacedName, defaultReplicaCount int32) int32 {
+	var hpa autoscalev2beta1.HorizontalPodAutoscaler
+	err := client.Get(context.Background(), name, &hpa)
+	if err != nil {
+		return defaultReplicaCount
+	}
+
+	if hpa.Spec.MinReplicas != nil && hpa.Status.DesiredReplicas < *hpa.Spec.MinReplicas {
+		return *hpa.Spec.MinReplicas
+	}
+
+	return hpa.Status.DesiredReplicas
 }
 
 //-------------------------------------------
