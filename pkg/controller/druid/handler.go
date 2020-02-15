@@ -61,7 +61,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	serviceNames := make(map[string]bool)
 	configMapNames := make(map[string]bool)
 	podDisruptionBudgetNames := make(map[string]bool)
-	hpaName := make(map[string]bool)
+	hpaNames := make(map[string]bool)
 
 	ls := makeLabelsForDruid(m.Name)
 
@@ -156,13 +156,13 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 
 		// Create HPA Spec
-		if nodeSpec.AutoScale != nil {
+		if nodeSpec.AutoScaler != nil {
 			if err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) {
 					return makeHorizontalPodAutoscaler(&nodeSpec, m, ls, nodeSpecUniqueStr)
 				},
 				func() object { return makeHorizontalPodAutoscalerEmptyObj() },
-				nil, m, hpaName); err != nil {
+				nil, m, hpaNames); err != nil {
 				return err
 			}
 		}
@@ -680,7 +680,7 @@ func makePodDisruptionBudget(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid
 }
 
 func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*autoscalev2beta1.HorizontalPodAutoscaler, error) {
-	nodeHSpec := *nodeSpec.AutoScale
+	nodeHSpec := *nodeSpec.AutoScaler
 
 	hpa := &autoscalev2beta1.HorizontalPodAutoscaler{
 		TypeMeta: metav1.TypeMeta{
@@ -925,9 +925,13 @@ func getAllNodeSpecsInDruidPrescribedOrder(m *v1alpha1.Druid) ([]keyAndNodeSpec,
 func namespacedName(name, namespace string) *types.NamespacedName {
 	return &types.NamespacedName{Name: name, Namespace: namespace}
 }
+
+// IntPointer returns a pointer to int32.
 func IntPointer(i int32) *int32 {
 	return &i
 }
+
+// GetHPAReplicaCountOrDefault returns the count of pods in case hpa is mentioned.
 func GetHPAReplicaCountOrDefault(client client.Client, name types.NamespacedName, defaultReplicaCount int32) int32 {
 	var hpa autoscalev2beta1.HorizontalPodAutoscaler
 	err := client.Get(context.Background(), name, &hpa)
