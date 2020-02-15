@@ -7,20 +7,23 @@ import (
 	"testing"
 
 	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/ghodss/yaml"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
 )
 
-/*
 func TestMakeStatefulSetForBroker(t *testing.T) {
 	clusterSpec := readSampleDruidClusterSpec(t)
+
+	var client client.Client
 
 	nodeSpecUniqueStr := makeNodeSpecificUniqueString(clusterSpec, "brokers")
 	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
 
-	actual, _ := makeStatefulSet(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr, "blah", nodeSpecUniqueStr)
+	actual, _ := makeStatefulSet(&nodeSpec, client, clusterSpec, makeLabelsForNodeSpec(clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr, "blah", nodeSpecUniqueStr)
 	addHashToObject(actual)
 
 	expected := new(appsv1.StatefulSet)
@@ -28,7 +31,7 @@ func TestMakeStatefulSetForBroker(t *testing.T) {
 
 	assertEquals(expected, actual, t)
 }
-*/
+
 func TestMakePodDisruptionBudgetForBroker(t *testing.T) {
 	clusterSpec := readSampleDruidClusterSpec(t)
 
