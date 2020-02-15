@@ -1,7 +1,7 @@
 apiVersion: "druid.apache.org/v1alpha1"
 kind: "Druid"
 metadata:
-  name: adheip
+  name: tiny-cluster
 spec:
   image: apache/incubator-druid:0.16.0-incubating
   startScript: /druid.sh
@@ -91,7 +91,7 @@ spec:
         limits:
           memory: "2G"
           cpu: "2"
-      autoscale:
+      autoscaler:
         maxReplicas: 10
         minReplicas: 3
         scaleTargetRef:
@@ -137,7 +137,7 @@ spec:
         limits:
           memory: "2G"
           cpu: "2"
-      autoscale:
+      autoscaler:
         maxReplicas: 10
         minReplicas: 1
         scaleTargetRef:
@@ -180,7 +180,7 @@ spec:
         limits:
           memory: "2G"
           cpu: "2"
-      autoscale:
+      autoscaler:
         maxReplicas: 10
         minReplicas: 1
         scaleTargetRef:
