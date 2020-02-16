@@ -64,7 +64,6 @@ spec:
       nodeType: "broker"
       druid.port: 8088
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/query/broker"
-      replicas: 1
       runtime.properties: |
         druid.service=druid/broker
         # HTTP server threads
@@ -108,7 +107,6 @@ spec:
       nodeType: "coordinator"
       druid.port: 8088
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/master/coordinator-overlord"
-      replicas: 1
       runtime.properties: |
         druid.service=druid/coordinator
 
@@ -154,7 +152,6 @@ spec:
       nodeType: "historical"
       druid.port: 8088
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/data/historical"
-      replicas: 1
       runtime.properties: |
         druid.service=druid/historical
         druid.server.http.numThreads=5
