@@ -8,7 +8,7 @@ metadata:
   name: druid-druid-test-brokers
   namespace: test-namespace
   annotations:
-    druidOpResourceHash: 9GZp2OIKjL1N4ns2dkviiChhWLw=
+    druidOpResourceHash: JvDKxq3cBaf0FBXMscfcQ/RXrcs=
 spec:
   podManagementPolicy: Parallel
   replicas: 2
@@ -28,6 +28,8 @@ spec:
         key1: value1
         key2: value2
     spec:
+      tolerations: []
+      affinity: {}
       containers:
       - command:
         - bin/run-druid.sh
