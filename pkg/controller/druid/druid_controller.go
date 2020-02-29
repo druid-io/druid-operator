@@ -3,7 +3,7 @@ package druid
 import (
 	"context"
 	"time"
-
+l"log"
 	druidv1alpha1 "github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -95,6 +95,14 @@ func (r *ReconcileDruid) Reconcile(request reconcile.Request) (reconcile.Result,
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
+	}
+
+	validator := Validator{}
+	validator.Validate(instance)
+
+	if !validator.Validated {
+		l.Printf(validator.ErrorMessage)
+		return reconcile.Result{}, nil
 	}
 
 	if err := deployDruidCluster(r.client, instance); err != nil {
