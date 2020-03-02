@@ -156,7 +156,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 
 		// Create HPA Spec
-		if nodeSpec.AutoScaler != nil {
+		if nodeSpec.HPAutoScaler != nil {
 			if err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) {
 					return makeHorizontalPodAutoscaler(&nodeSpec, m, ls, nodeSpecUniqueStr)
@@ -680,7 +680,7 @@ func makePodDisruptionBudget(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid
 }
 
 func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*autoscalev2beta1.HorizontalPodAutoscaler, error) {
-	nodeHSpec := *nodeSpec.AutoScaler
+	nodeHSpec := *nodeSpec.HPAutoScaler
 
 	hpa := &autoscalev2beta1.HorizontalPodAutoscaler{
 		TypeMeta: metav1.TypeMeta{
