@@ -90,7 +90,7 @@ spec:
         limits:
           memory: "2G"
           cpu: "2"
-      autoscaler:
+      hpAutoscaler:
         maxReplicas: 10
         minReplicas: 3
         scaleTargetRef:
@@ -135,7 +135,7 @@ spec:
         limits:
           memory: "2G"
           cpu: "2"
-      autoscaler:
+      hpAutoscaler:
         maxReplicas: 10
         minReplicas: 1
         scaleTargetRef:
@@ -177,17 +177,6 @@ spec:
         limits:
           memory: "2G"
           cpu: "2"
-      autoscaler:
-        maxReplicas: 10
-        minReplicas: 1
-        scaleTargetRef:
-            apiVersion: apps/v1
-            kind: StatefulSet
-            name: druid-tiny-cluster-historicals  
-        metrics:
-         - type: Resource
-           resource:
-            name: cpu
-            targetAverageUtilization: 60
+      
      
      

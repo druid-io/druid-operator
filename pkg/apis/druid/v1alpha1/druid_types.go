@@ -188,7 +188,7 @@ type DruidNodeSpec struct {
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 
 	// Optional
-	AutoScaler *autoscalev2beta1.HorizontalPodAutoscalerSpec `json:"autoscaler,omitempty"`
+	HPAutoScaler *autoscalev2beta1.HorizontalPodAutoscalerSpec `json:"hpAutoscaler,omitempty"`
 
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 	VolumeMounts         []v1.VolumeMount           `json:"volumeMounts,omitempty"`
