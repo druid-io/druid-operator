@@ -282,44 +282,46 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 		addOwnerRefToObject(obj, asOwner(drd))
 		addHashToObject(obj)
 
-		if err := sdkCreate(context.TODO(), sdk, obj); err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				prevObj := emptyObjFn()
-				if err := sdk.Get(context.TODO(), *namespacedName(obj.GetName(), obj.GetNamespace()), prevObj); err != nil {
-					e := fmt.Errorf("failed to get [%s:%s] due to [%s]", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
-					logger.Error(e, e.Error(), "Prev object", stringifyForLogging(prevObj, drd), "name", drd.Name, "namespace", drd.Namespace)
-					sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
+		prevObj := emptyObjFn()
+		if err := sdk.Get(context.TODO(), *namespacedName(obj.GetName(), obj.GetNamespace()), prevObj); err != nil {
+			if apierrors.IsNotFound(err) {
+				// resource does not exist, create it.
+				if err := sdkCreate(sdk, context.TODO(), obj); err != nil {
+					e := fmt.Errorf("Failed to create [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
+					logger.Error(e, e.Error(), "object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace, "errorType", apierrors.ReasonForError(err))
+					sendEvent(sdk, drd, v1.EventTypeWarning, "CREATE_FAIL", e.Error())
 					return e
 				} else {
-					if obj.GetAnnotations()[druidOpResourceHash] != prevObj.GetAnnotations()[druidOpResourceHash] {
-
-						obj.SetResourceVersion(prevObj.GetResourceVersion())
-						if updaterFn != nil {
-							updaterFn(prevObj, obj)
-						}
-
-						if err := sdk.Update(context.TODO(), obj); err != nil {
-							e := fmt.Errorf("failed to update [%s:%s] due to [%s]", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
-							logger.Error(e, e.Error(), "Current Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
-							sendEvent(sdk, drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-							return e
-						} else {
-							msg := fmt.Sprintf("Updated [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
-							logger.Info(msg, "Prev Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
-							sendEvent(sdk, drd, v1.EventTypeNormal, "UPDATE_SUCCESS", msg)
-						}
-					}
+					msg := fmt.Sprintf("Created [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
+					logger.Info(msg, "Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
+					sendEvent(sdk, drd, v1.EventTypeNormal, "CREATE_SUCCESS", msg)
 				}
 			} else {
-				e := fmt.Errorf("failed to create [%s:%s] due to [%s]", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
-				logger.Error(e, e.Error(), "object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
-				sendEvent(sdk, drd, v1.EventTypeWarning, "CREATE_FAIL", e.Error())
+				e := fmt.Errorf("Failed to get [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
+				logger.Error(e, e.Error(), "Prev object", stringifyForLogging(prevObj, drd), "name", drd.Name, "namespace", drd.Namespace)
+				sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
 				return e
 			}
 		} else {
-			msg := fmt.Sprintf("Created [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
-			logger.Info(msg, "Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
-			sendEvent(sdk, drd, v1.EventTypeNormal, "CREATE_SUCCESS", msg)
+			// resource already exists, updated it if needed
+			if obj.GetAnnotations()[druidOpResourceHash] != prevObj.GetAnnotations()[druidOpResourceHash] {
+
+				obj.SetResourceVersion(prevObj.GetResourceVersion())
+				if updaterFn != nil {
+					updaterFn(prevObj, obj)
+				}
+
+				if err := sdk.Update(context.TODO(), obj); err != nil {
+					e := fmt.Errorf("Failed to update [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
+					logger.Error(e, e.Error(), "Current Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
+					sendEvent(sdk, drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
+					return e
+				} else {
+					msg := fmt.Sprintf("Updated [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
+					logger.Info(msg, "Prev Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
+					sendEvent(sdk, drd, v1.EventTypeNormal, "UPDATE_SUCCESS", msg)
+				}
+			}
 		}
 	}
 
@@ -844,12 +846,12 @@ type keyAndNodeSpec struct {
 // Recommended prescribed order is described at http://druid.io/docs/latest/operations/rolling-updates.html
 func getAllNodeSpecsInDruidPrescribedOrder(m *v1alpha1.Druid) ([]keyAndNodeSpec, error) {
 	nodeSpecsByNodeType := map[string][]keyAndNodeSpec{
-		broker:        make([]keyAndNodeSpec, 0, 1),
-		coordinator:   make([]keyAndNodeSpec, 0, 1),
 		historical:    make([]keyAndNodeSpec, 0, 1),
 		overlord:      make([]keyAndNodeSpec, 0, 1),
 		middleManager: make([]keyAndNodeSpec, 0, 1),
 		indexer:       make([]keyAndNodeSpec, 0, 1),
+		broker:        make([]keyAndNodeSpec, 0, 1),
+		coordinator:   make([]keyAndNodeSpec, 0, 1),
 		router:        make([]keyAndNodeSpec, 0, 1),
 	}
 
