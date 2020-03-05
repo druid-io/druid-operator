@@ -286,7 +286,7 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 		if err := sdk.Get(context.TODO(), *namespacedName(obj.GetName(), obj.GetNamespace()), prevObj); err != nil {
 			if apierrors.IsNotFound(err) {
 				// resource does not exist, create it.
-				if err := sdkCreate(sdk, context.TODO(), obj); err != nil {
+				if err := sdkCreate(context.TODO(), sdk, obj); err != nil {
 					e := fmt.Errorf("Failed to create [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 					logger.Error(e, e.Error(), "object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace, "errorType", apierrors.ReasonForError(err))
 					sendEvent(sdk, drd, v1.EventTypeWarning, "CREATE_FAIL", e.Error())
