@@ -922,7 +922,6 @@ func namespacedName(name, namespace string) *types.NamespacedName {
 	return &types.NamespacedName{Name: name, Namespace: namespace}
 }
 
-
 //-------------------------------------------
 // resetGroupVersionKind func is copied from controller-runtime/pkg/client/client.go to retain TypeMeta
 // on sdk.Create/Delete , PATCH/UPDATE already retain that
