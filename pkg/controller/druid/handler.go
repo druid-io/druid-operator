@@ -922,10 +922,6 @@ func namespacedName(name, namespace string) *types.NamespacedName {
 	return &types.NamespacedName{Name: name, Namespace: namespace}
 }
 
-// IntPointer returns a pointer to int32.
-func IntPointer(i int32) *int32 {
-	return &i
-}
 
 //-------------------------------------------
 // resetGroupVersionKind func is copied from controller-runtime/pkg/client/client.go to retain TypeMeta
