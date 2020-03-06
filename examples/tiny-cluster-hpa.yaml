@@ -63,6 +63,7 @@ spec:
     brokers:
       nodeType: "broker"
       druid.port: 8088
+      replicas: 1
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/query/broker"
       runtime.properties: |
         druid.service=druid/broker
@@ -92,7 +93,7 @@ spec:
           cpu: "2"
       hpAutoscaler:
         maxReplicas: 10
-        minReplicas: 3
+        minReplicas: 1
         scaleTargetRef:
            apiVersion: apps/v1
            kind: StatefulSet
@@ -128,6 +129,7 @@ spec:
       volumes:
         - name: data-volume
           emptyDir: {}
+      replicas: 1
       resources:
         requests:
           memory: "2G"
@@ -151,6 +153,7 @@ spec:
     historicals:
       nodeType: "historical"
       druid.port: 8088
+      replicas: 1
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/data/historical"
       runtime.properties: |
         druid.service=druid/historical

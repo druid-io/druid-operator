@@ -130,7 +130,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		// Create/Update StatefulSet
 		if err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) {
-				return makeStatefulSet(&nodeSpec, sdk, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
+				return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
 			},
 			func() object { return makeStatefulSetEmptyObj() },
 			nil, m, statefulSetNames); err != nil {
@@ -512,7 +512,7 @@ func getServiceName(nameTemplate, nodeSpecUniqueStr string) string {
 	}
 }
 
-func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, sdk client.Client, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA, serviceName string) (*appsv1.StatefulSet, error) {
+func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA, serviceName string) (*appsv1.StatefulSet, error) {
 	templateHolder := []v1.PersistentVolumeClaim{}
 
 	for _, val := range m.Spec.VolumeClaimTemplates {
@@ -608,7 +608,7 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, sdk client.Client, m *v1a
 
 		Spec: appsv1.StatefulSetSpec{
 			ServiceName: serviceName,
-			Replicas: IntPointer(GetHPAReplicaCountOrDefault(sdk, types.NamespacedName{
+			Replicas: IntPointer(GetHPAReplicaCountOrDefault(types.NamespacedName{
 				Name:      serviceName,
 				Namespace: m.Namespace,
 			}, nodeSpec.Replicas,
@@ -932,9 +932,11 @@ func IntPointer(i int32) *int32 {
 }
 
 // GetHPAReplicaCountOrDefault returns the count of pods in case hpa is mentioned.
-func GetHPAReplicaCountOrDefault(client client.Client, name types.NamespacedName, defaultReplicaCount int32) int32 {
+func GetHPAReplicaCountOrDefault(name types.NamespacedName, defaultReplicaCount int32) int32 {
 	var hpa autoscalev2beta1.HorizontalPodAutoscaler
-	err := client.Get(context.Background(), name, &hpa)
+	var nodeSpec v1alpha1.DruidNodeSpec
+
+	err := &nodeSpec.Replicas
 	if err != nil {
 		return defaultReplicaCount
 	}
