@@ -2,10 +2,11 @@ package druid
 
 import (
 	"fmt"
-	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	"io/ioutil"
 	"reflect"
 	"testing"
+
+	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 
 	"github.com/ghodss/yaml"
 	appsv1 "k8s.io/api/apps/v1"
