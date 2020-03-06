@@ -607,12 +607,8 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		},
 
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName: serviceName,
-			Replicas: IntPointer(GetHPAReplicaCountOrDefault(types.NamespacedName{
-				Name:      serviceName,
-				Namespace: m.Namespace,
-			}, nodeSpec.Replicas,
-			)),
+			ServiceName:         serviceName,
+			Replicas:            &nodeSpec.Replicas,
 			PodManagementPolicy: appsv1.PodManagementPolicyType(firstNonEmptyStr(firstNonEmptyStr(string(nodeSpec.PodManagementPolicy), string(m.Spec.PodManagementPolicy)), string(appsv1.ParallelPodManagement))),
 			UpdateStrategy:      *updateStrategy,
 			Selector: &metav1.LabelSelector{
@@ -929,23 +925,6 @@ func namespacedName(name, namespace string) *types.NamespacedName {
 // IntPointer returns a pointer to int32.
 func IntPointer(i int32) *int32 {
 	return &i
-}
-
-// GetHPAReplicaCountOrDefault returns the count of pods in case hpa is mentioned.
-func GetHPAReplicaCountOrDefault(name types.NamespacedName, defaultReplicaCount int32) int32 {
-	var hpa autoscalev2beta1.HorizontalPodAutoscaler
-	var nodeSpec v1alpha1.DruidNodeSpec
-
-	err := &nodeSpec.Replicas
-	if err != nil {
-		return defaultReplicaCount
-	}
-
-	if hpa.Spec.MinReplicas != nil && hpa.Status.DesiredReplicas < *hpa.Spec.MinReplicas {
-		return *hpa.Spec.MinReplicas
-	}
-
-	return hpa.Status.DesiredReplicas
 }
 
 //-------------------------------------------
