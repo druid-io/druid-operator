@@ -215,6 +215,7 @@ type DruidClusterStatus struct {
 	Services             []string `json:"services,omitempty"`
 	ConfigMaps           []string `json:"configMaps,omitempty"`
 	PodDisruptionBudgets []string `json:"podDisruptionBudgets,omitempty"`
+	HPAutoScalers        []string `json:"hpAutoscalers,omitempty"`
 	Pods                 []string `json:"pods,omitempty"`
 }
 

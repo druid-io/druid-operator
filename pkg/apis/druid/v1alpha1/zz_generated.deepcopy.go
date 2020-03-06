@@ -205,6 +205,11 @@ func (in *DruidClusterStatus) DeepCopyInto(out *DruidClusterStatus) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.HPAutoScalers != nil {
+		in, out := &in.HPAutoScalers, &out.HPAutoScalers
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.Pods != nil {
 		in, out := &in.Pods, &out.Pods
 		*out = make([]string, len(*in))

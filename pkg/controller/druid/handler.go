@@ -183,6 +183,18 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		})
 	sort.Strings(updatedStatus.StatefulSets)
 
+	updatedStatus.HPAutoScalers = deleteUnusedResources(sdk, m, hpaNames, ls,
+		func() runtime.Object { return makeHorizontalPodAutoscalerListEmptyObj() },
+		func(listObj runtime.Object) []object {
+			items := listObj.(*autoscalev2beta1.HorizontalPodAutoscalerList).Items
+			result := make([]object, len(items))
+			for i := 0; i < len(items); i++ {
+				result[i] = &items[i]
+			}
+			return result
+		})
+	sort.Strings(updatedStatus.HPAutoScalers)
+
 	updatedStatus.PodDisruptionBudgets = deleteUnusedResources(sdk, m, podDisruptionBudgetNames, ls,
 		func() runtime.Object { return makePodDisruptionBudgetListEmptyObj() },
 		func(listObj runtime.Object) []object {
@@ -749,6 +761,15 @@ func makePodDisruptionBudgetListEmptyObj() *v1beta1.PodDisruptionBudgetList {
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "policy/v1beta1",
 			Kind:       "PodDisruptionBudget",
+		},
+	}
+}
+
+func makeHorizontalPodAutoscalerListEmptyObj() *autoscalev2beta1.HorizontalPodAutoscalerList {
+	return &autoscalev2beta1.HorizontalPodAutoscalerList{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "autoscaling/v2beta1",
+			Kind:       "HorizontalPodAutoscaler",
 		},
 	}
 }
