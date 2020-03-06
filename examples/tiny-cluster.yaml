@@ -36,10 +36,12 @@ spec:
         </Loggers>
     </Configuration>
   common.runtime.properties: |
+
     # Zookeeper
     druid.zk.service.host=tiny-cluster-zk-0.tiny-cluster-zk
     druid.zk.paths.base=/druid
     druid.zk.service.compress=false
+
     # Metadata Store
     druid.metadata.storage.type=derby
     druid.metadata.storage.type=derby
@@ -47,13 +49,16 @@ spec:
     druid.metadata.storage.connector.host=localhost
     druid.metadata.storage.connector.port=1527
     druid.metadata.storage.connector.createTables=true
+
     # Deep Storage
     druid.storage.type=local
     druid.storage.storageDirectory=/druid/data/deepstorage
+
     #
     # Extensions
     #
     druid.extensions.loadList=["druid-s3-extensions"]
+
     #
     # Service discovery
     #
@@ -67,9 +72,11 @@ spec:
       replicas: 1
       runtime.properties: |
         druid.service=druid/broker
+
         # HTTP server threads
         druid.broker.http.numConnections=5
         druid.server.http.numThreads=10
+
         # Processing threads and buffers
         druid.processing.buffer.sizeBytes=1
         druid.processing.numMergeBuffers=1
@@ -99,9 +106,11 @@ spec:
       replicas: 1
       runtime.properties: |
         druid.service=druid/coordinator
+
         # HTTP server threads
         druid.coordinator.startDelay=PT30S
         druid.coordinator.period=PT30S
+
         # Configure this coordinator to also run as Overlord
         druid.coordinator.asOverlord.enabled=true
         druid.coordinator.asOverlord.overlordService=druid/overlord
