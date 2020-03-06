@@ -35,6 +35,8 @@ const (
 	indexer             = "indexer"
 	historical          = "historical"
 	router              = "router"
+	resourceCreated     = "CREATED"
+	resourceUpdated     = "UPDATED"
 )
 
 var logger = logf.Log.WithName("druid_operator_handler")
@@ -74,7 +76,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		return err
 	}
 
-	if err := sdkCreateOrUpdateAsNeeded(sdk,
+	if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 		func() (object, error) { return makeCommonConfigMap(m, ls) },
 		func() object { return makeConfigMapEmptyObj() },
 		nil, m, configMapNames); err != nil {
@@ -102,7 +104,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			return err
 		}
 
-		if err := sdkCreateOrUpdateAsNeeded(sdk,
+		if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) { return nodeConfig, nil },
 			func() object { return makeConfigMapEmptyObj() },
 			nil, m, configMapNames); err != nil {
@@ -113,7 +115,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		firstServiceName := ""
 		services := firstNonNilValue(nodeSpec.Services, m.Spec.Services).([]v1.Service)
 		for _, svc := range services {
-			if err := sdkCreateOrUpdateAsNeeded(sdk,
+			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) { return makeService(&svc, &nodeSpec, m, lm, nodeSpecUniqueStr) },
 				func() object { return makeServiceEmptyObj() },
 				func(prev, curr object) { (curr.(*v1.Service)).Spec.ClusterIP = (prev.(*v1.Service)).Spec.ClusterIP },
@@ -128,17 +130,21 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		nodeSpec.Ports = append(nodeSpec.Ports, v1.ContainerPort{ContainerPort: nodeSpec.DruidPort, Name: "druid-port"})
 
 		// Create/Update StatefulSet
-		if err := sdkCreateOrUpdateAsNeeded(sdk,
+		if stsCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) {
 				return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
 			},
 			func() object { return makeStatefulSetEmptyObj() },
 			nil, m, statefulSetNames); err != nil {
 			return err
-		}
+		} else if m.Spec.RollingDeploy {
 
-		// Check StatefulSet rolling update status, if in-progress then stop here Or Create/Update StatefulSet
-		if m.Spec.RollingDeploy {
+			if stsCreateUpdateStatus == resourceUpdated {
+				// we just updated, give sts controller some time to update status of replicas after update
+				return nil
+			}
+
+			// Check StatefulSet rolling update status, if in-progress then stop here
 			done, err := isStsFullyDeployed(sdk, nodeSpecUniqueStr, m)
 			if !done {
 				return err
@@ -147,7 +153,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 		// Create PodDisruptionBudget
 		if nodeSpec.PodDisruptionBudgetSpec != nil {
-			if err := sdkCreateOrUpdateAsNeeded(sdk,
+			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) { return makePodDisruptionBudget(&nodeSpec, m, lm, nodeSpecUniqueStr) },
 				func() object { return makePodDisruptionBudgetEmptyObj() },
 				nil, m, podDisruptionBudgetNames); err != nil {
@@ -157,7 +163,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 		// Create HPA Spec
 		if nodeSpec.HPAutoScaler != nil {
-			if err := sdkCreateOrUpdateAsNeeded(sdk,
+			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) {
 					return makeHorizontalPodAutoscaler(&nodeSpec, m, ls, nodeSpecUniqueStr)
 				},
@@ -300,9 +306,9 @@ type object interface {
 	runtime.Object
 }
 
-func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), emptyObjFn func() object, updaterFn func(prev, curr object), drd *v1alpha1.Druid, names map[string]bool) error {
+func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), emptyObjFn func() object, updaterFn func(prev, curr object), drd *v1alpha1.Druid, names map[string]bool) (string, error) {
 	if obj, err := objFn(); err != nil {
-		return err
+		return "", err
 	} else {
 		names[obj.GetName()] = true
 
@@ -317,17 +323,18 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 					e := fmt.Errorf("Failed to create [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 					logger.Error(e, e.Error(), "object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace, "errorType", apierrors.ReasonForError(err))
 					sendEvent(sdk, drd, v1.EventTypeWarning, "CREATE_FAIL", e.Error())
-					return e
+					return "", e
 				} else {
 					msg := fmt.Sprintf("Created [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
 					logger.Info(msg, "Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
 					sendEvent(sdk, drd, v1.EventTypeNormal, "CREATE_SUCCESS", msg)
+					return resourceCreated, nil
 				}
 			} else {
 				e := fmt.Errorf("Failed to get [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 				logger.Error(e, e.Error(), "Prev object", stringifyForLogging(prevObj, drd), "name", drd.Name, "namespace", drd.Namespace)
 				sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
-				return e
+				return "", e
 			}
 		} else {
 			// resource already exists, updated it if needed
@@ -342,17 +349,18 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 					e := fmt.Errorf("Failed to update [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 					logger.Error(e, e.Error(), "Current Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
 					sendEvent(sdk, drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-					return e
+					return "", e
 				} else {
 					msg := fmt.Sprintf("Updated [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
 					logger.Info(msg, "Prev Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
 					sendEvent(sdk, drd, v1.EventTypeNormal, "UPDATE_SUCCESS", msg)
+					return resourceUpdated, nil
 				}
+			} else {
+				return "", nil
 			}
 		}
 	}
-
-	return nil
 }
 
 // Checks if all replicas corresponding to latest updated sts have been deployed

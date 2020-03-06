@@ -1,4 +1,4 @@
-from golang:1.12 as golang
+from golang:1.13.5 as golang
 
 WORKDIR /druid-operator
 
