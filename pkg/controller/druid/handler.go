@@ -893,13 +893,51 @@ func verifyDruidSpec(drd *v1alpha1.Druid) error {
 		return err
 	}
 
-	for key := range drd.Spec.Nodes {
+	errorMsg := ""
+
+	if drd.Spec.CommonRuntimeProperties == "" {
+		errorMsg = fmt.Sprintf("%sCommonRuntimeProperties missing from Druid Cluster Spec\n", errorMsg)
+	}
+
+	if drd.Spec.CommonConfigMountPath == "" {
+		errorMsg = fmt.Sprintf("%sCommonConfigMountPath missing from Druid Cluster Spec\n", errorMsg)
+	}
+
+	if drd.Spec.StartScript == "" {
+		errorMsg = fmt.Sprintf("%sStartScript missing from Druid Cluster Spec\n", errorMsg)
+	}
+
+	if drd.Spec.Image == "" {
+		errorMsg = fmt.Sprintf("%sImage missing from Druid Cluster Spec\n", errorMsg)
+	}
+
+	for key, node := range drd.Spec.Nodes {
+		if node.NodeType == "" {
+			errorMsg = fmt.Sprintf("%sNode[%s] missing NodeType\n", errorMsg, key)
+		}
+
+		if node.Replicas < 1 {
+			errorMsg = fmt.Sprintf("%sNode[%s] missing Replicas\n", errorMsg, key)
+		}
+
+		if node.RuntimeProperties == "" {
+			errorMsg = fmt.Sprintf("%sNode[%s] missing RuntimeProperties\n", errorMsg, key)
+		}
+
+		if node.NodeConfigMountPath == "" {
+			errorMsg = fmt.Sprintf("%sNode[%s] missing NodeConfigMountPath\n", errorMsg, key)
+		}
+
 		if !keyValidationRegex.MatchString(key) {
-			return fmt.Errorf("Key[%s] must match k8s resource name regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'", key)
+			errorMsg = fmt.Sprintf("%sNode[%s] Key must match k8s resource name regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'", errorMsg, key)
 		}
 	}
 
-	return nil
+	if errorMsg == "" {
+		return nil
+	} else {
+		return fmt.Errorf(errorMsg)
+	}
 }
 
 type keyAndNodeSpec struct {
