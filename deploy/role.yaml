@@ -27,6 +27,18 @@ rules:
   verbs:
   - '*'
 - apiGroups:
+    - policy
+  resources:
+    - poddisruptionbudgets
+  verbs:
+    - '*'
+- apiGroups:
+    - autoscaling
+  resources:
+    - horizontalpodautoscalers
+  verbs:
+    - '*'
+- apiGroups:
   - monitoring.coreos.com
   resources:
   - servicemonitors
