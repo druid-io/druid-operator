@@ -373,7 +373,7 @@ func isStsFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bo
 		return false, e
 	} else {
 		if sts.Status.CurrentRevision != sts.Status.UpdateRevision {
-			msg := fmt.Sprintf("StatefulSet[%s] roll out is in progress CurrentRevision[%s] != UpdateRevision[%s], UpdatedReplicas[%d/%d]", name, sts.Status.CurrentRevision, sts.Status.UpdateRevision, sts.Status.UpdatedReplicas, sts.Spec.Replicas)
+			msg := fmt.Sprintf("StatefulSet[%s] roll out is in progress CurrentRevision[%s] != UpdateRevision[%s], UpdatedReplicas[%d/%d]", name, sts.Status.CurrentRevision, sts.Status.UpdateRevision, sts.Status.UpdatedReplicas, *sts.Spec.Replicas)
 			sendEvent(sdk, drd, v1.EventTypeNormal, "ROLLING_DEPLOYMENT_WAIT", msg)
 			return false, nil
 		} else {
