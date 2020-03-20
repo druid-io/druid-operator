@@ -105,7 +105,6 @@ type DruidClusterSpec struct {
 
 	// Spec used to create StatefulSet specs etc, Many of the fields above can be overridden at the specific
 	// node spec level.
-
 	// Key in following map can be arbitrary string that helps you identify resources(pods, statefulsets etc) for specific nodeSpec.
 	// But, it is used in the k8s resource names, so it must be compliant with restrictions
 	// placed on k8s resource names.

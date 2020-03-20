@@ -680,7 +680,6 @@ func getTerminationGracePeriod(nodeSpec *v1alpha1.DruidNodeSpec) *int64 {
 
 	if nodeSpec.TerminationGracePeriodSeconds == 0 {
 		nodeSpec.TerminationGracePeriodSeconds = 30
-		//return &clusterSpec.Spec.TerminationGracePeriodSeconds
 	}
 
 	return &nodeSpec.TerminationGracePeriodSeconds
