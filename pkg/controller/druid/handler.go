@@ -847,15 +847,6 @@ func makeServiceEmptyObj() *v1.Service {
 	}
 }
 
-func makeServiceAccountEmptyObj() *v1.ServiceAccount {
-	return &v1.ServiceAccount{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ServiceAccount",
-		},
-	}
-}
-
 func makeConfigMapEmptyObj() *v1.ConfigMap {
 	return &v1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
