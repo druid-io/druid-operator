@@ -574,7 +574,6 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 	volumesHolder := []v1.Volume{
 		{
 			Name: "common-config-volume",
-
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
@@ -658,8 +657,10 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 							ReadinessProbe: readinessProbe,
 						},
 					},
-					Volumes:         volumesHolder,
-					SecurityContext: firstNonNilValue(nodeSpec.SecurityContext, m.Spec.SecurityContext).(*v1.PodSecurityContext),
+					TerminationGracePeriodSeconds: getTerminationGracePeriod(nodeSpec),
+					Volumes:                       volumesHolder,
+					SecurityContext:               firstNonNilValue(nodeSpec.SecurityContext, m.Spec.SecurityContext).(*v1.PodSecurityContext),
+					ServiceAccountName:            m.Spec.ServiceAccount,
 				},
 			},
 			VolumeClaimTemplates: templateHolder,
@@ -673,6 +674,16 @@ func updateDefaultPortInProbe(probe *v1.Probe, defaultPort int32) *v1.Probe {
 		probe.HTTPGet.Port.IntVal = defaultPort
 	}
 	return probe
+}
+
+func getTerminationGracePeriod(nodeSpec *v1alpha1.DruidNodeSpec) *int64 {
+
+	if nodeSpec.TerminationGracePeriodSeconds == 0 {
+		nodeSpec.TerminationGracePeriodSeconds = 30
+		//return &clusterSpec.Spec.TerminationGracePeriodSeconds
+	}
+
+	return &nodeSpec.TerminationGracePeriodSeconds
 }
 
 func makePodDisruptionBudget(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*v1beta1.PodDisruptionBudget, error) {
@@ -832,6 +843,15 @@ func makeServiceEmptyObj() *v1.Service {
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Service",
+		},
+	}
+}
+
+func makeServiceAccountEmptyObj() *v1.ServiceAccount {
+	return &v1.ServiceAccount{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ServiceAccount",
 		},
 	}
 }

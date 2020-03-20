@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+
 	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -9,6 +10,10 @@ import (
 	"k8s.io/api/policy/v1beta1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	DefaultTerminationGracePeriod = 30
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -55,6 +60,9 @@ type DruidClusterSpec struct {
 	// Required: Druid Docker Image
 	Image string `json:"image"`
 
+	// Optional: ServiceAccount for the druid cluster
+	ServiceAccount string `json:"serviceAccount"`
+
 	// Optional: environment variables for druid containers
 	Env []v1.EnvVar `json:"env,omitempty"`
 
@@ -98,6 +106,7 @@ type DruidClusterSpec struct {
 
 	// Optional: affinity to be used to for enabling node, pod affinity and anti-affinity
 	Affinity *v1.Affinity `json:"affinity,omitempty"`
+
 	// Spec used to create StatefulSet specs etc, Many of the fields above can be overridden at the specific
 	// node spec level.
 
@@ -156,6 +165,9 @@ type DruidNodeSpec struct {
 
 	// Optional: affinity to be used to for enabling node, pod affinity and anti-affinity
 	Affinity *v1.Affinity `json:"affinity,omitempty"`
+
+	// Optoinal: terminationGracePeriod defaults to 30 sec.
+	TerminationGracePeriodSeconds int64 `json:"terminationGracePeriodSeconds"`
 
 	// Optional: extra ports to be added to pod spec
 	Ports []v1.ContainerPort `json:"ports,omitempty"`
