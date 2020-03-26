@@ -717,13 +717,13 @@ func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.D
 }
 
 // makeLabelsForDruid returns the labels for selecting the resources
-// belonging to the given memcached CR name.
+// belonging to the given druid CR name.
 func makeLabelsForDruid(name string) map[string]string {
 	return map[string]string{"app": "druid", "druid_cr": name}
 }
 
 // makeLabelsForDruid returns the labels for selecting the resources
-// belonging to the given memcached CR name.
+// belonging to the given druid CR name.
 func makeLabelsForNodeSpec(clusterName, nodeSpecUniqueStr string) map[string]string {
 	return map[string]string{"app": "druid", "druid_cr": clusterName, "nodeSpecUniqueStr": nodeSpecUniqueStr}
 }
