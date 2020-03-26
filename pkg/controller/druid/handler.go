@@ -645,6 +645,7 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 					NodeSelector: m.Spec.NodeSelector,
 					Tolerations:  tolerations,
 					Affinity:     affinity,
+					ImagePullSecrets: firstNonNilValue(nodeSpec.ImagePullSecrets, m.Spec.ImagePullSecrets).([]v1.LocalObjectReference),
 					Containers: []v1.Container{
 						{
 							Image:          firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),
