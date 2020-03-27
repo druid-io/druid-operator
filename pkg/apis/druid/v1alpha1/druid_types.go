@@ -161,8 +161,8 @@ type DruidNodeSpec struct {
 	// Optional: affinity to be used to for enabling node, pod affinity and anti-affinity
 	Affinity *v1.Affinity `json:"affinity,omitempty"`
 
-	// Optoinal: terminationGracePeriod defaults to 30 sec.
-	TerminationGracePeriodSeconds int64 `json:"terminationGracePeriodSeconds"`
+	// Optional: terminationGracePeriod defaults to 30 sec.
+	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 
 	// Optional: extra ports to be added to pod spec
 	Ports []v1.ContainerPort `json:"ports,omitempty"`
