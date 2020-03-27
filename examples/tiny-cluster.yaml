@@ -4,6 +4,9 @@ metadata:
   name: tiny-cluster
 spec:
   image: apache/incubator-druid:0.16.0-incubating
+  # Optionally specify image for all nodes. Can be specify on nodes also
+  # imagePullSecrets:
+  # - name: tutu
   startScript: /druid.sh
   securityContext:
     fsGroup: 1000
@@ -67,6 +70,9 @@ spec:
   nodes:
     brokers:
       nodeType: "broker"
+      # Optionally specify for broker nodes
+      # imagePullSecrets:
+      # - name: tutu
       druid.port: 8088
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/query/broker"
       replicas: 1
