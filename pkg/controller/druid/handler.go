@@ -642,9 +642,9 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 					Annotations: firstNonNilValue(nodeSpec.PodAnnotations, m.Spec.PodAnnotations).(map[string]string),
 				},
 				Spec: v1.PodSpec{
-					NodeSelector: m.Spec.NodeSelector,
-					Tolerations:  tolerations,
-					Affinity:     affinity,
+					NodeSelector:     m.Spec.NodeSelector,
+					Tolerations:      tolerations,
+					Affinity:         affinity,
 					ImagePullSecrets: firstNonNilValue(nodeSpec.ImagePullSecrets, m.Spec.ImagePullSecrets).([]v1.LocalObjectReference),
 					Containers: []v1.Container{
 						{
