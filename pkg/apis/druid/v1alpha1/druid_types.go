@@ -59,6 +59,9 @@ type DruidClusterSpec struct {
 	// Optional: ServiceAccount for the druid cluster
 	ServiceAccount string `json:"serviceAccount"`
 
+	// Optional: imagePullSecrets for private registries
+	ImagePullSecrets []v1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
 	// Optional: environment variables for druid containers
 	Env []v1.EnvVar `json:"env,omitempty"`
 
@@ -169,6 +172,9 @@ type DruidNodeSpec struct {
 
 	// Optional: Overrides image from top level
 	Image string `json:"image,omitempty"`
+
+	// Optional: Overrides imagePullSecrets from top level
+	ImagePullSecrets []v1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
 	// Optional: Extra environment variables
 	Env []v1.EnvVar `json:"env,omitempty"`
