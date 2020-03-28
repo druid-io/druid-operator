@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+
 	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -55,6 +56,9 @@ type DruidClusterSpec struct {
 	// Required: Druid Docker Image
 	Image string `json:"image"`
 
+	// Optional: ServiceAccount for the druid cluster
+	ServiceAccount string `json:"serviceAccount"`
+
 	// Optional: imagePullSecrets for private registries
 	ImagePullSecrets []v1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
@@ -101,9 +105,9 @@ type DruidClusterSpec struct {
 
 	// Optional: affinity to be used to for enabling node, pod affinity and anti-affinity
 	Affinity *v1.Affinity `json:"affinity,omitempty"`
+
 	// Spec used to create StatefulSet specs etc, Many of the fields above can be overridden at the specific
 	// node spec level.
-
 	// Key in following map can be arbitrary string that helps you identify resources(pods, statefulsets etc) for specific nodeSpec.
 	// But, it is used in the k8s resource names, so it must be compliant with restrictions
 	// placed on k8s resource names.
@@ -159,6 +163,9 @@ type DruidNodeSpec struct {
 
 	// Optional: affinity to be used to for enabling node, pod affinity and anti-affinity
 	Affinity *v1.Affinity `json:"affinity,omitempty"`
+
+	// Optional: terminationGracePeriod
+	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 
 	// Optional: extra ports to be added to pod spec
 	Ports []v1.ContainerPort `json:"ports,omitempty"`
