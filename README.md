@@ -22,7 +22,7 @@ Pre-built docker images are available in [DockerHub](https://hub.docker.com/r/dr
 druid-operator$ docker build -t druidio/druid-operator:0.0.1 .
 ```
 # Installation 
-- Druid operator can deployed manually uing manifest as well as using helm charts.
+- Druid operator can deployed manually using manifest as well as using helm charts.
 ### Deploying druid-operator on kubernetes using Manifests
 ```
 # Setup Service Account
