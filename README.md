@@ -21,9 +21,9 @@ Pre-built docker images are available in [DockerHub](https://hub.docker.com/r/dr
 ```
 druid-operator$ docker build -t druidio/druid-operator:0.0.1 .
 ```
-
-# Deploying druid-operator on kubernetes
-
+# Installation 
+- Druid operator can deployed manually uing manifest as well as using helm charts.
+### Deploying druid-operator on kubernetes using Manifests
 ```
 # Setup Service Account
 druid-operator$ kubectl create -f deploy/service_account.yaml
@@ -43,6 +43,14 @@ druid-operator$ kubectl create -f deploy/operator.yaml
 
 # Check the deployed druid-operator
 druid-operator$ kubectl describe deployment druid-operator
+```
+### Deploying druid operator using Helm Chart
+- Refer to [helm](https://helm.sh/) to install the helm binary in your cluster.
+- Refer to README in charts folder for configuration parameters.
+```
+$ git clone https://github.com/druid-io/druid-operator.git
+$ cd charts
+$ helm install druid .
 ```
 
 # Deploy a druid cluster

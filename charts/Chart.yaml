@@ -1,0 +1,12 @@
+apiVersion: v2
+name: druid-operator
+description: A Helm chart for deploying druid-operator
+
+type: application
+
+# version is same as latest release
+# https://github.com/druid-io/druid-operator/releases
+version: 0.0.1
+
+
+appVersion: 0.0.1
