@@ -328,6 +328,11 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 		*out = new(v1.Probe)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PreStop != nil {
+		in, out := &in.PreStop, &out.PreStop
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.HPAutoScaler != nil {
 		in, out := &in.HPAutoScaler, &out.HPAutoScaler
 		*out = new(v2beta1.HorizontalPodAutoscalerSpec)
