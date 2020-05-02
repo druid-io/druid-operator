@@ -646,18 +646,12 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 					ImagePullSecrets: firstNonNilValue(nodeSpec.ImagePullSecrets, m.Spec.ImagePullSecrets).([]v1.LocalObjectReference),
 					Containers: []v1.Container{
 						{
-							Image:     firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),
-							Name:      fmt.Sprintf("%s", nodeSpecUniqueStr),
-							Command:   []string{firstNonEmptyStr(m.Spec.StartScript, "bin/run-druid.sh"), nodeSpec.NodeType},
-							Ports:     nodeSpec.Ports,
-							Resources: nodeSpec.Resources,
-							Lifecycle: &v1.Lifecycle{
-								PreStop: &v1.Handler{
-									Exec: &v1.ExecAction{
-										Command: nodeSpec.PreStop,
-									},
-								},
-							},
+							Image:          firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),
+							Name:           fmt.Sprintf("%s", nodeSpecUniqueStr),
+							Command:        []string{firstNonEmptyStr(m.Spec.StartScript, "bin/run-druid.sh"), nodeSpec.NodeType},
+							Ports:          nodeSpec.Ports,
+							Resources:      nodeSpec.Resources,
+							Lifecycle:      getLifecycle(nodeSpec),
 							Env:            envHolder,
 							VolumeMounts:   volumeMountHolder,
 							LivenessProbe:  livenessProbe,
@@ -674,6 +668,19 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		},
 	}
 	return result, nil
+}
+
+func getLifecycle(nodeSpec *v1alpha1.DruidNodeSpec) *v1.Lifecycle {
+	if nodeSpec.PreStop != nil {
+		return &v1.Lifecycle{
+			PreStop: &v1.Handler{
+				Exec: &v1.ExecAction{
+					Command: nodeSpec.PreStop,
+				},
+			},
+		}
+	}
+	return nil
 }
 
 func updateDefaultPortInProbe(probe *v1.Probe, defaultPort int32) *v1.Probe {
