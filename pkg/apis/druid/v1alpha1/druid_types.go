@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
+	extensions "k8s.io/api/extensions/v1beta1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -200,6 +201,12 @@ type DruidNodeSpec struct {
 	// Optional
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 
+	// Optional: Ingress Annoatations to be populated in ingress spec
+	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
+
+	// Optional: Ingress Spec
+	Ingress *extensions.IngressSpec `json:"ingress,omitempty"`
+
 	// Optional
 	HPAutoScaler *autoscalev2beta1.HorizontalPodAutoscalerSpec `json:"hpAutoscaler,omitempty"`
 
@@ -228,6 +235,7 @@ type DruidClusterStatus struct {
 	Services             []string `json:"services,omitempty"`
 	ConfigMaps           []string `json:"configMaps,omitempty"`
 	PodDisruptionBudgets []string `json:"podDisruptionBudgets,omitempty"`
+	Ingress              []string `json:"ingress,omitempty"`
 	HPAutoScalers        []string `json:"hpAutoscalers,omitempty"`
 	Pods                 []string `json:"pods,omitempty"`
 }
