@@ -651,7 +651,7 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 							Command:        []string{firstNonEmptyStr(m.Spec.StartScript, "bin/run-druid.sh"), nodeSpec.NodeType},
 							Ports:          nodeSpec.Ports,
 							Resources:      nodeSpec.Resources,
-							Lifecycle:      getLifecycle(nodeSpec),
+							Lifecycle:      nodeSpec.Lifecycle,
 							Env:            envHolder,
 							VolumeMounts:   volumeMountHolder,
 							LivenessProbe:  livenessProbe,
@@ -668,19 +668,6 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		},
 	}
 	return result, nil
-}
-
-func getLifecycle(nodeSpec *v1alpha1.DruidNodeSpec) *v1.Lifecycle {
-	if nodeSpec.PreStop != nil {
-		return &v1.Lifecycle{
-			PreStop: &v1.Handler{
-				Exec: &v1.ExecAction{
-					Command: nodeSpec.PreStop,
-				},
-			},
-		}
-	}
-	return nil
 }
 
 func updateDefaultPortInProbe(probe *v1.Probe, defaultPort int32) *v1.Probe {
