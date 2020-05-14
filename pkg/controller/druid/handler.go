@@ -49,8 +49,8 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	if m.Spec.Ignored {
 		return nil
 	}
-
 	if m.Spec.TemplateValuesRefs != nil {
+		// Here we're going to gather all the values we need for template render
 		values, err := makeTemplateValues(sdk, m)
 
 		if err != nil {
@@ -58,6 +58,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
 			return nil
 		}
+		// Now we render whole manifest as a template.
 		buf := &bytes.Buffer{}
 		manifest, err := json.Marshal(m)
 		if err != nil {
