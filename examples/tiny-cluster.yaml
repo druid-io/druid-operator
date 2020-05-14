@@ -38,6 +38,13 @@ spec:
             </Root>
         </Loggers>
     </Configuration>
+  templateValuesRefs:
+    - name: secret1
+      secretName: test-secret
+    - name: example_var
+      value: druid.metadata.storage.connector.variable
+    - name: config1
+      configMapName: example-cm
   common.runtime.properties: |
 
     # Zookeeper
@@ -51,7 +58,10 @@ spec:
     druid.metadata.storage.connector.connectURI=jdbc:derby://localhost:1527/var/druid/metadata.db;create=true
     druid.metadata.storage.connector.host=localhost
     druid.metadata.storage.connector.port=1527
+    # druid.metadata.storage.connector.user={{ .secret1.DB_USER }}
+    # druid.metadata.storage.connector.password={{ .secret1.DB_PASSWORD }}
     druid.metadata.storage.connector.createTables=true
+    # {{ .example_var }}={{ .config1.value_from_configmap }}
 
     # Deep Storage
     druid.storage.type=local
@@ -70,6 +80,7 @@ spec:
   nodes:
     brokers:
       nodeType: "broker"
+      podDisruptionBudgetSpec: {}
       # Optionally specify for broker nodes
       # imagePullSecrets:
       # - name: tutu
@@ -107,6 +118,7 @@ spec:
 
     coordinators:
       nodeType: "coordinator"
+      podDisruptionBudgetSpec: {}
       druid.port: 8088
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/master/coordinator-overlord"
       replicas: 1
@@ -141,6 +153,7 @@ spec:
 
     historicals:
       nodeType: "historical"
+      podDisruptionBudgetSpec: {}
       druid.port: 8088
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/data/historical"
       replicas: 1

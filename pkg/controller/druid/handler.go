@@ -1,14 +1,18 @@
 package druid
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
+	"text/template"
 
 	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
 
@@ -44,6 +48,39 @@ var logger = logf.Log.WithName("druid_operator_handler")
 func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	if m.Spec.Ignored {
 		return nil
+	}
+
+	if m.Spec.TemplateValuesRefs != nil {
+		values, err := makeTemplateValues(sdk, m)
+
+		if err != nil {
+			e := fmt.Errorf("invalid DruidSpec[%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
+			sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+			return nil
+		}
+		buf := &bytes.Buffer{}
+		manifest, err := json.Marshal(m)
+		if err != nil {
+			e := fmt.Errorf("invalid DruidSpec[%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
+			sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+			return nil
+		}
+		t, err := template.New("spec").Parse(string(manifest))
+		if err != nil {
+			e := fmt.Errorf("invalid DruidSpec[%s:%s] due to templating error: [%s]", m.Kind, m.Name, err.Error())
+			sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+			return nil
+		}
+		if err := t.Execute(buf, values); err != nil {
+			e := fmt.Errorf("invalid DruidSpec[%s:%s] due to templating error [%s]", m.Kind, m.Name, err.Error())
+			sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+			return nil
+		}
+		if umErr := json.Unmarshal(buf.Bytes(), &m); umErr != nil {
+			e := fmt.Errorf("invalid DruidSpec[%s:%s] due to templating error [%s]", m.Kind, m.Name, err.Error())
+			sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+			return nil
+		}
 	}
 
 	if err := verifyDruidSpec(m); err != nil {
@@ -454,6 +491,77 @@ func makeCommonConfigMap(m *v1alpha1.Druid, ls map[string]string) (*v1.ConfigMap
 	return cfg, err
 }
 
+func makeTemplateValues(sdk client.Client, manifest *v1alpha1.Druid) (map[string]interface{}, error) {
+	values := make(map[string]interface{})
+	sources := manifest.Spec.TemplateValuesRefs
+	for _, envVar := range os.Environ() {
+		ev := strings.Split(envVar, "=")
+		values[ev[0]] = ev[1]
+	}
+	for _, source := range sources {
+		if source.Value != "" {
+			values[source.Name] = source.Value
+			continue
+		}
+		if source.ConfigMapName != "" {
+			cmdata, err := getConfigMapData(sdk, source.ConfigMapName, manifest)
+			if err != nil {
+				return values, err
+			}
+			values[source.Name] = cmdata
+			continue
+
+		}
+		if source.SecretName != "" {
+			secdata, err := getSecretData(sdk, source.SecretName, manifest)
+			if err != nil {
+				return values, err
+			}
+			values[source.Name] = secdata
+			continue
+		}
+	}
+	return values, nil
+}
+
+func getConfigMapData(sdk client.Client, name string, manifest *v1alpha1.Druid) (map[string]string, error) {
+	namespace := manifest.Namespace
+
+	cm := makeConfigMapEmptyObj()
+	if err := sdk.Get(context.TODO(), *namespacedName(name, namespace), cm); err != nil {
+		e := fmt.Errorf("failed to get [ConfigMap:%s] due to [%s]", name, err.Error())
+		logger.Error(e, e.Error(), "name", name, "namespace", namespace)
+		sendEvent(sdk, manifest, v1.EventTypeWarning, "GET_FAIL", e.Error())
+		return make(map[string]string), err
+	}
+	return cm.Data, nil
+}
+
+func getSecretData(sdk client.Client, name string, manifest *v1alpha1.Druid) (map[string]string, error) {
+	namespace := manifest.Namespace
+	values := make(map[string]string)
+	sc := makeSecretEmptyObj()
+	if err := sdk.Get(context.TODO(), *namespacedName(name, namespace), sc); err != nil {
+		e := fmt.Errorf("failed to get [Secret:%s] due to [%s]", name, err.Error())
+		logger.Error(e, e.Error(), "name", name, "namespace", namespace)
+		sendEvent(sdk, manifest, v1.EventTypeWarning, "GET_FAIL", e.Error())
+		return make(map[string]string), err
+	}
+	for k, v := range sc.Data {
+		// bv := make([]byte, base64.StdEncoding.EncodedLen(len(v)))
+		// l, err := base64.StdEncoding.Decode(bv, v)
+		// if err != nil {
+		// 	e := fmt.Errorf("failed to decode [Secret:%s, Key:%s] due to [%s]", name, k, err.Error())
+		// 	logger.Error(e, e.Error(), "name", name, "namespace", namespace)
+		// 	sendEvent(sdk, manifest, v1.EventTypeWarning, "GET_FAIL", e.Error())
+		// 	continue
+		// }
+		// values[k] = string(bv[:l])
+		values[k] = string(v)
+	}
+	return values, nil
+}
+
 func makeConfigMapForNodeSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, lm map[string]string, nodeSpecUniqueStr string) (*v1.ConfigMap, error) {
 
 	data := map[string]string{
@@ -842,6 +950,15 @@ func makeConfigMapEmptyObj() *v1.ConfigMap {
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "ConfigMap",
+		},
+	}
+}
+
+func makeSecretEmptyObj() *v1.Secret {
+	return &v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
 		},
 	}
 }

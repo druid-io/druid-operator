@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example-cm
+data:
+  value_from_configmap: example_again

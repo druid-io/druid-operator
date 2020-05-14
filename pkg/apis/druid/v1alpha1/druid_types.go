@@ -44,6 +44,8 @@ type DruidClusterSpec struct {
 	// Optional: If true, this spec would be ignored by the operator
 	Ignored bool `json:"ignored,omitempty"`
 
+	TemplateValuesRefs []TemplateValuesRef `json:"templateValuesRefs,omitempty"`
+
 	// Required: common.runtime.properties contents
 	CommonRuntimeProperties string `json:"common.runtime.properties"`
 
@@ -57,7 +59,7 @@ type DruidClusterSpec struct {
 	Image string `json:"image"`
 
 	// Optional: ServiceAccount for the druid cluster
-	ServiceAccount string `json:"serviceAccount"`
+	ServiceAccount string `json:"serviceAccount,omitempty"`
 
 	// Optional: imagePullSecrets for private registries
 	ImagePullSecrets []v1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
@@ -122,9 +124,9 @@ type DruidClusterSpec struct {
 
 	// futuristic stuff to make Druid dependency setup extensible from within Druid operator
 	// ignore for now.
-	Zookeeper     *ZookeeperSpec     `json:"zookeeper"`
-	MetadataStore *MetadataStoreSpec `json:"metadataStore"`
-	DeepStorage   *DeepStorageSpec   `json:"deepStorage"`
+	Zookeeper     *ZookeeperSpec     `json:"zookeeper,omitempty"`
+	MetadataStore *MetadataStoreSpec `json:"metadataStore,omitempty"`
+	DeepStorage   *DeepStorageSpec   `json:"deepStorage,omitempty"`
 }
 
 type DruidNodeSpec struct {
@@ -138,7 +140,7 @@ type DruidNodeSpec struct {
 	Replicas int32 `json:"replicas"`
 
 	// Optional
-	PodDisruptionBudgetSpec *v1beta1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec"`
+	PodDisruptionBudgetSpec *v1beta1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec,omitempty"`
 
 	// Required
 	RuntimeProperties string `json:"runtime.properties"`
@@ -253,6 +255,13 @@ type DruidList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Druid `json:"items"`
+}
+
+type TemplateValuesRef struct {
+	Name          string `json:"name"`
+	SecretName    string `json:"secretName,omitempty"`
+	ConfigMapName string `json:"configMapName,omitempty"`
+	Value         string `json:"value,omitempty"`
 }
 
 func init() {
