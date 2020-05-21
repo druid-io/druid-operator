@@ -71,8 +71,11 @@ type DruidClusterSpec struct {
 	// Optional: log4j config contents
 	Log4jConfig string `json:"log4j.config,omitempty"`
 
-	// Optional: druid pods security-context
-	SecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
+	// Optional: druid pods pod-security-context
+	PodSecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
+
+	// Optional: druid pods container-security-context
+	ContainerSecurityContext *v1.SecurityContext `json:"containerSecurityContext,omitempty"`
 
 	// Optional: volumes etc for the Druid pods
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
@@ -183,7 +186,10 @@ type DruidNodeSpec struct {
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 
 	// Optional: Overrides securityContext at top level
-	SecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
+	PodSecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
+
+	// Optional: druid pods container-security-context
+	ContainerSecurityContext *v1.SecurityContext `json:"containerSecurityContext,omitempty"`
 
 	// Optional: custom annotations to be populated in Druid pods
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`

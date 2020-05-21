@@ -2,9 +2,10 @@ package druid
 
 import (
 	"encoding/json"
-	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
-	"k8s.io/api/core/v1"
 	"testing"
+
+	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
+	v1 "k8s.io/api/core/v1"
 )
 
 func TestFirstNonNilValue(t *testing.T) {
@@ -28,7 +29,7 @@ func TestFirstNonNilValue(t *testing.T) {
 		t.Errorf("Failed to unmarshall[%v]", err)
 	}
 
-	if x := firstNonNilValue(clusterSpec.Nodes["brokers"].SecurityContext, clusterSpec.SecurityContext).(*v1.PodSecurityContext); *x.RunAsUser != 106 {
+	if x := firstNonNilValue(clusterSpec.Nodes["brokers"].PodSecurityContext, clusterSpec.PodSecurityContext).(*v1.PodSecurityContext); *x.RunAsUser != 106 {
 		t.Fail()
 	}
 
