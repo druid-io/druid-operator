@@ -50,6 +50,9 @@ type DruidClusterSpec struct {
 	// Required: in-container directory to mount with common.runtime.properties
 	CommonConfigMountPath string `json:"commonConfigMountPath"`
 
+	// Optional: if set to true, all cm mounted will be readOnly
+	ReadOnly bool `json:"readOnly"`
+
 	// Required: path to druid start script to be run on container start
 	StartScript string `json:"startScript"`
 

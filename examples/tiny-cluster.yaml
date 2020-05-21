@@ -17,6 +17,7 @@ spec:
         type: ClusterIP
         clusterIP: None
   commonConfigMountPath: "/opt/druid/conf/druid/cluster/_common"
+  readOnly: true
   jvm.options: |-
     -server
     -XX:MaxDirectMemorySize=10240g
