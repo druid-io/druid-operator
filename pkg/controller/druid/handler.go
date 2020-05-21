@@ -93,7 +93,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		//So this unique string must follow same.
 		nodeSpecUniqueStr := makeNodeSpecificUniqueString(m, key)
 
-		lm := makeLabelsForNodeSpec(m.Name, nodeSpecUniqueStr)
+		lm := makeLabelsForNodeSpec(&nodeSpec, m, m.Name, nodeSpecUniqueStr)
 
 		// create configmap first
 		nodeConfig, err := makeConfigMapForNodeSpec(&nodeSpec, m, lm, nodeSpecUniqueStr)
@@ -771,8 +771,15 @@ func makeLabelsForDruid(name string) map[string]string {
 
 // makeLabelsForDruid returns the labels for selecting the resources
 // belonging to the given druid CR name.
-func makeLabelsForNodeSpec(clusterName, nodeSpecUniqueStr string) map[string]string {
-	return map[string]string{"app": "druid", "druid_cr": clusterName, "nodeSpecUniqueStr": nodeSpecUniqueStr}
+func makeLabelsForNodeSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, clusterName, nodeSpecUniqueStr string) map[string]string {
+	var labels = map[string]string{}
+	if nodeSpec.PodLabels != nil || m.Spec.PodLabels != nil {
+		labels = firstNonNilValue(nodeSpec.PodLabels, m.Spec.PodLabels).(map[string]string)
+	}
+	labels["app"] = "druid"
+	labels["druid_cr"] = clusterName
+	labels["nodeSpecUniqueStr"] = nodeSpecUniqueStr
+	return labels
 }
 
 // addOwnerRefToObject appends the desired OwnerReference to the object

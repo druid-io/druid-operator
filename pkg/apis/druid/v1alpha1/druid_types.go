@@ -86,6 +86,9 @@ type DruidClusterSpec struct {
 	// Optional: By default it is set to "parallel"
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 
+	// Optional: custom labels to be populated in Druid pods
+	PodLabels map[string]string `json:"podLabels"`
+
 	// Optional
 	UpdateStrategy *appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
 
@@ -137,6 +140,9 @@ type DruidNodeSpec struct {
 
 	// Required
 	Replicas int32 `json:"replicas"`
+
+	// Optional
+	PodLabels map[string]string `json:"podLabels"`
 
 	// Optional
 	PodDisruptionBudgetSpec *v1beta1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec"`
