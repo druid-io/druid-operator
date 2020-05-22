@@ -61,6 +61,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	}
 
 	statefulSetNames := make(map[string]bool)
+	deploymentNames := make(map[string]bool)
 	serviceNames := make(map[string]bool)
 	configMapNames := make(map[string]bool)
 	podDisruptionBudgetNames := make(map[string]bool)
@@ -155,16 +156,27 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 
 		if nodeSpec.NodeType == broker || nodeSpec.NodeType == coordinator {
-			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
+			if deployCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) {
 					return makeDeployment(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
 				},
 				func() object { return makeDeploymentEmptyObj() },
-				nil, m, statefulSetNames); err != nil {
+				nil, m, deploymentNames); err != nil {
 				return err
-			}
+			} else if m.Spec.RollingDeploy {
 
+				if deployCreateUpdateStatus == resourceUpdated {
+					return nil
+				}
+
+				// Check Deployment rolling update status, if in-progress then stop here
+				done, err := isDeployFullyDeployed(sdk, nodeSpecUniqueStr, m)
+				if !done {
+					return err
+				}
+			}
 		}
+
 		// Create PodDisruptionBudget
 		if nodeSpec.PodDisruptionBudgetSpec != nil {
 			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
@@ -396,6 +408,25 @@ func isStsFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bo
 	}
 }
 
+// Checks if all replicas corresponding to latest updated sts have been deployed
+func isDeployFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bool, error) {
+	deploy := makeDeploymentEmptyObj()
+	if err := sdk.Get(context.TODO(), *namespacedName(name, drd.Namespace), deploy); err != nil {
+		e := fmt.Errorf("failed to get [Deployment:%s] due to [%s]", name, err.Error())
+		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+		sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
+		return false, e
+	} else {
+		if deploy.Status.ReadyReplicas != deploy.Status.Replicas {
+			msg := fmt.Sprintf("Deployment[%s] roll out is in progress, UpdatedReplicas[%d] [%d]", name, deploy.Status.UpdatedReplicas, *deploy.Spec.Replicas)
+			sendEvent(sdk, drd, v1.EventTypeNormal, "ROLLING_DEPLOYMENT_WAIT", msg)
+			return false, nil
+		} else {
+			return true, nil
+		}
+	}
+}
+
 func stringifyForLogging(obj object, drd *v1alpha1.Druid) string {
 	if bytes, err := json.Marshal(obj); err != nil {
 		logger.Error(err, err.Error(), fmt.Sprintf("Failed to serialize [%s:%s]", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName()), "name", drd.Name, "namespace", drd.Namespace)
@@ -574,6 +605,7 @@ func volumeMountHolder(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1
 			Name:      "nodetype-config-volume",
 		},
 	}
+
 	volumeMount = append(volumeMount, m.Spec.VolumeMounts...)
 	volumeMount = append(volumeMount, nodeSpec.VolumeMounts...)
 	return volumeMount
@@ -660,6 +692,7 @@ func getRollingUpdateStrategy() *appsv1.RollingUpdateDeployment {
 	}
 }
 
+// makeStatefulSet shall create statefulset object.
 func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA, serviceName string) (*appsv1.StatefulSet, error) {
 
 	return &appsv1.StatefulSet{
@@ -675,6 +708,7 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 	}, nil
 }
 
+// makeDeployment shall create deployment object.
 func makeDeployment(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA, serviceName string) (*appsv1.Deployment, error) {
 	return &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -689,12 +723,13 @@ func makeDeployment(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[
 	}, nil
 }
 
+// makeStatefulSetSpec shall create statefulset spec for statefulsets.
 func makeStatefulSetSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecificUniqueString, configMapSHA, serviceName string) appsv1.StatefulSetSpec {
 
 	updateStrategy := firstNonNilValue(m.Spec.UpdateStrategy, &appsv1.StatefulSetUpdateStrategy{}).(*appsv1.StatefulSetUpdateStrategy)
 	updateStrategy = firstNonNilValue(nodeSpec.UpdateStrategy, updateStrategy).(*appsv1.StatefulSetUpdateStrategy)
 
-	s := appsv1.StatefulSetSpec{
+	stsSpec := appsv1.StatefulSetSpec{
 		ServiceName: serviceName,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: ls,
@@ -706,12 +741,13 @@ func makeStatefulSetSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls
 		VolumeClaimTemplates: templateHolder(nodeSpec, m),
 	}
 
-	return s
+	return stsSpec
+
 }
 
+// makeDeploymentSpec shall create deployment Spec for deployments.
 func makeDeploymentSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecificUniqueString, configMapSHA, serviceName string) appsv1.DeploymentSpec {
-
-	d := appsv1.DeploymentSpec{
+	deploySpec := appsv1.DeploymentSpec{
 		Selector: &metav1.LabelSelector{
 			MatchLabels: ls,
 		},
@@ -723,9 +759,10 @@ func makeDeploymentSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls 
 		},
 	}
 
-	return d
+	return deploySpec
 }
 
+// makePodTemplate shall create podTemplate common to both deployment and statefulset.
 func makePodTemplate(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA string) v1.PodTemplateSpec {
 	return v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -736,8 +773,9 @@ func makePodTemplate(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 	}
 }
 
+// makePodSpec shall create podSpec common to both deployment and statefulset.
 func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUniqueStr, configMapSHA string) v1.PodSpec {
-	Spec := v1.PodSpec{
+	spec := v1.PodSpec{
 		NodeSelector:     m.Spec.NodeSelector,
 		Tolerations:      getTolerations(nodeSpec, m),
 		Affinity:         getaffinity(nodeSpec, m),
@@ -760,71 +798,8 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 		SecurityContext:               firstNonNilValue(nodeSpec.SecurityContext, m.Spec.SecurityContext).(*v1.PodSecurityContext),
 		ServiceAccountName:            m.Spec.ServiceAccount,
 	}
-	return Spec
+	return spec
 }
-
-/*
-func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA, serviceName string) (*appsv1.StatefulSet, error) {
-
-	updateStrategy := firstNonNilValue(m.Spec.UpdateStrategy, &appsv1.StatefulSetUpdateStrategy{}).(*appsv1.StatefulSetUpdateStrategy)
-	updateStrategy = firstNonNilValue(nodeSpec.UpdateStrategy, updateStrategy).(*appsv1.StatefulSetUpdateStrategy)
-
-	// Create StatefulSet
-	result := &appsv1.StatefulSet{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "StatefulSet",
-		},
-
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s", nodeSpecUniqueStr),
-			Namespace: m.Namespace,
-			Labels:    ls,
-		},
-
-		Spec: appsv1.StatefulSetSpec{
-			ServiceName:         serviceName,
-			Replicas:            &nodeSpec.Replicas,
-			PodManagementPolicy: appsv1.PodManagementPolicyType(firstNonEmptyStr(firstNonEmptyStr(string(nodeSpec.PodManagementPolicy), string(m.Spec.PodManagementPolicy)), string(appsv1.ParallelPodManagement))),
-			UpdateStrategy:      *updateStrategy,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: ls,
-			},
-			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels:      ls,
-					Annotations: firstNonNilValue(nodeSpec.PodAnnotations, m.Spec.PodAnnotations).(map[string]string),
-				},
-				Spec: v1.PodSpec{
-					NodeSelector:     m.Spec.NodeSelector,
-					Tolerations:      getTolerations(nodeSpec, m),
-					Affinity:         getaffinity(nodeSpec, m),
-					ImagePullSecrets: firstNonNilValue(nodeSpec.ImagePullSecrets, m.Spec.ImagePullSecrets).([]v1.LocalObjectReference),
-					Containers: []v1.Container{
-						{
-							Image:          firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),
-							Name:           fmt.Sprintf("%s", nodeSpecUniqueStr),
-							Command:        []string{firstNonEmptyStr(m.Spec.StartScript, "bin/run-druid.sh"), nodeSpec.NodeType},
-							Ports:          nodeSpec.Ports,
-							Resources:      nodeSpec.Resources,
-							Env:            getEnv(nodeSpec, m, configMapSHA),
-							VolumeMounts:   volumeMountHolder(nodeSpec, m),
-							LivenessProbe:  getLiveProbe(nodeSpec, m),
-							ReadinessProbe: getReadinessProbe(nodeSpec, m),
-						},
-					},
-					TerminationGracePeriodSeconds: nodeSpec.TerminationGracePeriodSeconds,
-					Volumes:                       getVolume(nodeSpec, m, nodeSpecUniqueStr),
-					SecurityContext:               firstNonNilValue(nodeSpec.SecurityContext, m.Spec.SecurityContext).(*v1.PodSecurityContext),
-					ServiceAccountName:            m.Spec.ServiceAccount,
-				},
-			},
-			VolumeClaimTemplates: templateHolder(nodeSpec, m),
-		},
-	}
-	return result, nil
-}
-*/
 
 func updateDefaultPortInProbe(probe *v1.Probe, defaultPort int32) *v1.Probe {
 	if probe != nil && probe.HTTPGet != nil && probe.HTTPGet.Port.IntVal == 0 && probe.HTTPGet.Port.StrVal == "" {
