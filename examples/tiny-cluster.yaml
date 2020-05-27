@@ -8,6 +8,9 @@ spec:
   # imagePullSecrets:
   # - name: tutu
   startScript: /druid.sh
+  podLabels:
+    environment: stage
+    release: alpha
   securityContext:
     fsGroup: 1000
     runAsUser: 1000

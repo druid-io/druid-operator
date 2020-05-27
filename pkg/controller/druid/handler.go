@@ -11,6 +11,7 @@ import (
 	"sort"
 
 	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
+	extensions "k8s.io/api/extensions/v1beta1"
 
 	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -64,6 +65,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	configMapNames := make(map[string]bool)
 	podDisruptionBudgetNames := make(map[string]bool)
 	hpaNames := make(map[string]bool)
+	ingressNames := make(map[string]bool)
 
 	ls := makeLabelsForDruid(m.Name)
 
@@ -91,7 +93,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		//So this unique string must follow same.
 		nodeSpecUniqueStr := makeNodeSpecificUniqueString(m, key)
 
-		lm := makeLabelsForNodeSpec(m.Name, nodeSpecUniqueStr)
+		lm := makeLabelsForNodeSpec(&nodeSpec, m, m.Name, nodeSpecUniqueStr)
 
 		// create configmap first
 		nodeConfig, err := makeConfigMapForNodeSpec(&nodeSpec, m, lm, nodeSpecUniqueStr)
@@ -151,6 +153,18 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			}
 		}
 
+		// Create Ingress Spec
+		if nodeSpec.Ingress != nil {
+			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
+				func() (object, error) {
+					return makeIngress(&nodeSpec, m, ls, nodeSpecUniqueStr)
+				},
+				func() object { return makeIngressEmptyObj() },
+				nil, m, ingressNames); err != nil {
+				return err
+			}
+		}
+
 		// Create PodDisruptionBudget
 		if nodeSpec.PodDisruptionBudgetSpec != nil {
 			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
@@ -200,6 +214,18 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			return result
 		})
 	sort.Strings(updatedStatus.HPAutoScalers)
+
+	updatedStatus.Ingress = deleteUnusedResources(sdk, m, ingressNames, ls,
+		func() runtime.Object { return makeIngressListEmptyObj() },
+		func(listObj runtime.Object) []object {
+			items := listObj.(*extensions.IngressList).Items
+			result := make([]object, len(items))
+			for i := 0; i < len(items); i++ {
+				result[i] = &items[i]
+			}
+			return result
+		})
+	sort.Strings(updatedStatus.Ingress)
 
 	updatedStatus.PodDisruptionBudgets = deleteUnusedResources(sdk, m, podDisruptionBudgetNames, ls,
 		func() runtime.Object { return makePodDisruptionBudgetListEmptyObj() },
@@ -718,6 +744,26 @@ func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.D
 	return hpa, nil
 }
 
+func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*extensions.Ingress, error) {
+	nodeIngressSpec := *nodeSpec.Ingress
+
+	ingress := &extensions.Ingress{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1beta1",
+			Kind:       "Ingress",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        nodeSpecUniqueStr,
+			Annotations: nodeSpec.IngressAnnotations,
+			Namespace:   m.Namespace,
+			Labels:      ls,
+		},
+		Spec: nodeIngressSpec,
+	}
+
+	return ingress, nil
+}
+
 // makeLabelsForDruid returns the labels for selecting the resources
 // belonging to the given druid CR name.
 func makeLabelsForDruid(name string) map[string]string {
@@ -726,8 +772,15 @@ func makeLabelsForDruid(name string) map[string]string {
 
 // makeLabelsForDruid returns the labels for selecting the resources
 // belonging to the given druid CR name.
-func makeLabelsForNodeSpec(clusterName, nodeSpecUniqueStr string) map[string]string {
-	return map[string]string{"app": "druid", "druid_cr": clusterName, "nodeSpecUniqueStr": nodeSpecUniqueStr}
+func makeLabelsForNodeSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, clusterName, nodeSpecUniqueStr string) map[string]string {
+	var labels = map[string]string{}
+	if nodeSpec.PodLabels != nil || m.Spec.PodLabels != nil {
+		labels = firstNonNilValue(nodeSpec.PodLabels, m.Spec.PodLabels).(map[string]string)
+	}
+	labels["app"] = "druid"
+	labels["druid_cr"] = clusterName
+	labels["nodeSpecUniqueStr"] = nodeSpecUniqueStr
+	return labels
 }
 
 // addOwnerRefToObject appends the desired OwnerReference to the object
@@ -784,6 +837,15 @@ func makeHorizontalPodAutoscalerListEmptyObj() *autoscalev2beta1.HorizontalPodAu
 	}
 }
 
+func makeIngressListEmptyObj() *extensions.IngressList {
+	return &extensions.IngressList{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1beta1",
+			Kind:       "Ingress",
+		},
+	}
+}
+
 func makeConfigMapListEmptyObj() *v1.ConfigMapList {
 	return &v1.ConfigMapList{
 		TypeMeta: metav1.TypeMeta{
@@ -825,6 +887,15 @@ func makeHorizontalPodAutoscalerEmptyObj() *autoscalev2beta1.HorizontalPodAutosc
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "autoscaling/v2beta1",
 			Kind:       "HorizontalPodAutoscaler",
+		},
+	}
+}
+
+func makeIngressEmptyObj() *extensions.Ingress {
+	return &extensions.Ingress{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1beta1",
+			Kind:       "Ingress",
 		},
 	}
 }
