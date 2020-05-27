@@ -78,9 +78,14 @@ func (in *DruidClusterSpec) DeepCopyInto(out *DruidClusterSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.SecurityContext != nil {
-		in, out := &in.SecurityContext, &out.SecurityContext
+	if in.PodSecurityContext != nil {
+		in, out := &in.PodSecurityContext, &out.PodSecurityContext
 		*out = new(v1.PodSecurityContext)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ContainerSecurityContext != nil {
+		in, out := &in.ContainerSecurityContext, &out.ContainerSecurityContext
+		*out = new(v1.SecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.VolumeClaimTemplates != nil {
@@ -316,8 +321,8 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 		}
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
-	if in.SecurityContext != nil {
-		in, out := &in.SecurityContext, &out.SecurityContext
+	if in.PodSecurityContext != nil {
+		in, out := &in.PodSecurityContext, &out.PodSecurityContext
 		*out = new(v1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
