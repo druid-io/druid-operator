@@ -207,7 +207,7 @@ type DruidNodeSpec struct {
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 
 	// Optional
-	Lifecycle *v1.Lifecycle `json:"preStop,omitempty"`
+	Lifecycle *v1.Lifecycle `json:"lifecycle,omitempty"`
 
 	// Optional
 	HPAutoScaler *autoscalev2beta1.HorizontalPodAutoscalerSpec `json:"hpAutoscaler,omitempty"`
