@@ -552,10 +552,12 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		{
 			MountPath: firstNonEmptyStr(m.Spec.CommonConfigMountPath, defaultCommonConfigMountPath),
 			Name:      "common-config-volume",
+			ReadOnly:  true,
 		},
 		{
 			MountPath: firstNonEmptyStr(nodeSpec.NodeConfigMountPath, defaultNodeConfigMountPath),
 			Name:      "nodetype-config-volume",
+			ReadOnly:  true,
 		},
 	}
 
@@ -568,7 +570,6 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		tolerations = append(tolerations, val)
 	}
 
-	volumeMountHolder = getCmReadOnly(m, volumeMountHolder)
 	volumeMountHolder = append(volumeMountHolder, m.Spec.VolumeMounts...)
 	volumeMountHolder = append(volumeMountHolder, nodeSpec.VolumeMounts...)
 
@@ -668,17 +669,6 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		},
 	}
 	return result, nil
-}
-
-func getCmReadOnly(m *v1alpha1.Druid, volumeMountHolder []v1.VolumeMount) []v1.VolumeMount {
-	var bool bool = true
-	if m.Spec.ReadOnly == bool {
-		for i := range volumeMountHolder {
-			volumeMountHolder[i].ReadOnly = bool
-		}
-		return volumeMountHolder
-	}
-	return nil
 }
 
 func updateDefaultPortInProbe(probe *v1.Probe, defaultPort int32) *v1.Probe {
