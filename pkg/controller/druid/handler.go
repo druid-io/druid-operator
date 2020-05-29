@@ -655,6 +655,7 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 							VolumeMounts:    volumeMountHolder,
 							LivenessProbe:   livenessProbe,
 							ReadinessProbe:  readinessProbe,
+							Lifecycle:       nodeSpec.Lifecycle,
 							SecurityContext: firstNonNilValue(nodeSpec.ContainerSecurityContext, m.Spec.ContainerSecurityContext).(*v1.SecurityContext),
 						},
 					},
