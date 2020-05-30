@@ -775,7 +775,6 @@ func makeDeployment(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[
 	}, nil
 }
 
-
 // makeStatefulSetSpec shall create statefulset spec for statefulsets.
 func makeStatefulSetSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecificUniqueString, configMapSHA, serviceName string) appsv1.StatefulSetSpec {
 
@@ -835,21 +834,21 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 		ImagePullSecrets: firstNonNilValue(nodeSpec.ImagePullSecrets, m.Spec.ImagePullSecrets).([]v1.LocalObjectReference),
 		Containers: []v1.Container{
 			{
-				Image:          firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),
-				Name:           fmt.Sprintf("%s", nodeSpecUniqueStr),
-				Command:        []string{firstNonEmptyStr(m.Spec.StartScript, "bin/run-druid.sh"), nodeSpec.NodeType},
-				Ports:          nodeSpec.Ports,
-				Resources:      nodeSpec.Resources,
-				Env:            getEnv(nodeSpec, m, configMapSHA),
-				VolumeMounts:   volumeMountHolder(nodeSpec, m),
-				LivenessProbe:  getLiveProbe(nodeSpec, m),
-				ReadinessProbe: getReadinessProbe(nodeSpec, m),
-        SecurityContext: firstNonNilValue(nodeSpec.ContainerSecurityContext, m.Spec.ContainerSecurityContext).(*v1.SecurityContext),
+				Image:           firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),
+				Name:            fmt.Sprintf("%s", nodeSpecUniqueStr),
+				Command:         []string{firstNonEmptyStr(m.Spec.StartScript, "bin/run-druid.sh"), nodeSpec.NodeType},
+				Ports:           nodeSpec.Ports,
+				Resources:       nodeSpec.Resources,
+				Env:             getEnv(nodeSpec, m, configMapSHA),
+				VolumeMounts:    volumeMountHolder(nodeSpec, m),
+				LivenessProbe:   getLiveProbe(nodeSpec, m),
+				ReadinessProbe:  getReadinessProbe(nodeSpec, m),
+				SecurityContext: firstNonNilValue(nodeSpec.ContainerSecurityContext, m.Spec.ContainerSecurityContext).(*v1.SecurityContext),
 			},
 		},
 		TerminationGracePeriodSeconds: nodeSpec.TerminationGracePeriodSeconds,
 		Volumes:                       getVolume(nodeSpec, m, nodeSpecUniqueStr),
-		SecurityContext:               firstNonNilValue(nodeSpec.SecurityContext, m.Spec.SecurityContext).(*v1.PodSecurityContext),
+		SecurityContext:               firstNonNilValue(nodeSpec.PodSecurityContext, m.Spec.PodSecurityContext).(*v1.PodSecurityContext),
 		ServiceAccountName:            m.Spec.ServiceAccount,
 	}
 	return spec
