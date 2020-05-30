@@ -131,7 +131,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 		nodeSpec.Ports = append(nodeSpec.Ports, v1.ContainerPort{ContainerPort: nodeSpec.DruidPort, Name: "druid-port"})
 
-		if nodeSpec.NodeType == historical || nodeSpec.NodeType == middleManager {
+		if nodeSpec.Kind == "StatefulSet" {
 			// Create/Update StatefulSet
 			if stsCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) {
@@ -155,7 +155,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			}
 		}
 
-		if nodeSpec.NodeType == broker || nodeSpec.NodeType == coordinator {
+		if nodeSpec.Kind == "Deployment" {
 			if deployCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) {
 					return makeDeployment(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
@@ -214,6 +214,18 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			return result
 		})
 	sort.Strings(updatedStatus.StatefulSets)
+
+	updatedStatus.Deployments = deleteUnusedResources(sdk, m, deploymentNames, ls,
+		func() runtime.Object { return makeDeloymentListEmptyObj() },
+		func(listObj runtime.Object) []object {
+			items := listObj.(*appsv1.DeploymentList).Items
+			result := make([]object, len(items))
+			for i := 0; i < len(items); i++ {
+				result[i] = &items[i]
+			}
+			return result
+		})
+	sort.Strings(updatedStatus.Deployments)
 
 	updatedStatus.HPAutoScalers = deleteUnusedResources(sdk, m, hpaNames, ls,
 		func() runtime.Object { return makeHorizontalPodAutoscalerListEmptyObj() },
@@ -683,13 +695,27 @@ func getReadinessProbe(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) *v1.
 	return readinessProbe
 }
 
-func getRollingUpdateStrategy() *appsv1.RollingUpdateDeployment {
-	var maxUnaval intstr.IntOrString = intstr.FromInt(25)
-	var maxSurge intstr.IntOrString = intstr.FromInt(25)
-	return &appsv1.RollingUpdateDeployment{
-		MaxUnavailable: &maxUnaval,
-		MaxSurge:       &maxSurge,
+func getRollingUpdateStrategy(nodeSpec *v1alpha1.DruidNodeSpec) *appsv1.RollingUpdateDeployment {
+	var nil *int32 = nil
+	if nodeSpec.MaxSurge != nil || nodeSpec.MaxUnavailable != nil {
+		return &appsv1.RollingUpdateDeployment{
+			MaxUnavailable: &intstr.IntOrString{
+				IntVal: *nodeSpec.MaxUnavailable,
+			},
+			MaxSurge: &intstr.IntOrString{
+				IntVal: *nodeSpec.MaxSurge,
+			},
+		}
 	}
+	return &appsv1.RollingUpdateDeployment{
+		MaxUnavailable: &intstr.IntOrString{
+			IntVal: int32(25),
+		},
+		MaxSurge: &intstr.IntOrString{
+			IntVal: int32(25),
+		},
+	}
+
 }
 
 // makeStatefulSet shall create statefulset object.
@@ -755,7 +781,7 @@ func makeDeploymentSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls 
 		Template: makePodTemplate(nodeSpec, m, ls, nodeSpecificUniqueString, configMapSHA),
 		Strategy: appsv1.DeploymentStrategy{
 			Type:          "RollingUpdate",
-			RollingUpdate: getRollingUpdateStrategy(),
+			RollingUpdate: getRollingUpdateStrategy(nodeSpec),
 		},
 	}
 
@@ -892,6 +918,15 @@ func makeStatefulSetListEmptyObj() *appsv1.StatefulSetList {
 	return &appsv1.StatefulSetList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "StatefulSet",
+			APIVersion: "apps/v1",
+		},
+	}
+}
+
+func makeDeloymentListEmptyObj() *appsv1.DeploymentList {
+	return &appsv1.DeploymentList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
 			APIVersion: "apps/v1",
 		},
 	}
@@ -1064,6 +1099,10 @@ func verifyDruidSpec(drd *v1alpha1.Druid) error {
 	for key, node := range drd.Spec.Nodes {
 		if node.NodeType == "" {
 			errorMsg = fmt.Sprintf("%sNode[%s] missing NodeType\n", errorMsg, key)
+		}
+
+		if node.Kind == "" {
+			errorMsg = fmt.Sprintf("%sNode[%s] missing Kind\n", errorMsg, key)
 		}
 
 		if node.Replicas < 1 {
