@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
+	extensions "k8s.io/api/extensions/v1beta1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -71,8 +72,11 @@ type DruidClusterSpec struct {
 	// Optional: log4j config contents
 	Log4jConfig string `json:"log4j.config,omitempty"`
 
-	// Optional: druid pods security-context
-	SecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
+	// Optional: druid pods pod-security-context
+	PodSecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
+
+	// Optional: druid pods container-security-context
+	ContainerSecurityContext *v1.SecurityContext `json:"containerSecurityContext,omitempty"`
 
 	// Optional: volumes etc for the Druid pods
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
@@ -84,6 +88,9 @@ type DruidClusterSpec struct {
 
 	// Optional: By default it is set to "parallel"
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
+
+	// Optional: custom labels to be populated in Druid pods
+	PodLabels map[string]string `json:"podLabels"`
 
 	// Optional
 	UpdateStrategy *appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
@@ -141,6 +148,9 @@ type DruidNodeSpec struct {
 	Replicas int32 `json:"replicas"`
 
 	// Optional
+	PodLabels map[string]string `json:"podLabels"`
+
+	// Optional
 	PodDisruptionBudgetSpec *v1beta1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec"`
 
 	// Required
@@ -186,7 +196,10 @@ type DruidNodeSpec struct {
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 
 	// Optional: Overrides securityContext at top level
-	SecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
+	PodSecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
+
+	// Optional: druid pods container-security-context
+	ContainerSecurityContext *v1.SecurityContext `json:"containerSecurityContext,omitempty"`
 
 	// Optional: custom annotations to be populated in Druid pods
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
@@ -208,6 +221,12 @@ type DruidNodeSpec struct {
 
 	// Optional
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
+
+	// Optional: Ingress Annoatations to be populated in ingress spec
+	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
+
+	// Optional: Ingress Spec
+	Ingress *extensions.IngressSpec `json:"ingress,omitempty"`
 
 	// Optional
 	HPAutoScaler *autoscalev2beta1.HorizontalPodAutoscalerSpec `json:"hpAutoscaler,omitempty"`
@@ -238,6 +257,7 @@ type DruidClusterStatus struct {
 	Services             []string `json:"services,omitempty"`
 	ConfigMaps           []string `json:"configMaps,omitempty"`
 	PodDisruptionBudgets []string `json:"podDisruptionBudgets,omitempty"`
+	Ingress              []string `json:"ingress,omitempty"`
 	HPAutoScalers        []string `json:"hpAutoscalers,omitempty"`
 	Pods                 []string `json:"pods,omitempty"`
 }
