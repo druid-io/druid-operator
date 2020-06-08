@@ -10,8 +10,8 @@
     * [Druid CR Spec](#druid-cr-spec)
     * [Example NodeSpec Supporting Multiple Options](#example-nodespec-supporting-multiple-options)
     * [Configure Ingress Example](#configure-ingress-example)
-    * [Upgrade/Update and Scaling Druid Cluster](#upgrade/update-and-scaling-druid-cluster)
-    * [Build the Operator Image](#build-the-operator-image)
+    * [Upgrade Update and Scaling Druid Cluster](#upgrade-update-and-scaling-druid-cluster)
+    * [Run the Operator locally](#run-the-operator-locally)
 ## Usage
 
 ### Install the operator
@@ -264,7 +264,7 @@ spec:
                  serviceName: service1
                  servicePort: 80    
 ```
-- 
+
 ### Upgrade/Update and Scaling Druid cluster
 - Operator supports ```rollingDeploy```, in case specified to ```true``` at the clusterSpec, the operator does incremental updates in the order as mentioned [here](http://druid.io/docs/latest/operations/rolling-updates.html)
 - In rollingDeploy each node is update one by one, and incase any of the node goes in pending/crashing state during update the operator halts the update and does not update the other nodes. This requires manual intervation.
@@ -284,4 +284,3 @@ $ docker build -t druid_image:tag .
 # set --watch-namespace with "" to watch all namespaces
 $ operator-sdk run --local --watch-namespace=namespace
 ```
-
