@@ -265,7 +265,7 @@ spec:
                  servicePort: 80    
 ```
 
-### Upgrade/Update and Scaling Druid cluster
+### Upgrade Update and Scaling Druid cluster
 - Operator supports ```rollingDeploy```, in case specified to ```true``` at the clusterSpec, the operator does incremental updates in the order as mentioned [here](http://druid.io/docs/latest/operations/rolling-updates.html)
 - In rollingDeploy each node is update one by one, and incase any of the node goes in pending/crashing state during update the operator halts the update and does not update the other nodes. This requires manual intervation.
 - Default updates and cluster creation is in parallel. 
