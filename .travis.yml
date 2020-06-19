@@ -14,11 +14,6 @@ jobs:
         - make test
 
     - stage: Build and Deploy
-      name: "Docker Build"
-      script:
-        - docker build -t localhost:5000/druid-io:latest .
-        
-    - stage: Build and Deploy
       name: "kind"
       addons:
         snaps:
@@ -27,5 +22,6 @@ jobs:
       script:
         -  GO111MODULE=on go get sigs.k8s.io/kind
         -  ./scripts/kind.sh
+        -  docker build -t localhost:5000/druid-io:latest .
         -  docker push localhost:5000/druid-io:latest
         -  kubectl get nodes
