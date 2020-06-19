@@ -351,6 +351,11 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 		*out = new(v1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.ContainerSecurityContext != nil {
+		in, out := &in.ContainerSecurityContext, &out.ContainerSecurityContext
+		*out = new(v1.SecurityContext)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.PodAnnotations != nil {
 		in, out := &in.PodAnnotations, &out.PodAnnotations
 		*out = make(map[string]string, len(*in))
@@ -393,6 +398,11 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 	if in.Ingress != nil {
 		in, out := &in.Ingress, &out.Ingress
 		*out = new(extensionsv1beta1.IngressSpec)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Lifecycle != nil {
+		in, out := &in.Lifecycle, &out.Lifecycle
+		*out = new(v1.Lifecycle)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.HPAutoScaler != nil {

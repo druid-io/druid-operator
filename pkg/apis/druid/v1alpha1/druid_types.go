@@ -229,6 +229,9 @@ type DruidNodeSpec struct {
 	Ingress *extensions.IngressSpec `json:"ingress,omitempty"`
 
 	// Optional
+	Lifecycle *v1.Lifecycle `json:"lifecycle,omitempty"`
+
+	// Optional
 	HPAutoScaler *autoscalev2beta1.HorizontalPodAutoscalerSpec `json:"hpAutoscaler,omitempty"`
 
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`

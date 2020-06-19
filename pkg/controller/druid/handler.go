@@ -775,6 +775,7 @@ func makeDeployment(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[
 	}, nil
 }
 
+
 // makeStatefulSetSpec shall create statefulset spec for statefulsets.
 func makeStatefulSetSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecificUniqueString, configMapSHA, serviceName string) appsv1.StatefulSetSpec {
 
@@ -843,6 +844,7 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 				VolumeMounts:    volumeMountHolder(nodeSpec, m),
 				LivenessProbe:   getLiveProbe(nodeSpec, m),
 				ReadinessProbe:  getReadinessProbe(nodeSpec, m),
+        Lifecycle:       nodeSpec.Lifecycle,
 				SecurityContext: firstNonNilValue(nodeSpec.ContainerSecurityContext, m.Spec.ContainerSecurityContext).(*v1.SecurityContext),
 			},
 		},
