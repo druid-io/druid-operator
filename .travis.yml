@@ -6,5 +6,24 @@ go:
 services:
   - docker
 
-script:
-  - docker build -t druidio/druid-operator:testversion .
+jobs:
+  include:
+    - stage: Build and Test
+      name: "build"
+      script:
+        - docker build -t druidio/druid-operator:testversion .
+        - docker tag  druidio/druid-operator:testversion localhost:5000/druid-io:latest
+        - docker push localhost:5000/druid-io:latest
+
+    - stage: Kind
+      name: "kind"
+      script:
+        - ./scripts/kind.sh
+
+    - stage: Deploy
+      addons:
+        snaps:
+        - name: kubectl
+          confinement: classic
+      script:
+        - kubectl get nodes
