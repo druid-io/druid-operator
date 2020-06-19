@@ -13,13 +13,13 @@ jobs:
       script:
         - docker build -t druidio/druid-operator:testversion .
         - docker tag  druidio/druid-operator:testversion localhost:5000/druid-io:latest
-        - docker push localhost:5000/druid-io:latest
 
     - stage: Build and Test
       name: "kind"
       script:
         -  GO111MODULE=on go get sigs.k8s.io/kind
         - ./scripts/kind.sh
+        - docker push localhost:5000/druid-io:latest
 
     - stage: Deploy
       addons:
