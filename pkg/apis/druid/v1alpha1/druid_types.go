@@ -141,7 +141,8 @@ type DruidNodeSpec struct {
 	// Required: Port used by Druid Process
 	DruidPort int32 `json:"druid.port"`
 
-	// Required: Define kind for node. Deployment or Statefulsets are supported
+	// Optional: Define kind for node. Deployment or Statefulsets are supported,
+	// Defaults to statefulsets.
 	Kind string `json:"kind"`
 
 	// Required
