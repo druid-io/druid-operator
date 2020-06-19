@@ -8,23 +8,24 @@ services:
 
 jobs:
   include:
-    - stage: Build and Test
-      name: "build"
+    - stage: Unit Test
+      name: "Unit Test"
       script:
-        - docker build -t druidio/druid-operator:testversion .
-        - docker tag  druidio/druid-operator:testversion localhost:5000/druid-io:latest
+        - make test
 
-    - stage: Build and Test
+    - stage: Build and Deploy
+      name: "Docker Build"
+      script:
+        - docker build -t localhost:5000/druid-io:latest .
+        
+    - stage: Build and Deploy
       name: "kind"
-      script:
-        -  GO111MODULE=on go get sigs.k8s.io/kind
-        - ./scripts/kind.sh
-        - docker push localhost:5000/druid-io:latest
-
-    - stage: Deploy
       addons:
         snaps:
         - name: kubectl
           confinement: classic
       script:
-        - kubectl get nodes
+        -  GO111MODULE=on go get sigs.k8s.io/kind
+        -  ./scripts/kind.sh
+        -  docker push localhost:5000/druid-io:latest
+        -  kubectl get nodes
