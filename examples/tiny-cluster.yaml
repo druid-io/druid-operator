@@ -73,7 +73,6 @@ spec:
   nodes:
     brokers:
       nodeType: "broker"
-      kind: "Deployment"
       # Optionally specify for broker nodes
       # imagePullSecrets:
       # - name: tutu
@@ -112,7 +111,6 @@ spec:
     coordinators:
       nodeType: "coordinator"
       druid.port: 8088
-      kind: "Deployment"
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/master/coordinator-overlord"
       replicas: 1
       runtime.properties: |
@@ -147,7 +145,6 @@ spec:
     historicals:
       nodeType: "historical"
       druid.port: 8088
-      kind: "StatefulSet"
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/data/historical"
       replicas: 1
       runtime.properties: |

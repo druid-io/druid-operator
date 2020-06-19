@@ -133,7 +133,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 		nodeSpec.Ports = append(nodeSpec.Ports, v1.ContainerPort{ContainerPort: nodeSpec.DruidPort, Name: "druid-port"})
 
-		if nodeSpec.Kind == "StatefulSet" {
+		if nodeSpec.Kind == "StatefulSet" || nodeSpec.Kind == "" {
 			// Create/Update StatefulSet
 			if stsCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) {
@@ -1171,10 +1171,6 @@ func verifyDruidSpec(drd *v1alpha1.Druid) error {
 	for key, node := range drd.Spec.Nodes {
 		if node.NodeType == "" {
 			errorMsg = fmt.Sprintf("%sNode[%s] missing NodeType\n", errorMsg, key)
-		}
-
-		if node.Kind == "" {
-			errorMsg = fmt.Sprintf("%sNode[%s] missing Kind\n", errorMsg, key)
 		}
 
 		if node.Replicas < 1 {
