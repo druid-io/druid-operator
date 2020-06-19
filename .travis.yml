@@ -25,3 +25,10 @@ jobs:
         -  docker build -t localhost:5000/druid-io:latest .
         -  docker push localhost:5000/druid-io:latest
         -  kubectl get nodes
+        -  sed -i 's|REPLACE_IMAGE|localhost:5000/druid-io:latest|g' deploy/operator.yaml
+        -  kubectl apply -f deploy/crds/druid.apache.org_druids_crd.yaml
+        -  kubectl apply -f deploy/
+        -  kubectl apply -f examples/tiny-cluster-zk.yaml
+        -  kubectl apply -f examples/tiny-cluster.yaml
+        -  sleep 5
+        -  kubectl get pods -o wide
