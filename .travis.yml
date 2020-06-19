@@ -18,6 +18,7 @@ jobs:
     - stage: Build and Test
       name: "kind"
       script:
+        -  GO111MODULE=on go get sigs.k8s.io/kind
         - ./scripts/kind.sh
 
     - stage: Deploy
