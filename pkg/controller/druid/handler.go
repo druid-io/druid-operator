@@ -133,7 +133,27 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 		nodeSpec.Ports = append(nodeSpec.Ports, v1.ContainerPort{ContainerPort: nodeSpec.DruidPort, Name: "druid-port"})
 
-		if nodeSpec.Kind == "StatefulSet" || nodeSpec.Kind == "" {
+		if nodeSpec.Kind == "Deployment" {
+			if deployCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
+				func() (object, error) {
+					return makeDeployment(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
+				},
+				func() object { return makeDeploymentEmptyObj() },
+				nil, m, deploymentNames); err != nil {
+				return err
+			} else if m.Spec.RollingDeploy {
+
+				if deployCreateUpdateStatus == resourceUpdated {
+					return nil
+				}
+
+				// Check Deployment rolling update status, if in-progress then stop here
+				done, err := isDeployFullyDeployed(sdk, nodeSpecUniqueStr, m)
+				if !done {
+					return err
+				}
+			}
+		} else {
 			// Create/Update StatefulSet
 			if stsCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) {
@@ -151,28 +171,6 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 				// Check StatefulSet rolling update status, if in-progress then stop here
 				done, err := isStsFullyDeployed(sdk, nodeSpecUniqueStr, m)
-				if !done {
-					return err
-				}
-			}
-		}
-
-		if nodeSpec.Kind == "Deployment" {
-			if deployCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
-				func() (object, error) {
-					return makeDeployment(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
-				},
-				func() object { return makeDeploymentEmptyObj() },
-				nil, m, deploymentNames); err != nil {
-				return err
-			} else if m.Spec.RollingDeploy {
-
-				if deployCreateUpdateStatus == resourceUpdated {
-					return nil
-				}
-
-				// Check Deployment rolling update status, if in-progress then stop here
-				done, err := isDeployFullyDeployed(sdk, nodeSpecUniqueStr, m)
 				if !done {
 					return err
 				}
@@ -446,7 +444,7 @@ func isStsFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bo
 	}
 }
 
-// Checks if all replicas corresponding to latest updated sts have been deployed
+// Checks if all replicas desired are in ready state for deployment
 func isDeployFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bool, error) {
 	deploy := makeDeploymentEmptyObj()
 	if err := sdk.Get(context.TODO(), *namespacedName(name, drd.Namespace), deploy); err != nil {
@@ -617,7 +615,7 @@ func getServiceName(nameTemplate, nodeSpecUniqueStr string) string {
 	}
 }
 
-func templateHolder(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.PersistentVolumeClaim {
+func getPersistentVolumeClaim(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.PersistentVolumeClaim {
 	pvc := []v1.PersistentVolumeClaim{}
 
 	for _, val := range m.Spec.VolumeClaimTemplates {
@@ -632,7 +630,7 @@ func templateHolder(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.Pe
 
 }
 
-func volumeMountHolder(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.VolumeMount {
+func getVolumeMounts(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.VolumeMount {
 	volumeMount := []v1.VolumeMount{
 		{
 			MountPath: firstNonEmptyStr(m.Spec.CommonConfigMountPath, defaultCommonConfigMountPath),
@@ -701,13 +699,13 @@ func getEnv(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, configMapSHA st
 	return envHolder
 }
 
-func getaffinity(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) *v1.Affinity {
+func getAffinity(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) *v1.Affinity {
 	affinity := firstNonNilValue(m.Spec.Affinity, &v1.Affinity{}).(*v1.Affinity)
 	affinity = firstNonNilValue(nodeSpec.Affinity, affinity).(*v1.Affinity)
 	return affinity
 }
 
-func getLiveProbe(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) *v1.Probe {
+func getLivenessProbe(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) *v1.Probe {
 	livenessProbe := updateDefaultPortInProbe(
 		firstNonNilValue(nodeSpec.LivenessProbe, m.Spec.LivenessProbe).(*v1.Probe),
 		nodeSpec.DruidPort)
@@ -790,7 +788,7 @@ func makeStatefulSetSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls
 		PodManagementPolicy:  appsv1.PodManagementPolicyType(firstNonEmptyStr(firstNonEmptyStr(string(nodeSpec.PodManagementPolicy), string(m.Spec.PodManagementPolicy)), string(appsv1.ParallelPodManagement))),
 		UpdateStrategy:       *updateStrategy,
 		Template:             makePodTemplate(nodeSpec, m, ls, nodeSpecificUniqueString, configMapSHA),
-		VolumeClaimTemplates: templateHolder(nodeSpec, m),
+		VolumeClaimTemplates: getPersistentVolumeClaim(nodeSpec, m),
 	}
 
 	return stsSpec
@@ -830,7 +828,7 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 	spec := v1.PodSpec{
 		NodeSelector:     m.Spec.NodeSelector,
 		Tolerations:      getTolerations(nodeSpec, m),
-		Affinity:         getaffinity(nodeSpec, m),
+		Affinity:         getAffinity(nodeSpec, m),
 		ImagePullSecrets: firstNonNilValue(nodeSpec.ImagePullSecrets, m.Spec.ImagePullSecrets).([]v1.LocalObjectReference),
 		Containers: []v1.Container{
 			{
@@ -840,8 +838,8 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 				Ports:           nodeSpec.Ports,
 				Resources:       nodeSpec.Resources,
 				Env:             getEnv(nodeSpec, m, configMapSHA),
-				VolumeMounts:    volumeMountHolder(nodeSpec, m),
-				LivenessProbe:   getLiveProbe(nodeSpec, m),
+				VolumeMounts:    getVolumeMounts(nodeSpec, m),
+				LivenessProbe:   getLivenessProbe(nodeSpec, m),
 				ReadinessProbe:  getReadinessProbe(nodeSpec, m),
 				Lifecycle:       nodeSpec.Lifecycle,
 				SecurityContext: firstNonNilValue(nodeSpec.ContainerSecurityContext, m.Spec.ContainerSecurityContext).(*v1.SecurityContext),

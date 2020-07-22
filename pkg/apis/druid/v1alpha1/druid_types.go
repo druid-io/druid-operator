@@ -141,8 +141,8 @@ type DruidNodeSpec struct {
 	// Required: Port used by Druid Process
 	DruidPort int32 `json:"druid.port"`
 
-	// Optional: Define kind for node. Deployment or Statefulsets are supported,
 	// Defaults to statefulsets.
+	// Note: volumeClaimTemplates are ignored when kind=Deployment
 	Kind string `json:"kind"`
 
 	// Required
@@ -208,10 +208,10 @@ type DruidNodeSpec struct {
 	// Optional: By default it is set to "parallel"
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 
-	// Optional: maxSurge for deployment object
+	// Optional: maxSurge for deployment object, only applicable if kind=Deployment
 	MaxSurge *int32 `json:"maxSurge"`
 
-	// Optional: MaxUnavailable for deployment object
+	// Optional: maxUnavailable for deployment object, only applicable if kind=Deployment
 	MaxUnavailable *int32 `json:"maxUnavailable"`
 
 	// Optional
