@@ -8,7 +8,7 @@ metadata:
   name: druid-druid-test-brokers
   namespace: test-namespace
   annotations:
-    druidOpResourceHash: JvDKxq3cBaf0FBXMscfcQ/RXrcs=
+    druidOpResourceHash: OnEopGbFnwSCMqd84ePrk0Kvd9o=
 spec:
   podManagementPolicy: Parallel
   replicas: 2
@@ -59,10 +59,13 @@ spec:
             memory: 2Gi
         volumeMounts:
         - mountPath: /druid/conf/druid/_common
+          readOnly: true
           name: common-config-volume
         - mountPath: /druid/conf/druid/broker
+          readOnly: true
           name: nodetype-config-volume
         - mountPath: /druid/data
+          readOnly: true
           name: data-volume
       securityContext:
         fsGroup: 107

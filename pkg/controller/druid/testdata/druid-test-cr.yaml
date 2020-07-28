@@ -159,6 +159,7 @@ spec:
       volumeMounts:
         - mountPath: /druid/data
           name: data-volume
+          readOnly: true
       resources:
         requests:
           memory: "2Gi"
