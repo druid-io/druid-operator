@@ -578,10 +578,12 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		{
 			MountPath: firstNonEmptyStr(m.Spec.CommonConfigMountPath, defaultCommonConfigMountPath),
 			Name:      "common-config-volume",
+			ReadOnly:  true,
 		},
 		{
 			MountPath: firstNonEmptyStr(nodeSpec.NodeConfigMountPath, defaultNodeConfigMountPath),
 			Name:      "nodetype-config-volume",
+			ReadOnly:  true,
 		},
 	}
 
