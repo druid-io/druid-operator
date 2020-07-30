@@ -148,7 +148,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				}
 
 				// Check Deployment rolling update status, if in-progress then stop here
-				done, err := isDeployFullyDeployed(sdk, nodeSpecUniqueStr, m)
+				done, err := isDeploymentFullyDeployed(sdk, nodeSpecUniqueStr, m)
 				if !done {
 					return err
 				}
@@ -445,7 +445,7 @@ func isStsFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bo
 }
 
 // Checks if all replicas desired are in ready state for deployment
-func isDeployFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bool, error) {
+func isDeploymentFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bool, error) {
 	deploy := makeDeploymentEmptyObj()
 	if err := sdk.Get(context.TODO(), *namespacedName(name, drd.Namespace), deploy); err != nil {
 		e := fmt.Errorf("failed to get [Deployment:%s] due to [%s]", name, err.Error())
