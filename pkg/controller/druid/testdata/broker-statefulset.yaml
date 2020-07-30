@@ -1,14 +1,10 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  labels:
-    app: druid
-    druid_cr: druid-test
-    nodeSpecUniqueStr: druid-druid-test-brokers
   name: druid-druid-test-brokers
   namespace: test-namespace
   annotations:
-    druidOpResourceHash: JvDKxq3cBaf0FBXMscfcQ/RXrcs=
+    druidOpResourceHash: aa+7xTKFY7keSfqij3SOO6A8pg0=
 spec:
   podManagementPolicy: Parallel
   replicas: 2
@@ -59,10 +55,13 @@ spec:
             memory: 2Gi
         volumeMounts:
         - mountPath: /druid/conf/druid/_common
+          readOnly: true
           name: common-config-volume
         - mountPath: /druid/conf/druid/broker
+          readOnly: true
           name: nodetype-config-volume
         - mountPath: /druid/data
+          readOnly: true
           name: data-volume
       securityContext:
         fsGroup: 107

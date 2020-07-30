@@ -635,10 +635,12 @@ func getVolumeMounts(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.V
 		{
 			MountPath: firstNonEmptyStr(m.Spec.CommonConfigMountPath, defaultCommonConfigMountPath),
 			Name:      "common-config-volume",
+			ReadOnly:  true,
 		},
 		{
 			MountPath: firstNonEmptyStr(nodeSpec.NodeConfigMountPath, getNodeConfigMountPath(nodeSpec)),
 			Name:      "nodetype-config-volume",
+			ReadOnly:  true,
 		},
 	}
 
