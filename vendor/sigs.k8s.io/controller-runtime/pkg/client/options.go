@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 )
 
 // {{{ "Functional" Option Interfaces
@@ -142,6 +143,21 @@ func (o *CreateOptions) ApplyOptions(opts []CreateOption) *CreateOptions {
 	return o
 }
 
+// ApplyToCreate implements CreateOption
+func (o *CreateOptions) ApplyToCreate(co *CreateOptions) {
+	if o.DryRun != nil {
+		co.DryRun = o.DryRun
+	}
+	if o.FieldManager != "" {
+		co.FieldManager = o.FieldManager
+	}
+	if o.Raw != nil {
+		co.Raw = o.Raw
+	}
+}
+
+var _ CreateOption = &CreateOptions{}
+
 // CreateDryRunAll sets the "dry run" option to "all".
 //
 // Deprecated: Use DryRunAll
@@ -211,6 +227,27 @@ func (o *DeleteOptions) ApplyOptions(opts []DeleteOption) *DeleteOptions {
 	return o
 }
 
+var _ DeleteOption = &DeleteOptions{}
+
+// ApplyToDelete implements DeleteOption
+func (o *DeleteOptions) ApplyToDelete(do *DeleteOptions) {
+	if o.GracePeriodSeconds != nil {
+		do.GracePeriodSeconds = o.GracePeriodSeconds
+	}
+	if o.Preconditions != nil {
+		do.Preconditions = o.Preconditions
+	}
+	if o.PropagationPolicy != nil {
+		do.PropagationPolicy = o.PropagationPolicy
+	}
+	if o.Raw != nil {
+		do.Raw = o.Raw
+	}
+	if o.DryRun != nil {
+		do.DryRun = o.DryRun
+	}
+}
+
 // GracePeriodSeconds sets the grace period for the deletion
 // to the given number of seconds.
 type GracePeriodSeconds int64
@@ -267,10 +304,45 @@ type ListOptions struct {
 	// non-namespaced objects, or to list across all namespaces.
 	Namespace string
 
+	// Limit specifies the maximum number of results to return from the server. The server may
+	// not support this field on all resource types, but if it does and more results remain it
+	// will set the continue field on the returned list object. This field is not supported if watch
+	// is true in the Raw ListOptions.
+	Limit int64
+	// Continue is a token returned by the server that lets a client retrieve chunks of results
+	// from the server by specifying limit. The server may reject requests for continuation tokens
+	// it does not recognize and will return a 410 error if the token can no longer be used because
+	// it has expired. This field is not supported if watch is true in the Raw ListOptions.
+	Continue string
+
 	// Raw represents raw ListOptions, as passed to the API server.  Note
 	// that these may not be respected by all implementations of interface,
-	// and the LabelSelector and FieldSelector fields are ignored.
+	// and the LabelSelector, FieldSelector, Limit and Continue fields are ignored.
 	Raw *metav1.ListOptions
+}
+
+var _ ListOption = &ListOptions{}
+
+// ApplyToList implements ListOption for ListOptions
+func (o *ListOptions) ApplyToList(lo *ListOptions) {
+	if o.LabelSelector != nil {
+		lo.LabelSelector = o.LabelSelector
+	}
+	if o.FieldSelector != nil {
+		lo.FieldSelector = o.FieldSelector
+	}
+	if o.Namespace != "" {
+		lo.Namespace = o.Namespace
+	}
+	if o.Raw != nil {
+		lo.Raw = o.Raw
+	}
+	if o.Limit > 0 {
+		lo.Limit = o.Limit
+	}
+	if o.Continue != "" {
+		lo.Continue = o.Continue
+	}
 }
 
 // AsListOptions returns these options as a flattened metav1.ListOptions.
@@ -287,6 +359,10 @@ func (o *ListOptions) AsListOptions() *metav1.ListOptions {
 	}
 	if o.FieldSelector != nil {
 		o.Raw.FieldSelector = o.FieldSelector.String()
+	}
+	if !o.Raw.Watch {
+		o.Raw.Limit = o.Limit
+		o.Raw.Continue = o.Continue
 	}
 	return o.Raw
 }
@@ -313,6 +389,40 @@ func (m MatchingLabels) ApplyToDeleteAllOf(opts *DeleteAllOfOptions) {
 	m.ApplyToList(&opts.ListOptions)
 }
 
+// HasLabels filters the list/delete operation checking if the set of labels exists
+// without checking their values.
+type HasLabels []string
+
+func (m HasLabels) ApplyToList(opts *ListOptions) {
+	sel := labels.NewSelector()
+	for _, label := range m {
+		r, err := labels.NewRequirement(label, selection.Exists, nil)
+		if err == nil {
+			sel = sel.Add(*r)
+		}
+	}
+	opts.LabelSelector = sel
+}
+
+func (m HasLabels) ApplyToDeleteAllOf(opts *DeleteAllOfOptions) {
+	m.ApplyToList(&opts.ListOptions)
+}
+
+// MatchingLabelsSelector filters the list/delete operation on the given label
+// selector (or index in the case of cached lists). A struct is used because
+// labels.Selector is an interface, which cannot be aliased.
+type MatchingLabelsSelector struct {
+	labels.Selector
+}
+
+func (m MatchingLabelsSelector) ApplyToList(opts *ListOptions) {
+	opts.LabelSelector = m
+}
+
+func (m MatchingLabelsSelector) ApplyToDeleteAllOf(opts *DeleteAllOfOptions) {
+	m.ApplyToList(&opts.ListOptions)
+}
+
 // MatchingField filters the list operation on the given field selector
 // (or index in the case of cached lists).
 //
@@ -321,17 +431,32 @@ func MatchingField(name, val string) MatchingFields {
 	return MatchingFields{name: val}
 }
 
-// MatchingField filters the list/delete operation on the given field selector
+// MatchingFields filters the list/delete operation on the given field Set
 // (or index in the case of cached lists).
 type MatchingFields fields.Set
 
 func (m MatchingFields) ApplyToList(opts *ListOptions) {
 	// TODO(directxman12): can we avoid re-serializing this?
-	sel := fields.SelectorFromSet(fields.Set(m))
+	sel := fields.Set(m).AsSelector()
 	opts.FieldSelector = sel
 }
 
 func (m MatchingFields) ApplyToDeleteAllOf(opts *DeleteAllOfOptions) {
+	m.ApplyToList(&opts.ListOptions)
+}
+
+// MatchingFieldsSelector filters the list/delete operation on the given field
+// selector (or index in the case of cached lists). A struct is used because
+// fields.Selector is an interface, which cannot be aliased.
+type MatchingFieldsSelector struct {
+	fields.Selector
+}
+
+func (m MatchingFieldsSelector) ApplyToList(opts *ListOptions) {
+	opts.FieldSelector = m
+}
+
+func (m MatchingFieldsSelector) ApplyToDeleteAllOf(opts *DeleteAllOfOptions) {
 	m.ApplyToList(&opts.ListOptions)
 }
 
@@ -344,6 +469,24 @@ func (n InNamespace) ApplyToList(opts *ListOptions) {
 
 func (n InNamespace) ApplyToDeleteAllOf(opts *DeleteAllOfOptions) {
 	n.ApplyToList(&opts.ListOptions)
+}
+
+// Limit specifies the maximum number of results to return from the server.
+// Limit does not implement DeleteAllOfOption interface because the server
+// does not support setting it for deletecollection operations.
+type Limit int64
+
+func (l Limit) ApplyToList(opts *ListOptions) {
+	opts.Limit = int64(l)
+}
+
+// Continue sets a continuation token to retrieve chunks of results when using limit.
+// Continue does not implement DeleteAllOfOption interface because the server
+// does not support setting it for deletecollection operations.
+type Continue string
+
+func (c Continue) ApplyToList(opts *ListOptions) {
+	opts.Continue = string(c)
 }
 
 // }}}
@@ -390,6 +533,21 @@ func (o *UpdateOptions) ApplyOptions(opts []UpdateOption) *UpdateOptions {
 		opt.ApplyToUpdate(o)
 	}
 	return o
+}
+
+var _ UpdateOption = &UpdateOptions{}
+
+// ApplyToUpdate implements UpdateOption
+func (o *UpdateOptions) ApplyToUpdate(uo *UpdateOptions) {
+	if o.DryRun != nil {
+		uo.DryRun = o.DryRun
+	}
+	if o.FieldManager != "" {
+		uo.FieldManager = o.FieldManager
+	}
+	if o.Raw != nil {
+		uo.Raw = o.Raw
+	}
 }
 
 // UpdateDryRunAll sets the "dry run" option to "all".
@@ -449,6 +607,24 @@ func (o *PatchOptions) AsPatchOptions() *metav1.PatchOptions {
 	return o.Raw
 }
 
+var _ PatchOption = &PatchOptions{}
+
+// ApplyToPatch implements PatchOptions
+func (o *PatchOptions) ApplyToPatch(po *PatchOptions) {
+	if o.DryRun != nil {
+		po.DryRun = o.DryRun
+	}
+	if o.Force != nil {
+		po.Force = o.Force
+	}
+	if o.FieldManager != "" {
+		po.FieldManager = o.FieldManager
+	}
+	if o.Raw != nil {
+		po.Raw = o.Raw
+	}
+}
+
 // ForceOwnership indicates that in case of conflicts with server-side apply,
 // the client should acquire ownership of the conflicting field.  Most
 // controllers should use this.
@@ -486,6 +662,14 @@ func (o *DeleteAllOfOptions) ApplyOptions(opts []DeleteAllOfOption) *DeleteAllOf
 		opt.ApplyToDeleteAllOf(o)
 	}
 	return o
+}
+
+var _ DeleteAllOfOption = &DeleteAllOfOptions{}
+
+// ApplyToDeleteAllOf implements DeleteAllOfOption
+func (o *DeleteAllOfOptions) ApplyToDeleteAllOf(do *DeleteAllOfOptions) {
+	o.ApplyToList(&do.ListOptions)
+	o.ApplyToDelete(&do.DeleteOptions)
 }
 
 // }}}
