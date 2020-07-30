@@ -141,6 +141,10 @@ type DruidNodeSpec struct {
 	// Required: Port used by Druid Process
 	DruidPort int32 `json:"druid.port"`
 
+	// Defaults to statefulsets.
+	// Note: volumeClaimTemplates are ignored when kind=Deployment
+	Kind string `json:"kind"`
+
 	// Required
 	Replicas int32 `json:"replicas"`
 
@@ -204,6 +208,12 @@ type DruidNodeSpec struct {
 	// Optional: By default it is set to "parallel"
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 
+	// Optional: maxSurge for deployment object, only applicable if kind=Deployment
+	MaxSurge *int32 `json:"maxSurge"`
+
+	// Optional: maxUnavailable for deployment object, only applicable if kind=Deployment
+	MaxUnavailable *int32 `json:"maxUnavailable"`
+
 	// Optional
 	UpdateStrategy *appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
 
@@ -247,6 +257,7 @@ type DeepStorageSpec struct {
 
 type DruidClusterStatus struct {
 	StatefulSets         []string `json:"statefulSets,omitempty"`
+	Deployments          []string `json:"deployments,omitempty"`
 	Services             []string `json:"services,omitempty"`
 	ConfigMaps           []string `json:"configMaps,omitempty"`
 	PodDisruptionBudgets []string `json:"podDisruptionBudgets,omitempty"`

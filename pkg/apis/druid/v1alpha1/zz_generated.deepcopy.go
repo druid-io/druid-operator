@@ -208,6 +208,11 @@ func (in *DruidClusterStatus) DeepCopyInto(out *DruidClusterStatus) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Deployments != nil {
+		in, out := &in.Deployments, &out.Deployments
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.Services != nil {
 		in, out := &in.Services, &out.Services
 		*out = make([]string, len(*in))
@@ -357,6 +362,16 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.MaxSurge != nil {
+		in, out := &in.MaxSurge, &out.MaxSurge
+		*out = new(int32)
+		**out = **in
+	}
+	if in.MaxUnavailable != nil {
+		in, out := &in.MaxUnavailable, &out.MaxUnavailable
+		*out = new(int32)
+		**out = **in
 	}
 	if in.UpdateStrategy != nil {
 		in, out := &in.UpdateStrategy, &out.UpdateStrategy

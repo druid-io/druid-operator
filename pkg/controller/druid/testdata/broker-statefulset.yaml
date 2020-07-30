@@ -1,14 +1,10 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  labels:
-    app: druid
-    druid_cr: druid-test
-    nodeSpecUniqueStr: druid-druid-test-brokers
   name: druid-druid-test-brokers
   namespace: test-namespace
   annotations:
-    druidOpResourceHash: OnEopGbFnwSCMqd84ePrk0Kvd9o=
+    druidOpResourceHash: aa+7xTKFY7keSfqij3SOO6A8pg0=
 spec:
   podManagementPolicy: Parallel
   replicas: 2
