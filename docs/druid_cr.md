@@ -4,7 +4,7 @@
 - Some key values are ```Required```, ie they must be present in the spec to get the cluster deployed. Other's are optional.
 - For full details on spec refer to ```pkg/api/druid/v1alpha1/druid_types.go```
 - The operator supports both deployments and statefulsets for druid Nodes. ```kind``` can be specified in the druid NodeSpec's to ```Deployment``` / ```StatefulSet```.
-- NOTE: The default behavior shall provision all the nodes as statefulsets.
+- ```NOTE: The default behavior shall provision all the nodes as statefulsets.```
 
 - The following are cluster scoped and common to all the druid nodes. 
 
