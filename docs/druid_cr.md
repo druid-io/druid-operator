@@ -1,4 +1,5 @@
-###  Druid CR Spec
+##  Druid CR Spec
+
 - Druid CR has a ```clusterSpec``` which is common for all the druid nodes deployed and a ```nodeSpec``` which is specific to druid nodes.
 - Some key values are ```Required```, ie they must be present in the spec to get the cluster deployed. Other's are optional.
 - For full details on spec refer to ```pkg/api/druid/v1alpha1/druid_types.go```
@@ -41,7 +42,7 @@ spec:
  ```
 
  - The following are specific to a node.
- 
+
  ```
   nodes:
     # String value, can be anything to define a node name.

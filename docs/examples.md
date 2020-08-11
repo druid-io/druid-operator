@@ -1,4 +1,5 @@
-### Example NodeSpec Supporting Mulitple Key/Values
+## Example NodeSpec Supporting Mulitple Key/Values
+
 ```
     middlemanagers:
       podAnnotations:
@@ -110,7 +111,9 @@
              name: memory
              targetAverageUtilization: 60
 ```
-### Configure Ingress
+
+## Configure Ingress
+
 ```
  brokers:
       nodeType: "broker"
@@ -131,7 +134,9 @@
                  serviceName: service1
                  servicePort: 80    
 ```
-### Configure Deployments 
+
+## Configure Deployments 
+
 ```
   nodes:
     brokers:
@@ -144,7 +149,9 @@
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/query/broker"
       defaultReplicas: 1
 ```
-### Configure Hot/Cold for Historicals
+
+## Configure Hot/Cold for Historicals
+
 ```
   hot:
     druid.port: 8083
