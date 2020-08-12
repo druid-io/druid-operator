@@ -1,78 +1,26 @@
-# druid-operator 
+# Druid Operator
+[![Build Status](https://api.travis-ci.org/druid-io/druid-operator.svg?branch=master)](https://travis-ci.org/github/druid-io/druid-operator)
+- Druid operator provisions and manages druid cluster on kubernetes. 
+- It is built using the [operator-sdk](https://github.com/operator-framework/operator-sdk/tree/v0.11.0).
+- Language used is GoLang 
+- Refer to [Documentation](./docs/README.md) for getting started.
 
-druid-operator is a kubernetes operator for deploying Druid clusters. It is built using the [operator-sdk](https://github.com/operator-framework/operator-sdk/tree/v0.11.0) . 
+### Supported CR
+- The operator supports ```Druid``` CR.
+- ```Druid``` CR belongs to api Group ```druid.apache.org``` and version ```v1alpha1```
 
-# How to run druid-operator locally
-```
-druid-operator$ kubectl create -f deploy/service_account.yaml
-# Setup RBAC
-druid-operator$ kubectl create -f deploy/role.yaml
-druid-operator$ kubectl create -f deploy/role_binding.yaml
-# Setup the CRD
-druid-operator$ kubectl create -f deploy/crds/druid.apache.org_druids_crd.yaml
-# Run operator locally, by default operator shall look for current context in the kubeconfig
-druid-operator$ operator-sdk up local
-```
 
-# How to build druid-operator docker image
+### Run the operator locally
 
-Pre-built docker images are available in [DockerHub](https://hub.docker.com/r/druidio/druid-operator). You can build docker image from source code using the command below.
+Requirements:
+  - Go 1.13
+  - operator-sdk version v0.16.0.
 
 ```
-druid-operator$ docker build -t druidio/druid-operator:0.0.1 .
+$ docker build -t druid_image:tag . 
 ```
 
-# Deploying druid-operator on kubernetes
-
 ```
-# Setup Service Account
-druid-operator$ kubectl create -f deploy/service_account.yaml
-# Setup RBAC
-druid-operator$ kubectl create -f deploy/role.yaml
-druid-operator$ kubectl create -f deploy/role_binding.yaml
-# Setup the CRD
-druid-operator$ kubectl create -f deploy/crds/druid.apache.org_druids_crd.yaml
-
-# Update the operator manifest to use the druid-operator image name (if you are performing these steps on OSX, see note below)
-druid-operator$ sed -i 's|REPLACE_IMAGE|<druid-operator-image>|g' deploy/operator.yaml
-# On OSX use:
-druid-operator$ sed -i "" 's|REPLACE_IMAGE|<druid-operator-image>|g' deploy/operator.yaml
-
-# Deploy the druid-operator
-druid-operator$ kubectl create -f deploy/operator.yaml
-
-# Check the deployed druid-operator
-druid-operator$ kubectl describe deployment druid-operator
-```
-
-# Deploy a druid cluster
-
-An example spec to deploy a tiny druid cluster is included. For full details on spec please see `pkg/api/druid/v1alpha1/druid_types.go`
-
-```
-# deploy single node zookeeper
-druid-operator$ kubectl apply -f examples/tiny-cluster-zk.yaml
-
-# deploy druid cluster spec
-druid-operator$ kubectl apply -f examples/tiny-cluster.yaml
-```
-
-# Debugging Problems
-
- - For kubernetes version 1.11 make sure to disable ```type: object``` in the CRD root spec. 
-
-```
-# get druid-operator pod name
-druid-operator$ kubectl get po | grep druid-operator
-
-# check druid-operator pod logs
-druid-operator$ kubectl logs <druid-operator pod name>
-
-# check the druid spec
-druid-operator$ kubectl describe druids tiny-cluster
-
-#  check if druid cluster is deployed
-druid-operator$ kubectl get svc | grep tiny
-druid-operator$ kubectl get cm | grep tiny
-druid-operator$ kubectl get sts | grep tiny
+# set --watch-namespace with "" to watch all namespaces
+$ operator-sdk run --local --watch-namespace=namespace
 ```
