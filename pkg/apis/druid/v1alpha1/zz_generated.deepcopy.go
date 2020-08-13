@@ -233,6 +233,11 @@ func (in *DruidClusterStatus) DeepCopyInto(out *DruidClusterStatus) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.PersistentVolumeClaim != nil {
+		in, out := &in.PersistentVolumeClaim, &out.PersistentVolumeClaim
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.HPAutoScalers != nil {
 		in, out := &in.HPAutoScalers, &out.HPAutoScalers
 		*out = make([]string, len(*in))
@@ -260,7 +265,7 @@ func (in *DruidClusterStatus) DeepCopy() *DruidClusterStatus {
 func (in *DruidList) DeepCopyInto(out *DruidList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Druid, len(*in))
@@ -398,6 +403,11 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 	if in.Ingress != nil {
 		in, out := &in.Ingress, &out.Ingress
 		*out = new(extensionsv1beta1.IngressSpec)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.PersistentVolumeClaim != nil {
+		in, out := &in.PersistentVolumeClaim, &out.PersistentVolumeClaim
+		*out = new(v1.PersistentVolumeClaimSpec)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Lifecycle != nil {

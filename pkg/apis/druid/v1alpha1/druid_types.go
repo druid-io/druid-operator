@@ -229,6 +229,11 @@ type DruidNodeSpec struct {
 	// Optional: Ingress Spec
 	Ingress *extensions.IngressSpec `json:"ingress,omitempty"`
 
+	// Optional: Persitance Volume Spec for Deployments
+	PersistentVolumeClaim *v1.PersistentVolumeClaimSpec `json:"persistentVolumeClaim,omitempty"`
+
+	// Optional: MounthPath to mount volume
+	PersistentVolumeClaimMounthPath string `json:"persistentVolumeClaimMountPath,omitempty"`
 	// Optional
 	Lifecycle *v1.Lifecycle `json:"lifecycle,omitempty"`
 
@@ -256,14 +261,15 @@ type DeepStorageSpec struct {
 }
 
 type DruidClusterStatus struct {
-	StatefulSets         []string `json:"statefulSets,omitempty"`
-	Deployments          []string `json:"deployments,omitempty"`
-	Services             []string `json:"services,omitempty"`
-	ConfigMaps           []string `json:"configMaps,omitempty"`
-	PodDisruptionBudgets []string `json:"podDisruptionBudgets,omitempty"`
-	Ingress              []string `json:"ingress,omitempty"`
-	HPAutoScalers        []string `json:"hpAutoscalers,omitempty"`
-	Pods                 []string `json:"pods,omitempty"`
+	StatefulSets          []string `json:"statefulSets,omitempty"`
+	Deployments           []string `json:"deployments,omitempty"`
+	Services              []string `json:"services,omitempty"`
+	ConfigMaps            []string `json:"configMaps,omitempty"`
+	PodDisruptionBudgets  []string `json:"podDisruptionBudgets,omitempty"`
+	Ingress               []string `json:"ingress,omitempty"`
+	PersistentVolumeClaim []string `json:"persistentVolumeClaim,omitempty"`
+	HPAutoScalers         []string `json:"hpAutoscalers,omitempty"`
+	Pods                  []string `json:"pods,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

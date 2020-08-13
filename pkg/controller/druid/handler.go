@@ -68,6 +68,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	podDisruptionBudgetNames := make(map[string]bool)
 	hpaNames := make(map[string]bool)
 	ingressNames := make(map[string]bool)
+	pvcNames := make(map[string]bool)
 
 	ls := makeLabelsForDruid(m.Name)
 
@@ -113,6 +114,15 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			func() object { return makeConfigMapEmptyObj() },
 			nil, m, configMapNames); err != nil {
 			return err
+		}
+
+		if nodeSpec.PersistentVolumeClaim != nil && nodeSpec.Kind == "Deployment" {
+			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
+				func() (object, error) { return makePVC(&nodeSpec, m, ls, nodeSpecUniqueStr) },
+				func() object { return makePersistentVolumeClaimEmptyObj() },
+				nil, m, pvcNames); err != nil {
+				return err
+			}
 		}
 
 		//create services before creating statefulset
@@ -192,7 +202,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		// Create PodDisruptionBudget
 		if nodeSpec.PodDisruptionBudgetSpec != nil {
 			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
-				func() (object, error) { return makePodDisruptionBudget(&nodeSpec, m, lm, nodeSpecUniqueStr) },
+				func() (object, error) { return makePodDisruptionBudget(&nodeSpec, m, ls, nodeSpecUniqueStr) },
 				func() object { return makePodDisruptionBudgetEmptyObj() },
 				nil, m, podDisruptionBudgetNames); err != nil {
 				return err
@@ -262,6 +272,18 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			return result
 		})
 	sort.Strings(updatedStatus.Ingress)
+
+	updatedStatus.PersistentVolumeClaim = deleteUnusedResources(sdk, m, pvcNames, ls,
+		func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() },
+		func(listObj runtime.Object) []object {
+			items := listObj.(*v1.PersistentVolumeClaimList).Items
+			result := make([]object, len(items))
+			for i := 0; i < len(items); i++ {
+				result[i] = &items[i]
+			}
+			return result
+		})
+	sort.Strings(updatedStatus.PersistentVolumeClaim)
 
 	updatedStatus.PodDisruptionBudgets = deleteUnusedResources(sdk, m, podDisruptionBudgetNames, ls,
 		func() runtime.Object { return makePodDisruptionBudgetListEmptyObj() },
@@ -615,7 +637,7 @@ func getServiceName(nameTemplate, nodeSpecUniqueStr string) string {
 	}
 }
 
-func getPersistentVolumeClaim(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.PersistentVolumeClaim {
+func getVolumeClaimTemplates(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.PersistentVolumeClaim {
 	pvc := []v1.PersistentVolumeClaim{}
 
 	for _, val := range m.Spec.VolumeClaimTemplates {
@@ -642,6 +664,16 @@ func getVolumeMounts(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.V
 			Name:      "nodetype-config-volume",
 			ReadOnly:  true,
 		},
+	}
+
+	if nodeSpec.PersistentVolumeClaim != nil && nodeSpec.Kind == "Deployment" {
+		pvc := []v1.VolumeMount{
+			{
+				MountPath: nodeSpec.PersistentVolumeClaimMounthPath,
+				Name:      "pvc-data",
+			},
+		}
+		volumeMount = append(volumeMount, pvc...)
 	}
 
 	volumeMount = append(volumeMount, m.Spec.VolumeMounts...)
@@ -688,6 +720,20 @@ func getVolume(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUniq
 			},
 		},
 	}
+	if nodeSpec.PersistentVolumeClaim != nil && nodeSpec.Kind == "Deployment" {
+		pvc := []v1.Volume{
+			{
+				Name: "pvc-data",
+				VolumeSource: v1.VolumeSource{
+					PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+						ClaimName: nodeSpecUniqueStr,
+					},
+				},
+			},
+		}
+		volumesHolder = append(volumesHolder, pvc...)
+	}
+
 	volumesHolder = append(volumesHolder, m.Spec.Volumes...)
 	volumesHolder = append(volumesHolder, nodeSpec.Volumes...)
 	return volumesHolder
@@ -790,7 +836,7 @@ func makeStatefulSetSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls
 		PodManagementPolicy:  appsv1.PodManagementPolicyType(firstNonEmptyStr(firstNonEmptyStr(string(nodeSpec.PodManagementPolicy), string(m.Spec.PodManagementPolicy)), string(appsv1.ParallelPodManagement))),
 		UpdateStrategy:       *updateStrategy,
 		Template:             makePodTemplate(nodeSpec, m, ls, nodeSpecificUniqueString, configMapSHA),
-		VolumeClaimTemplates: getPersistentVolumeClaim(nodeSpec, m),
+		VolumeClaimTemplates: getVolumeClaimTemplates(nodeSpec, m),
 	}
 
 	return stsSpec
@@ -923,6 +969,25 @@ func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[str
 	return ingress, nil
 }
 
+func makePVC(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*v1.PersistentVolumeClaim, error) {
+	nodePVCSpec := *nodeSpec.PersistentVolumeClaim
+
+	pvc := &v1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nodeSpecUniqueStr,
+			Namespace: m.Namespace,
+			Labels:    ls,
+		},
+		Spec: nodePVCSpec,
+	}
+
+	return pvc, nil
+}
+
 // makeLabelsForDruid returns the labels for selecting the resources
 // belonging to the given druid CR name.
 func makeLabelsForDruid(name string) map[string]string {
@@ -1014,6 +1079,15 @@ func makeIngressListEmptyObj() *extensions.IngressList {
 	}
 }
 
+func makePersistentVolumeClaimListEmptyObj() *v1.PersistentVolumeClaimList {
+	return &v1.PersistentVolumeClaimList{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		},
+	}
+}
+
 func makeConfigMapListEmptyObj() *v1.ConfigMapList {
 	return &v1.ConfigMapList{
 		TypeMeta: metav1.TypeMeta{
@@ -1073,6 +1147,15 @@ func makeIngressEmptyObj() *extensions.Ingress {
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.k8s.io/v1beta1",
 			Kind:       "Ingress",
+		},
+	}
+}
+
+func makePersistentVolumeClaimEmptyObj() *v1.PersistentVolumeClaim {
+	return &v1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
 		},
 	}
 }
