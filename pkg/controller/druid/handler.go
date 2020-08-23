@@ -578,6 +578,8 @@ func makeService(svc *v1.Service, nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.
 
 	svc.ObjectMeta.Namespace = m.Namespace
 
+	svc.ObjectMeta.Annotations = firstNonNilValue(nodeSpec.ServiceAnnotations, m.Spec.ServiceAnnotations).(map[string]string)
+
 	if svc.ObjectMeta.Labels == nil {
 		svc.ObjectMeta.Labels = ls
 	} else {
@@ -721,6 +723,13 @@ func getReadinessProbe(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) *v1.
 	return readinessProbe
 }
 
+func getStartUpProbe(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) *v1.Probe {
+	startUpProbe := updateDefaultPortInProbe(
+		firstNonNilValue(nodeSpec.StartUpProbes, m.Spec.StartUpProbes).(*v1.Probe),
+		nodeSpec.DruidPort)
+	return startUpProbe
+}
+
 func getRollingUpdateStrategy(nodeSpec *v1alpha1.DruidNodeSpec) *appsv1.RollingUpdateDeployment {
 	var nil *int32 = nil
 	if nodeSpec.MaxSurge != nil || nodeSpec.MaxUnavailable != nil {
@@ -843,6 +852,7 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 				VolumeMounts:    getVolumeMounts(nodeSpec, m),
 				LivenessProbe:   getLivenessProbe(nodeSpec, m),
 				ReadinessProbe:  getReadinessProbe(nodeSpec, m),
+				StartupProbe:    getStartUpProbe(nodeSpec, m),
 				Lifecycle:       nodeSpec.Lifecycle,
 				SecurityContext: firstNonNilValue(nodeSpec.ContainerSecurityContext, m.Spec.ContainerSecurityContext).(*v1.SecurityContext),
 			},

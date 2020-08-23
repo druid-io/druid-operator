@@ -101,8 +101,14 @@ type DruidClusterSpec struct {
 	// Optional, port is set to druid.port if not specified with httpGet handler
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 
+	// Optional: StartupProbe for nodeSpec
+	StartUpProbes *v1.Probe `json:"startUpProbes,omitempty"`
+
 	// Optional: k8s service resources to be created for each Druid statefulsets
 	Services []v1.Service `json:"services,omitempty"`
+
+	// Optional: custom annotations to be populated in Druid Service
+	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
 
 	// Optional: node selector to be used by Druid statefulsets
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
@@ -169,6 +175,9 @@ type DruidNodeSpec struct {
 	// Required: in-container directory to mount with runtime.properties, jvm.config, log4j2.xml files
 	NodeConfigMountPath string `json:"nodeConfigMountPath,omitempty"`
 
+	// Optional: custom annotations to be populated in Druid Service
+	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
+
 	// Optional: Overrides services at top level
 	Services []v1.Service `json:"services,omitempty"`
 
@@ -222,6 +231,9 @@ type DruidNodeSpec struct {
 
 	// Optional
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
+
+	// Optional: StartupProbe for nodeSpec
+	StartUpProbes *v1.Probe `json:"startUpProbes,omitempty"`
 
 	// Optional: Ingress Annoatations to be populated in ingress spec
 	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`

@@ -139,11 +139,23 @@ func (in *DruidClusterSpec) DeepCopyInto(out *DruidClusterSpec) {
 		*out = new(v1.Probe)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.StartUpProbes != nil {
+		in, out := &in.StartUpProbes, &out.StartUpProbes
+		*out = new(v1.Probe)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Services != nil {
 		in, out := &in.Services, &out.Services
 		*out = make([]v1.Service, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.ServiceAnnotations != nil {
+		in, out := &in.ServiceAnnotations, &out.ServiceAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
 		}
 	}
 	if in.NodeSelector != nil {
@@ -260,7 +272,7 @@ func (in *DruidClusterStatus) DeepCopy() *DruidClusterStatus {
 func (in *DruidList) DeepCopyInto(out *DruidList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]Druid, len(*in))
@@ -303,6 +315,13 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 		in, out := &in.PodDisruptionBudgetSpec, &out.PodDisruptionBudgetSpec
 		*out = new(v1beta1.PodDisruptionBudgetSpec)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.ServiceAnnotations != nil {
+		in, out := &in.ServiceAnnotations, &out.ServiceAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 	if in.Services != nil {
 		in, out := &in.Services, &out.Services
@@ -385,6 +404,11 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 	}
 	if in.ReadinessProbe != nil {
 		in, out := &in.ReadinessProbe, &out.ReadinessProbe
+		*out = new(v1.Probe)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.StartUpProbes != nil {
+		in, out := &in.StartUpProbes, &out.StartUpProbes
 		*out = new(v1.Probe)
 		(*in).DeepCopyInto(*out)
 	}
