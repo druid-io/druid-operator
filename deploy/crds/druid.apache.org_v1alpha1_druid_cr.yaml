@@ -1,7 +1,0 @@
-apiVersion: druid.apache.org/v1alpha1
-kind: Druid
-metadata:
-  name: example-druid
-spec:
-  # Add fields here
-  size: 3

@@ -1,0 +1,11 @@
+domain: druid.apache.org
+layout: go.kubebuilder.io/v2
+projectName: druid-operator
+repo: github.com/druid-io/druid-operator
+resources:
+- group: druid.apache.org
+  kind: Druid
+  version: v1alpha1
+version: 3-alpha
+plugins:
+  go.sdk.operatorframework.io/v2-alpha: {}
