@@ -174,6 +174,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				if !done {
 					return err
 				}
+				checkCrashStatus(sdk, m)
 			}
 		}
 
@@ -326,6 +327,37 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	}
 
 	return nil
+}
+
+func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
+	podList := podList()
+	if err := sdk.List(context.TODO(), podList); err != nil {
+		e := fmt.Errorf("failed to list pods for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
+		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
+		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+	}
+
+	pod := make([]*v1.Pod, 0)
+	for i := range podList.Items {
+		pod = append(pod, &podList.Items[i])
+	}
+
+	for _, p := range pod {
+		if p.Status.ContainerStatuses[0].RestartCount > 1 {
+			for _, condition := range p.Status.Conditions {
+				if condition.Type == "Ready" {
+					if p.Status.Phase != "Running" || condition.Status == "False" {
+						err := sdkDelete(context.TODO(), sdk, p)
+						if err != nil {
+							e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", p.Name, m.GetName(), err.Error())
+							sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
+							logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
