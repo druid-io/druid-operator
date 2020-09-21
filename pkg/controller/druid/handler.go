@@ -174,8 +174,11 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				if !done {
 					return err
 				}
-				checkCrashStatus(sdk, m)
+
 			}
+
+			checkCrashStatus(sdk, m)
+
 		}
 
 		// Create Ingress Spec
