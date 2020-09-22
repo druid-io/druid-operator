@@ -318,7 +318,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		if err != nil {
 			return fmt.Errorf("failed to serialize status patch to bytes: %v", err)
 		}
-		if err := sdk.Patch(context.TODO(), m, client.ConstantPatch(types.MergePatchType, patchBytes)); err != nil {
+		if err := sdk.Status().Patch(context.TODO(), m, client.ConstantPatch(types.MergePatchType, patchBytes)); err != nil {
 			e := fmt.Errorf("failed to update status for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
 			sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
 			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
@@ -578,7 +578,12 @@ func makeService(svc *v1.Service, nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.
 
 	svc.ObjectMeta.Namespace = m.Namespace
 
-	svc.ObjectMeta.Annotations = firstNonNilValue(nodeSpec.ServiceAnnotations, m.Spec.ServiceAnnotations).(map[string]string)
+	if nodeSpec.ServiceAnnotations != nil || m.Spec.ServiceAnnotations != nil {
+		svc.ObjectMeta.Annotations = firstNonNilValue(nodeSpec.ServiceAnnotations, m.Spec.ServiceAnnotations).(map[string]string)
+		for k, v := range svc.ObjectMeta.Annotations {
+			svc.ObjectMeta.Labels[k] = v
+		}
+	}
 
 	if svc.ObjectMeta.Labels == nil {
 		svc.ObjectMeta.Labels = ls
