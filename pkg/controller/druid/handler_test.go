@@ -44,21 +44,6 @@ func TestDeploymentForBroker(t *testing.T) {
 	assertEquals(expected, actual, t)
 }
 
-func TestIngressForBroker(t *testing.T) {
-	clusterSpec := readSampleDruidClusterSpec(t)
-
-	nodeSpecUniqueStr := makeNodeSpecificUniqueString(clusterSpec, "brokers")
-	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
-
-	actual, _ := makeIngress(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(&nodeSpec, clusterSpec, clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr)
-	addHashToObject(actual)
-
-	expected := new(extensions.IngressSpec)
-	readAndUnmarshallResource("testdata/broker-ingress.yaml", &expected, t)
-
-	assertEquals(expected, actual, t)
-}
-
 func TestMakePodDisruptionBudgetForBroker(t *testing.T) {
 	clusterSpec := readSampleDruidClusterSpec(t)
 
