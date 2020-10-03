@@ -11,6 +11,7 @@ import (
 	"github.com/ghodss/yaml"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/api/policy/v1beta1"
 )
 
@@ -25,6 +26,36 @@ func TestMakeStatefulSetForBroker(t *testing.T) {
 
 	expected := new(appsv1.StatefulSet)
 	readAndUnmarshallResource("testdata/broker-statefulset.yaml", &expected, t)
+
+	assertEquals(expected, actual, t)
+}
+
+func TestDeploymentForBroker(t *testing.T) {
+	clusterSpec := readSampleDruidClusterSpec(t)
+
+	nodeSpecUniqueStr := makeNodeSpecificUniqueString(clusterSpec, "brokers")
+	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
+
+	actual, _ := makeDeployment(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(&nodeSpec, clusterSpec, clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr, "blah", nodeSpecUniqueStr)
+	addHashToObject(actual)
+
+	expected := new(appsv1.Deployment)
+	readAndUnmarshallResource("testdata/broker-deployment.yaml", &expected, t)
+
+	assertEquals(expected, actual, t)
+}
+
+func TestIngressForBroker(t *testing.T) {
+	clusterSpec := readSampleDruidClusterSpec(t)
+
+	nodeSpecUniqueStr := makeNodeSpecificUniqueString(clusterSpec, "brokers")
+	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
+
+	actual, _ := makeIngress(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(&nodeSpec, clusterSpec, clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr)
+	addHashToObject(actual)
+
+	expected := new(extensions.IngressSpec)
+	readAndUnmarshallResource("testdata/broker-ingress.yaml", &expected, t)
 
 	assertEquals(expected, actual, t)
 }
