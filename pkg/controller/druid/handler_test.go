@@ -29,6 +29,21 @@ func TestMakeStatefulSetForBroker(t *testing.T) {
 	assertEquals(expected, actual, t)
 }
 
+func TestDeploymentForBroker(t *testing.T) {
+	clusterSpec := readSampleDruidClusterSpec(t)
+
+	nodeSpecUniqueStr := makeNodeSpecificUniqueString(clusterSpec, "brokers")
+	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
+
+	actual, _ := makeDeployment(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(&nodeSpec, clusterSpec, clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr, "blah", nodeSpecUniqueStr)
+	addHashToObject(actual)
+
+	expected := new(appsv1.Deployment)
+	readAndUnmarshallResource("testdata/broker-deployment.yaml", &expected, t)
+
+	assertEquals(expected, actual, t)
+}
+
 func TestMakePodDisruptionBudgetForBroker(t *testing.T) {
 	clusterSpec := readSampleDruidClusterSpec(t)
 
