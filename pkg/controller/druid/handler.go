@@ -169,10 +169,8 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return nil
 				}
 
-				if m.Spec.ForcedRollbackSts == true {
-					if nodeSpec.PodManagementPolicy == "OrderedReady" {
-						checkCrashStatus(sdk, m)
-					}
+				if m.Spec.ForcedRollbackSts == true && nodeSpec.PodManagementPolicy == "OrderedReady" {
+					checkCrashStatus(sdk, m)
 				}
 
 				// Check StatefulSet rolling update status, if in-progress then stop here
@@ -181,11 +179,11 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return err
 				}
 			}
-			if m.Spec.ForcedRollbackSts == true {
-				if nodeSpec.PodManagementPolicy == "OrderedReady" {
-					checkCrashStatus(sdk, m)
-				}
+
+			if m.Spec.ForcedRollbackSts == true && nodeSpec.PodManagementPolicy == "OrderedReady" {
+				checkCrashStatus(sdk, m)
 			}
+
 		}
 
 		// Create Ingress Spec
@@ -343,7 +341,9 @@ func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
 	podList := podList()
 	listOpts := []client.ListOption{
 		client.InNamespace(m.Namespace),
+		client.MatchingLabels{"app": "druid"},
 	}
+
 	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
 		e := fmt.Errorf("failed to list pods for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
 		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
@@ -358,7 +358,12 @@ func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
 	for _, p := range pod {
 		if p.Status.ContainerStatuses[0].RestartCount > 1 {
 			for _, condition := range p.Status.Conditions {
+				// condition.type Ready means the pod is able to service requests
 				if condition.Type == "Ready" {
+					// the below condition evalutes if a pod is in
+					// 1. pending state 2. failed state 3. unknown state
+					// OR condtion.status is false which evalutes if neither of these conditions are met
+					// 1. ContainersReady 2. PodInitialized 3. PodReady 4. PodScheduled
 					if p.Status.Phase != "Running" || condition.Status == "False" {
 						err := sdkDelete(context.TODO(), sdk, p)
 						if err != nil {
