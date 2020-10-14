@@ -3,11 +3,16 @@ kind: "Druid"
 metadata:
   name: tiny-cluster
 spec:
-  image: apache/incubator-druid:0.16.0-incubating
+  image: apache/druid:0.19.0
   # Optionally specify image for all nodes. Can be specify on nodes also
   # imagePullSecrets:
   # - name: tutu
   startScript: /druid.sh
+  # Optional: If true, will delete the sts pod if sts is set to ordered ready to ensure forced rollback
+	# issue: https://github.com/kubernetes/kubernetes/issues/67250
+  # doc: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#forced-rollback
+  # checks docs folder for example scenario to enable this flag
+  forcedRollbackSts: true
   podLabels:
     environment: stage
     release: alpha

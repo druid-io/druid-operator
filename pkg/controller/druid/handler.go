@@ -169,16 +169,23 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return nil
 				}
 
+				if m.Spec.ForcedRollbackSts == true {
+					if nodeSpec.PodManagementPolicy == "OrderedReady" {
+						checkCrashStatus(sdk, m)
+					}
+				}
+
 				// Check StatefulSet rolling update status, if in-progress then stop here
 				done, err := isStsFullyDeployed(sdk, nodeSpecUniqueStr, m)
 				if !done {
 					return err
 				}
-
 			}
-
-			checkCrashStatus(sdk, m)
-
+			if m.Spec.ForcedRollbackSts == true {
+				if nodeSpec.PodManagementPolicy == "OrderedReady" {
+					checkCrashStatus(sdk, m)
+				}
+			}
 		}
 
 		// Create Ingress Spec
@@ -334,7 +341,10 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
 	podList := podList()
-	if err := sdk.List(context.TODO(), podList); err != nil {
+	listOpts := []client.ListOption{
+		client.InNamespace(m.Namespace),
+	}
+	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
 		e := fmt.Errorf("failed to list pods for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
 		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
 		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
@@ -355,6 +365,10 @@ func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
 							e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", p.Name, m.GetName(), err.Error())
 							sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
 							logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+						} else {
+							msg := fmt.Sprintf("Deleted pod [%s] in namespace [%s], since it was in crashloopback state.", p.GetName(), p.GetNamespace())
+							logger.Info(msg, "Object", stringifyForLogging(p, m), "name", m.Name, "namespace", m.Namespace)
+							sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
 						}
 					}
 				}
