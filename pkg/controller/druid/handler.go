@@ -341,7 +341,7 @@ func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
 	podList := podList()
 	listOpts := []client.ListOption{
 		client.InNamespace(m.Namespace),
-		client.MatchingLabels{"app": "druid"},
+		client.MatchingLabels(makeLabelsForDruid(m.Name)),
 	}
 
 	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
