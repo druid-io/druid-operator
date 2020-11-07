@@ -169,9 +169,8 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return nil
 				}
 
-				if m.Spec.ForcedRollbackSts == true && nodeSpec.PodManagementPolicy == "OrderedReady" {
-					checkCrashStatus(sdk, m)
-				}
+				// Default is set to true
+				execCheckCrashStatus(sdk, &nodeSpec, m)
 
 				// Check StatefulSet rolling update status, if in-progress then stop here
 				done, err := isStsFullyDeployed(sdk, nodeSpecUniqueStr, m)
@@ -180,9 +179,8 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				}
 			}
 
-			if m.Spec.ForcedRollbackSts == true && nodeSpec.PodManagementPolicy == "OrderedReady" {
-				checkCrashStatus(sdk, m)
-			}
+			// Default is set to true
+			execCheckCrashStatus(sdk, &nodeSpec, m)
 
 		}
 
@@ -335,6 +333,16 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	}
 
 	return nil
+}
+
+func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) {
+	if m.Spec.ForceDeleteStsPodOnError == false {
+		return
+	} else {
+		if nodeSpec.PodManagementPolicy == "OrderedReady" {
+			checkCrashStatus(sdk, m)
+		}
+	}
 }
 
 func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
