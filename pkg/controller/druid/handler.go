@@ -169,12 +169,19 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return nil
 				}
 
+				// Default is set to true
+				execCheckCrashStatus(sdk, &nodeSpec, m)
+
 				// Check StatefulSet rolling update status, if in-progress then stop here
 				done, err := isStsFullyDeployed(sdk, nodeSpecUniqueStr, m)
 				if !done {
 					return err
 				}
 			}
+
+			// Default is set to true
+			execCheckCrashStatus(sdk, &nodeSpec, m)
+
 		}
 
 		// Create Ingress Spec
@@ -326,6 +333,61 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	}
 
 	return nil
+}
+
+func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) {
+	if m.Spec.ForceDeleteStsPodOnError == false {
+		return
+	} else {
+		if nodeSpec.PodManagementPolicy == "OrderedReady" {
+			checkCrashStatus(sdk, m)
+		}
+	}
+}
+
+func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
+	podList := podList()
+	listOpts := []client.ListOption{
+		client.InNamespace(m.Namespace),
+		client.MatchingLabels(makeLabelsForDruid(m.Name)),
+	}
+
+	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
+		e := fmt.Errorf("failed to list pods for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
+		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
+		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+	}
+
+	pod := make([]*v1.Pod, 0)
+	for i := range podList.Items {
+		pod = append(pod, &podList.Items[i])
+	}
+
+	for _, p := range pod {
+		if p.Status.ContainerStatuses[0].RestartCount > 1 {
+			for _, condition := range p.Status.Conditions {
+				// condition.type Ready means the pod is able to service requests
+				if condition.Type == "Ready" {
+					// the below condition evalutes if a pod is in
+					// 1. pending state 2. failed state 3. unknown state
+					// OR condtion.status is false which evalutes if neither of these conditions are met
+					// 1. ContainersReady 2. PodInitialized 3. PodReady 4. PodScheduled
+					if p.Status.Phase != "Running" || condition.Status == "False" {
+						err := sdkDelete(context.TODO(), sdk, p)
+						if err != nil {
+							e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", p.Name, m.GetName(), err.Error())
+							sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
+							logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+						} else {
+							msg := fmt.Sprintf("Deleted pod [%s] in namespace [%s], since it was in crashloopback state.", p.GetName(), p.GetNamespace())
+							logger.Info(msg, "Object", stringifyForLogging(p, m), "name", m.Name, "namespace", m.Namespace)
+							sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,

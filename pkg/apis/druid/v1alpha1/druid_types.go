@@ -48,6 +48,11 @@ type DruidClusterSpec struct {
 	// Required: common.runtime.properties contents
 	CommonRuntimeProperties string `json:"common.runtime.properties"`
 
+	// Optional: Default is true, will delete the sts pod if sts is set to ordered ready to ensure
+	// issue: https://github.com/kubernetes/kubernetes/issues/67250
+	// doc: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#forced-rollback
+	ForceDeleteStsPodOnError bool `json:"forceDeleteStsPodOnError"`
+
 	// Required: in-container directory to mount with common.runtime.properties
 	CommonConfigMountPath string `json:"commonConfigMountPath"`
 

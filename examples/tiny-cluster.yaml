@@ -3,7 +3,7 @@ kind: "Druid"
 metadata:
   name: tiny-cluster
 spec:
-  image: apache/incubator-druid:0.16.0-incubating
+  image: apache/druid:0.19.0
   # Optionally specify image for all nodes. Can be specify on nodes also
   # imagePullSecrets:
   # - name: tutu
