@@ -30,6 +30,11 @@ druid-operator$ kubectl describe deployment druid-operator
 ```
 - Use ```ClusterRole``` and ```CluterRoleBinding``` instead of ```role```and ```roleBinding```.
 
+
+## Deny List in Operator
+- There may be use cases where we want the operator to watch all namespaces but restrict few namespaces, due to security, testing flexibility etc reasons.
+- The druid operator supports such cases. In ```deploy/operator.yaml```, user can enable ```DENY_LIST``` env and pass the namespaces to be excluded. Each namespace to be seperated using a comma.
+
 ## Deploy a sample Druid cluster
 
 - An example spec to deploy a tiny druid cluster is included. For full details on spec please see `pkg/api/druid/v1alpha1/druid_types.go`

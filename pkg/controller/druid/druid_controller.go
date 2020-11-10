@@ -2,6 +2,8 @@ package druid
 
 import (
 	"context"
+	"time"
+
 	druidv1alpha1 "github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -12,7 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"time"
 )
 
 var log = logf.Log.WithName("controller_druid")
@@ -42,7 +43,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource Druid
-	err = c.Watch(&source.Kind{Type: &druidv1alpha1.Druid{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &druidv1alpha1.Druid{}}, &handler.EnqueueRequestForObject{}, ignoreNamespacePredicate())
 	if err != nil {
 		return err
 	}
