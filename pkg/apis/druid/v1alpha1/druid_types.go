@@ -68,6 +68,9 @@ type DruidClusterSpec struct {
 	// Optional: imagePullSecrets for private registries
 	ImagePullSecrets []v1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
+	// Optional:
+	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
+
 	// Optional: environment variables for druid containers
 	Env []v1.EnvVar `json:"env,omitempty"`
 
@@ -203,6 +206,9 @@ type DruidNodeSpec struct {
 
 	// Optional: Overrides imagePullSecrets from top level
 	ImagePullSecrets []v1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
+	// Optional: Overrides imagePullPolicy from top level
+	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
 	// Optional: Extra environment variables
 	Env []v1.EnvVar `json:"env,omitempty"`
