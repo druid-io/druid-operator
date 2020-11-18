@@ -640,13 +640,6 @@ func makeService(svc *v1.Service, nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.
 
 	svc.ObjectMeta.Namespace = m.Namespace
 
-	if nodeSpec.ServiceAnnotations != nil || m.Spec.ServiceAnnotations != nil {
-		svc.ObjectMeta.Annotations = firstNonNilValue(nodeSpec.ServiceAnnotations, m.Spec.ServiceAnnotations).(map[string]string)
-		for k, v := range svc.ObjectMeta.Annotations {
-			svc.ObjectMeta.Labels[k] = v
-		}
-	}
-
 	if svc.ObjectMeta.Labels == nil {
 		svc.ObjectMeta.Labels = ls
 	} else {
