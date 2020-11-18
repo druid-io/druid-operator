@@ -913,6 +913,7 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 				Image:           firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),
 				Name:            fmt.Sprintf("%s", nodeSpecUniqueStr),
 				Command:         []string{firstNonEmptyStr(m.Spec.StartScript, "bin/run-druid.sh"), nodeSpec.NodeType},
+				ImagePullPolicy: v1.PullPolicy(firstNonEmptyStr(string(nodeSpec.ImagePullPolicy), string(m.Spec.ImagePullPolicy))),
 				Ports:           nodeSpec.Ports,
 				Resources:       nodeSpec.Resources,
 				Env:             getEnv(nodeSpec, m, configMapSHA),
