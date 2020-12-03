@@ -2,6 +2,7 @@ package druid
 
 import (
 	"context"
+	"os"
 	"time"
 
 	druidv1alpha1 "github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
@@ -100,6 +101,22 @@ func (r *ReconcileDruid) Reconcile(request reconcile.Request) (reconcile.Result,
 	if err := deployDruidCluster(r.client, instance); err != nil {
 		return reconcile.Result{}, err
 	} else {
-		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+		return reconcile.Result{RequeueAfter: lookupReconcileTime()}, nil
+	}
+}
+
+// lookupReconcileTime shall return reconcile time if set as ENV
+// else defaults to 10s
+func lookupReconcileTime() time.Duration {
+	val, exists :=  os.LookupEnv("RECONCILE_TIME")
+	if !exists {
+		return time.Second * 10
+	} else {
+		v, err := time.ParseDuration(val)
+		if err != nil {
+			logger.Error(err, err.Error(), "Setting to Default 10s")
+			return time.Second * 10
+		}
+		return v
 	}
 }
