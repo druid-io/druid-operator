@@ -68,6 +68,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	podDisruptionBudgetNames := make(map[string]bool)
 	hpaNames := make(map[string]bool)
 	ingressNames := make(map[string]bool)
+	pvcNames := make(map[string]bool)
 
 	ls := makeLabelsForDruid(m.Name)
 
@@ -132,6 +133,15 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 
 		nodeSpec.Ports = append(nodeSpec.Ports, v1.ContainerPort{ContainerPort: nodeSpec.DruidPort, Name: "druid-port"})
+
+		if nodeSpec.PersistentVolumeClaim != nil {
+			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
+				func() (object, error) { return makePVC(&nodeSpec, m, ls, nodeSpecUniqueStr) },
+				func() object { return makePersistentVolumeClaimEmptyObj() },
+				nil, m, pvcNames); err != nil {
+				return err
+			}
+		}
 
 		if nodeSpec.Kind == "Deployment" {
 			if deployCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
@@ -281,6 +291,18 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			return result
 		})
 	sort.Strings(updatedStatus.PodDisruptionBudgets)
+
+	updatedStatus.PersistentVolumeClaim = deleteUnusedResources(sdk, m, pvcNames, ls,
+		func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() },
+		func(listObj runtime.Object) []object {
+			items := listObj.(*v1.PersistentVolumeClaimList).Items
+			result := make([]object, len(items))
+			for i := 0; i < len(items); i++ {
+				result[i] = &items[i]
+			}
+			return result
+		})
+	sort.Strings(updatedStatus.PersistentVolumeClaim)
 
 	updatedStatus.Services = deleteUnusedResources(sdk, m, serviceNames, ls,
 		func() runtime.Object { return makeServiceListEmptyObj() },
@@ -974,6 +996,25 @@ func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.D
 	return hpa, nil
 }
 
+func makePVC(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*v1.PersistentVolumeClaim, error) {
+	nodePVCSpec := *nodeSpec.PersistentVolumeClaim
+
+	pvc := &v1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nodeSpecUniqueStr,
+			Namespace: m.Namespace,
+			Labels:    ls,
+		},
+		Spec: nodePVCSpec,
+	}
+
+	return pvc, nil
+}
+
 func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*extensions.Ingress, error) {
 	nodeIngressSpec := *nodeSpec.Ingress
 
@@ -1072,6 +1113,24 @@ func makeHorizontalPodAutoscalerListEmptyObj() *autoscalev2beta1.HorizontalPodAu
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "autoscaling/v2beta1",
 			Kind:       "HorizontalPodAutoscaler",
+		},
+	}
+}
+
+func makePersistentVolumeClaimListEmptyObj() *v1.PersistentVolumeClaimList {
+	return &v1.PersistentVolumeClaimList{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		},
+	}
+}
+
+func makePersistentVolumeClaimEmptyObj() *v1.PersistentVolumeClaim {
+	return &v1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
 		},
 	}
 }
