@@ -2,7 +2,6 @@ package druid
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"time"
 
@@ -116,12 +115,10 @@ func lookupReconcileTime() time.Duration {
 
 	val, exists := os.LookupEnv("RECONCILE_WAIT_ON_ERROR")
 	if !exists {
-		fmt.Println(val)
 		return time.Second * 10
 	} else {
 		v, err := time.ParseDuration(val)
 		if err != nil {
-			fmt.Println(val)
 			logger.Error(err, err.Error())
 			// Exit Program if not valid
 			os.Exit(1)
