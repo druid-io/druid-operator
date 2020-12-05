@@ -1,0 +1,3 @@
+domain: apache.org
+repo: github.com/druid-io/druid-operator
+version: "2"
