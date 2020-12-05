@@ -2,7 +2,7 @@
 
  */
 
-package controllers
+package druid
 
 import (
 	"path/filepath"

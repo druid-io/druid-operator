@@ -3,8 +3,8 @@ package druid
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
-	"github.com/druid-io/druid-operator/pkg/controller/druid/ext"
+	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
+	"github.com/druid-io/druid-operator/controllers/druid/ext"
 	"reflect"
 )
 

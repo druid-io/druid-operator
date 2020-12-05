@@ -13,7 +13,7 @@ import (
 	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
 	extensions "k8s.io/api/extensions/v1beta1"
 
-	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
+	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -220,7 +220,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	}
 
 	//update status and delete unwanted resources
-	updatedStatus := v1alpha1.DruidClusterStatus{}
+	updatedStatus := v1alpha1.DruidStatus{}
 
 	updatedStatus.StatefulSets = deleteUnusedResources(sdk, m, statefulSetNames, ls,
 		func() runtime.Object { return makeStatefulSetListEmptyObj() },
@@ -321,7 +321,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	sort.Strings(updatedStatus.Pods)
 
 	if !reflect.DeepEqual(updatedStatus, m.Status) {
-		patchBytes, err := json.Marshal(map[string]v1alpha1.DruidClusterStatus{"status": updatedStatus})
+		patchBytes, err := json.Marshal(map[string]v1alpha1.DruidStatus{"status": updatedStatus})
 		if err != nil {
 			return fmt.Errorf("failed to serialize status patch to bytes: %v", err)
 		}

@@ -1,7 +1,7 @@
 package druid
 
 import (
-	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
+	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	"testing"
 )
 

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
+	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -24,7 +24,7 @@ func TestFirstNonNilValue(t *testing.T) {
 		}
     }`)
 
-	clusterSpec := v1alpha1.DruidClusterSpec{}
+	clusterSpec := v1alpha1.DruidSpec{}
 	if err := json.Unmarshal(js, &clusterSpec); err != nil {
 		t.Errorf("Failed to unmarshall[%v]", err)
 	}
