@@ -1,3 +1,4 @@
 domain: apache.org
+multigroup: true
 repo: github.com/druid-io/druid-operator
 version: "2"
