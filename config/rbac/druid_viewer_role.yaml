@@ -1,0 +1,20 @@
+# permissions for end users to view druids.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: druid-viewer-role
+rules:
+- apiGroups:
+  - druid.apache.org
+  resources:
+  - druids
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - druid.apache.org
+  resources:
+  - druids/status
+  verbs:
+  - get
