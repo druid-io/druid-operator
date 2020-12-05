@@ -7,7 +7,6 @@ package druid
 import (
 	"context"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -42,19 +41,17 @@ func (r *DruidReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			return reconcile.Result{}, nil
+			return ctrl.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	}
 
 	if err := deployDruidCluster(r, instance); err != nil {
-		return reconcile.Result{}, err
+		return ctrl.Result{}, err
 	} else {
-		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+		return ctrl.Result{RequeueAfter: time.Second * 10}, nil
 	}
-
-	return ctrl.Result{}, nil
 }
 
 func (r *DruidReconciler) SetupWithManager(mgr ctrl.Manager) error {

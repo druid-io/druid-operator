@@ -15,7 +15,7 @@ func ignoreNamespacePredicate() predicate.Predicate {
 			for _, namespace := range namespaces {
 				if e.Meta.GetNamespace() == namespace {
 					msg := fmt.Sprintf("druid operator will not re-concile namespace [%s], alter DENY_LIST to re-concile", e.Meta.GetNamespace())
-					log.Info(msg)
+					logger.Info(msg)
 					return false
 				}
 			}
@@ -25,7 +25,7 @@ func ignoreNamespacePredicate() predicate.Predicate {
 			for _, namespace := range namespaces {
 				if e.MetaNew.GetNamespace() == namespace {
 					msg := fmt.Sprintf("druid operator will not re-concile namespace [%s], alter DENY_LIST to re-concile", e.MetaNew.GetNamespace())
-					log.Info(msg)
+					logger.Info(msg)
 					return false
 				}
 			}
