@@ -51,6 +51,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	if err := verifyDruidSpec(m); err != nil {
 		e := fmt.Errorf("invalid DruidSpec[%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
 		sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 		return nil
 	}
 
