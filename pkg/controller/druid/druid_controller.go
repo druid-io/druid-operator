@@ -2,6 +2,7 @@ package druid
 
 import (
 	"context"
+	"os"
 	"time"
 
 	druidv1alpha1 "github.com/druid-io/druid-operator/pkg/apis/druid/v1alpha1"
@@ -31,7 +32,11 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileDruid{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileDruid{
+		client:               mgr.GetClient(),
+		scheme:               mgr.GetScheme(),
+		reconcileWaitOnError: lookupReconcileTime(),
+	}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -70,6 +75,8 @@ type ReconcileDruid struct {
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
+	// reconcile time duration, defaults to 10s
+	reconcileWaitOnError time.Duration
 }
 
 // Reconcile reads that state of the cluster for a Druid object and makes changes based on the state read
@@ -100,6 +107,22 @@ func (r *ReconcileDruid) Reconcile(request reconcile.Request) (reconcile.Result,
 	if err := deployDruidCluster(r.client, instance); err != nil {
 		return reconcile.Result{}, err
 	} else {
-		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+		return reconcile.Result{RequeueAfter: r.reconcileWaitOnError}, nil
+	}
+}
+
+func lookupReconcileTime() time.Duration {
+
+	val, exists := os.LookupEnv("RECONCILE_WAIT_ON_ERROR")
+	if !exists {
+		return time.Second * 10
+	} else {
+		v, err := time.ParseDuration(val)
+		if err != nil {
+			logger.Error(err, err.Error())
+			// Exit Program if not valid
+			os.Exit(1)
+		}
+		return v
 	}
 }

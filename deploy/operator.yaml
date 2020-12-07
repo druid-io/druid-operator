@@ -28,6 +28,9 @@ spec:
           # Following namespaces will not be reconciled by operator, regardless of scope        
           #  - name: DENY_LIST
           #    value: kube-system, default
+          # Default Reconcile time is set to 10s
+          #  - name: RECONCILE_WAIT_ON_ERROR
+          #    value: 30s
             - name: POD_NAME
               valueFrom:
                 fieldRef:
