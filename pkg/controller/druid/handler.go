@@ -825,6 +825,7 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s", nodeSpecUniqueStr),
 			Namespace: m.Namespace,
+			Labels:    ls,
 		},
 		Spec: makeStatefulSetSpec(nodeSpec, m, ls, nodeSpecUniqueStr, configMapSHA, serviceName),
 	}, nil
@@ -840,6 +841,7 @@ func makeDeployment(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s", nodeSpecUniqueStr),
 			Namespace: m.Namespace,
+			Labels:    ls,
 		},
 		Spec: makeDeploymentSpec(nodeSpec, m, ls, nodeSpecUniqueStr, configMapSHA, serviceName),
 	}, nil

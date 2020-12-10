@@ -3,8 +3,12 @@ kind: Deployment
 metadata:
   name: druid-druid-test-brokers
   namespace: test-namespace
+  labels:
+    app: druid
+    druid_cr: druid-test
+    nodeSpecUniqueStr: druid-druid-test-brokers
   annotations:
-    druidOpResourceHash: xVFNf2N8n0trk6LMNIPToc8+aXs=
+    druidOpResourceHash: UFf9ygahn6p+juXtqdzSghIjDvI=
 spec:
   replicas: 2
   selector:
