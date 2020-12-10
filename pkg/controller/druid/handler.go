@@ -1239,10 +1239,6 @@ func verifyDruidSpec(drd *v1alpha1.Druid) error {
 		errorMsg = fmt.Sprintf("%sStartScript missing from Druid Cluster Spec\n", errorMsg)
 	}
 
-	if drd.Spec.Image == "" {
-		errorMsg = fmt.Sprintf("%sImage missing from Druid Cluster Spec\n", errorMsg)
-	}
-
 	for key, node := range drd.Spec.Nodes {
 		if node.NodeType == "" {
 			errorMsg = fmt.Sprintf("%sNode[%s] missing NodeType\n", errorMsg, key)
@@ -1254,6 +1250,10 @@ func verifyDruidSpec(drd *v1alpha1.Druid) error {
 
 		if node.RuntimeProperties == "" {
 			errorMsg = fmt.Sprintf("%sNode[%s] missing RuntimeProperties\n", errorMsg, key)
+		}
+
+		if drd.Spec.Image == "" && node.Image == "" {
+			errorMsg = fmt.Sprintf("%sImage missing from Druid Cluster Spec\n", errorMsg)
 		}
 
 		if node.NodeConfigMountPath == "" {
