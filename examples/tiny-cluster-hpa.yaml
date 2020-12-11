@@ -1,0 +1,185 @@
+apiVersion: "druid.apache.org/v1alpha1"
+kind: "Druid"
+metadata:
+  name: tiny-cluster
+spec:
+  image: apache/incubator-druid:0.16.0-incubating
+  startScript: /druid.sh
+  securityContext:
+    fsGroup: 1000
+    runAsUser: 1000
+    runAsGroup: 1000
+  services:
+    - spec:
+        type: ClusterIP
+        clusterIP: None  
+  commonConfigMountPath: "/opt/druid/conf/druid/cluster/_common"
+  jvm.options: |-
+    -server
+    -XX:MaxDirectMemorySize=10240g
+    -Duser.timezone=UTC
+    -Dfile.encoding=UTF-8
+    -Dlog4j.debug
+    -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
+  log4j.config: |-
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <Configuration status="WARN">
+        <Appenders>
+            <Console name="Console" target="SYSTEM_OUT">
+                <PatternLayout pattern="%d{ISO8601} %p [%t] %c - %m%n"/>
+            </Console>
+        </Appenders>
+        <Loggers>
+            <Root level="info">
+                <AppenderRef ref="Console"/>
+            </Root>
+        </Loggers>
+    </Configuration>
+  common.runtime.properties: |
+    # Zookeeper
+    druid.zk.service.host=tiny-cluster-zk-0.tiny-cluster-zk
+    druid.zk.paths.base=/druid
+    druid.zk.service.compress=false
+    # Metadata Store
+    druid.metadata.storage.type=derby
+    druid.metadata.storage.type=derby
+    druid.metadata.storage.connector.connectURI=jdbc:derby://localhost:1527/var/druid/metadata.db;create=true
+    druid.metadata.storage.connector.host=localhost
+    druid.metadata.storage.connector.port=1527
+    druid.metadata.storage.connector.createTables=true
+    # Deep Storage
+    druid.storage.type=local
+    druid.storage.storageDirectory=/druid/data/deepstorage
+    #
+    # Extensions
+    #
+    druid.extensions.loadList=["druid-s3-extensions"]
+    #
+    # Service discovery
+    #
+    druid.selectors.indexing.serviceName=druid/overlord
+    druid.selectors.coordinator.serviceName=druid/coordinator
+  nodes:
+    brokers:
+      nodeType: "broker"
+      druid.port: 8088
+      replicas: 1
+      nodeConfigMountPath: "/opt/druid/conf/druid/cluster/query/broker"
+      runtime.properties: |
+        druid.service=druid/broker
+        # HTTP server threads
+        druid.broker.http.numConnections=5
+        druid.server.http.numThreads=10
+        # Processing threads and buffers
+        druid.processing.buffer.sizeBytes=1
+        druid.processing.numMergeBuffers=1
+        druid.processing.numThreads=1
+        druid.sql.enable=false
+      extra.jvm.options: |-
+        -Xmx1G
+        -Xms1G
+      volumeMounts:
+        - mountPath: /druid/data
+          name: data-volume
+      volumes:
+        - name: data-volume
+          emptyDir: {}
+      resources:
+        requests:
+          memory: "2G"
+          cpu: "2"
+        limits:
+          memory: "2G"
+          cpu: "2"
+      hpAutoscaler:
+        maxReplicas: 10
+        minReplicas: 1
+        scaleTargetRef:
+           apiVersion: apps/v1
+           kind: StatefulSet
+           name: druid-tiny-cluster-brokers
+        metrics:
+         - type: Resource
+           resource:
+            name: cpu
+            targetAverageUtilization: 50
+      
+    coordinators:
+      nodeType: "coordinator"
+      druid.port: 8088
+      nodeConfigMountPath: "/opt/druid/conf/druid/cluster/master/coordinator-overlord"
+      runtime.properties: |
+        druid.service=druid/coordinator
+
+        # HTTP server threads
+        druid.coordinator.startDelay=PT30S
+        druid.coordinator.period=PT30S
+
+        # Configure this coordinator to also run as Overlord
+        druid.coordinator.asOverlord.enable=true
+        druid.coordinator.asOverlord.overlordService=druid/overlord
+        druid.indexer.queue.startDelay=PT30S
+        druid.indexer.runner.type=local
+      extra.jvm.options: |-
+        -Xmx1G
+        -Xms1G
+      volumeMounts:
+        - mountPath: /druid/data
+          name: data-volume
+      volumes:
+        - name: data-volume
+          emptyDir: {}
+      replicas: 1
+      resources:
+        requests:
+          memory: "2G"
+          cpu: "2"
+        limits:
+          memory: "2G"
+          cpu: "2"
+      hpAutoscaler:
+        maxReplicas: 10
+        minReplicas: 1
+        scaleTargetRef:
+           apiVersion: apps/v1
+           kind: StatefulSet
+           name: druid-tiny-cluster-coordinators
+        metrics:
+         - type: Resource
+           resource:
+            name: cpu
+            targetAverageUtilization: 60
+            
+    historicals:
+      nodeType: "historical"
+      druid.port: 8088
+      replicas: 1
+      nodeConfigMountPath: "/opt/druid/conf/druid/cluster/data/historical"
+      runtime.properties: |
+        druid.service=druid/historical
+        druid.server.http.numThreads=5
+        druid.processing.buffer.sizeBytes=1
+        druid.processing.numMergeBuffers=1
+        druid.processing.numThreads=1
+        # Segment storage
+        druid.segmentCache.locations=[{\"path\":\"/druid/data/segments\",\"maxSize\":10737418240}]
+        druid.server.maxSize=10737418240
+      extra.jvm.options: |-
+        -Xmx1G
+        -Xms1G
+      volumeMounts:
+        - mountPath: /druid/data
+          name: data-volume
+      volumes:
+        - name: data-volume
+          emptyDir: {}
+      resources:
+        requests:
+          memory: "2G"
+          cpu: "2"
+        limits:
+          memory: "2G"
+          cpu: "2"
+      
+     
+     
