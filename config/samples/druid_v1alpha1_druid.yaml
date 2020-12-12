@@ -1,7 +1,0 @@
-apiVersion: druid.apache.org/v1alpha1
-kind: Druid
-metadata:
-  name: druid-sample
-spec:
-  # Add fields here
-  foo: bar

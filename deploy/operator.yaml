@@ -16,7 +16,7 @@ spec:
       containers:
         - name: druid-operator
           # Replace this with the built image name
-          image: REPLACE_IMAGE
+          image: druid-operator:latest
           command:
           - druid-operator
           imagePullPolicy: Always
