@@ -37,7 +37,7 @@ uninstall: manifests
 deploy: manifests
 	kubectl apply -f deploy/service_account.yaml
 	kubectl apply -f deploy/role.yaml
-	kubectl apply -f deploy/role-binding.yaml
+	kubectl apply -f deploy/role_binding.yaml
 	kustomize build deploy/ | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
@@ -57,7 +57,7 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
-docker-build: test
+docker-build: generate manifests
 	docker build . -t ${IMG}
 
 # Push the docker image
