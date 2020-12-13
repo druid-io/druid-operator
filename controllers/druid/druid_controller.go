@@ -60,6 +60,7 @@ func (r *DruidReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 func (r *DruidReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&druidv1alpha1.Druid{}).
+		WithEventFilter(ignoreNamespacePredicate()).
 		Complete(r)
 }
 
