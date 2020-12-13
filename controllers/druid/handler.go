@@ -51,6 +51,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	if err := verifyDruidSpec(m); err != nil {
 		e := fmt.Errorf("invalid DruidSpec[%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
 		sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 		return nil
 	}
 
@@ -824,6 +825,7 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s", nodeSpecUniqueStr),
 			Namespace: m.Namespace,
+			Labels:    ls,
 		},
 		Spec: makeStatefulSetSpec(nodeSpec, m, ls, nodeSpecUniqueStr, configMapSHA, serviceName),
 	}, nil
@@ -839,6 +841,7 @@ func makeDeployment(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s", nodeSpecUniqueStr),
 			Namespace: m.Namespace,
+			Labels:    ls,
 		},
 		Spec: makeDeploymentSpec(nodeSpec, m, ls, nodeSpecUniqueStr, configMapSHA, serviceName),
 	}, nil
@@ -1236,13 +1239,13 @@ func verifyDruidSpec(drd *v1alpha1.Druid) error {
 		errorMsg = fmt.Sprintf("%sStartScript missing from Druid Cluster Spec\n", errorMsg)
 	}
 
-	if drd.Spec.Image == "" {
-		errorMsg = fmt.Sprintf("%sImage missing from Druid Cluster Spec\n", errorMsg)
-	}
-
 	for key, node := range drd.Spec.Nodes {
 		if node.NodeType == "" {
 			errorMsg = fmt.Sprintf("%sNode[%s] missing NodeType\n", errorMsg, key)
+		}
+
+		if drd.Spec.Image == "" && node.Image == "" {
+			errorMsg = fmt.Sprintf("%sImage missing from Druid Cluster Spec\n", errorMsg)
 		}
 
 		if node.Replicas < 1 {

@@ -56,9 +56,10 @@ func main() {
 	}
 
 	if err = (&druidcontroller.DruidReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Druid"),
-		Scheme: mgr.GetScheme(),
+		Client:               mgr.GetClient(),
+		Log:                  ctrl.Log.WithName("controllers").WithName("Druid"),
+		Scheme:               mgr.GetScheme(),
+		ReconcileWaitOnError: druidcontroller.LookupReconcileTime(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Druid")
 		os.Exit(1)

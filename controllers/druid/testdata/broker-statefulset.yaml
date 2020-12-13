@@ -3,8 +3,12 @@ kind: StatefulSet
 metadata:
   name: druid-druid-test-brokers
   namespace: test-namespace
+  labels:
+    app: druid
+    druid_cr: druid-test
+    nodeSpecUniqueStr: druid-druid-test-brokers
   annotations:
-    druidOpResourceHash: aa+7xTKFY7keSfqij3SOO6A8pg0=
+    druidOpResourceHash: OnEopGbFnwSCMqd84ePrk0Kvd9o=
 spec:
   podManagementPolicy: Parallel
   replicas: 2
