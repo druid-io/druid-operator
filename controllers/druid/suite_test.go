@@ -5,62 +5,184 @@
 package druid
 
 import (
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"context"
+	"errors"
+	"fmt"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/types"
+	"path/filepath"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"testing"
+	"time"
+
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"path/filepath"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	druidv1alpha1 "github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
-// These tests use Ginkgo (BDD-style Go testing framework). Refer to
-// http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
+type TestK8sEnvCtx struct {
+	restConfig *rest.Config
+	k8sManager manager.Manager
+	env        *envtest.Environment
+}
 
-var cfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
-
-//func TestAPIs(t *testing.T) {
-//	RegisterFailHandler(Fail)
-//
-//	RunSpecsWithDefaultAndCustomReporters(t,
-//		"Controller Suite",
-//		[]Reporter{printer.NewlineReporter{}})
-//}
-
-var _ = BeforeSuite(func(done Done) {
-	logf.SetLogger(zap.LoggerTo(GinkgoWriter, true))
-
-	By("bootstrapping test environment")
-	testEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "config", "crd", "bases")},
+func setupK8Evn(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
+	ctrl.SetLogger(zap.New())
+	testK8sCtx.env = &envtest.Environment{
+		CRDDirectoryPaths: []string{filepath.Join("..", "..", "deploy", "crds")},
 	}
 
-	var err error
-	cfg, err = testEnv.Start()
-	Expect(err).ToNot(HaveOccurred())
-	Expect(cfg).ToNot(BeNil())
+	config, err := testK8sCtx.env.Start()
+	require.NoError(t, err)
 
-	err = druidv1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+	testK8sCtx.restConfig = config
+}
 
-	// +kubebuilder:scaffold:scheme
+func destroyK8Env(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
+	require.NoError(t, testK8sCtx.env.Stop())
+}
 
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(k8sClient).ToNot(BeNil())
+func TestAPIs(t *testing.T) {
+	testK8sCtx := &TestK8sEnvCtx{}
 
-	close(done)
-}, 60)
+	setupK8Evn(t, testK8sCtx)
+	defer destroyK8Env(t, testK8sCtx)
 
-var _ = AfterSuite(func() {
-	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).ToNot(HaveOccurred())
-})
+	err := druidv1alpha1.AddToScheme(scheme.Scheme)
+	require.NoError(t, err)
+
+	testK8sCtx.k8sManager, err = ctrl.NewManager(testK8sCtx.restConfig, ctrl.Options{
+		Scheme: scheme.Scheme,
+	})
+	require.NoError(t, err)
+
+	setupDruidOperator(t, testK8sCtx)
+
+	go func() {
+		err = testK8sCtx.k8sManager.Start(ctrl.SetupSignalHandler())
+		if err != nil {
+			fmt.Printf("problem starting mgr [%v] \n", err)
+		}
+		require.NoError(t, err)
+	}()
+
+	testDruidOperator(t, testK8sCtx)
+}
+
+func setupDruidOperator(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
+	err := (&DruidReconciler{
+		Client:               testK8sCtx.k8sManager.GetClient(),
+		Log:                  ctrl.Log.WithName("controllers").WithName("Druid"),
+		Scheme:               testK8sCtx.k8sManager.GetScheme(),
+		ReconcileWaitOnError: LookupReconcileTime(),
+	}).SetupWithManager(testK8sCtx.k8sManager)
+
+	require.NoError(t, err)
+}
+
+func testDruidOperator(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
+	druidCR := readDruidClusterSpecFromFile(t, "testdata/druid-smoke-test-cluster.yaml")
+
+	k8sClient := testK8sCtx.k8sManager.GetClient()
+
+	err := k8sClient.Create(context.TODO(), druidCR)
+	require.NoError(t, err)
+
+	err = retry(func() error {
+		druid := &druidv1alpha1.Druid{}
+
+		err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: druidCR.Name, Namespace: druidCR.Namespace}, druid)
+		if err != nil {
+			return err
+		}
+
+		expectedConfigMaps := []string{
+			fmt.Sprintf("druid-%s-brokers-config", druidCR.Name),
+			fmt.Sprintf("druid-%s-coordinators-config", druidCR.Name),
+			fmt.Sprintf("druid-%s-historicals-config", druidCR.Name),
+			fmt.Sprintf("druid-%s-routers-config", druidCR.Name),
+			fmt.Sprintf("%s-druid-common-config", druidCR.Name),
+		}
+		if !areStringArraysEqual(druid.Status.ConfigMaps, expectedConfigMaps) {
+			return errors.New(fmt.Sprintf("Failed to get expected ConfigMaps, got [%v]", druid.Status.ConfigMaps))
+		}
+
+		expectedServices := []string{
+			fmt.Sprintf("druid-%s-brokers", druidCR.Name),
+			fmt.Sprintf("druid-%s-coordinators", druidCR.Name),
+			fmt.Sprintf("druid-%s-historicals", druidCR.Name),
+			fmt.Sprintf("druid-%s-routers", druidCR.Name),
+		}
+		if !areStringArraysEqual(druid.Status.Services, expectedServices) {
+			return errors.New(fmt.Sprintf("Failed to get expected Services, got [%v]", druid.Status.Services))
+		}
+
+		expectedStatefulSets := []string{
+			fmt.Sprintf("druid-%s-coordinators", druidCR.Name),
+			fmt.Sprintf("druid-%s-historicals", druidCR.Name),
+			fmt.Sprintf("druid-%s-routers", druidCR.Name),
+		}
+		if !areStringArraysEqual(druid.Status.StatefulSets, expectedStatefulSets) {
+			return errors.New(fmt.Sprintf("Failed to get expected StatefulSets, got [%v]", druid.Status.StatefulSets))
+		}
+
+		expectedDeployments := []string{
+			fmt.Sprintf("druid-%s-brokers", druidCR.Name),
+		}
+		if !areStringArraysEqual(druid.Status.Deployments, expectedDeployments) {
+			return errors.New(fmt.Sprintf("Failed to get expected Deployments, got [%v]", druid.Status.Deployments))
+		}
+
+		expectedPDBs := []string{
+			fmt.Sprintf("druid-%s-brokers", druidCR.Name),
+		}
+		if !areStringArraysEqual(druid.Status.PodDisruptionBudgets, expectedPDBs) {
+			return errors.New(fmt.Sprintf("Failed to get expected PDBs, got [%v]", druid.Status.PodDisruptionBudgets))
+		}
+
+		expectedHPAs := []string{
+			fmt.Sprintf("druid-%s-brokers", druidCR.Name),
+		}
+		if !areStringArraysEqual(druid.Status.HPAutoScalers, expectedHPAs) {
+			return errors.New(fmt.Sprintf("Failed to get expected HPAs, got [%v]", druid.Status.HPAutoScalers))
+		}
+
+		return nil
+	}, time.Millisecond*250, time.Second*45)
+
+	require.NoError(t, err)
+}
+
+func areStringArraysEqual(a1, a2 []string) bool {
+	if len(a1) == len(a2) {
+		for i, v := range a1 {
+			if v != a2[i] {
+				return false
+			}
+		}
+	} else {
+		return false
+	}
+	return true
+}
+
+func retry(fn func() error, retryWait, timeOut time.Duration) error {
+	timeOutTimestamp := time.Now().Add(timeOut)
+
+	for {
+		if err := fn(); err != nil {
+			if time.Now().Before(timeOutTimestamp) {
+				time.Sleep(retryWait)
+			} else {
+				return err
+			}
+		} else {
+			return nil
+		}
+	}
+}

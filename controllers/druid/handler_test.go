@@ -117,7 +117,11 @@ func TestMakeBrokerConfigMap(t *testing.T) {
 }
 
 func readSampleDruidClusterSpec(t *testing.T) *v1alpha1.Druid {
-	bytes, err := ioutil.ReadFile("testdata/druid-test-cr.yaml")
+	return readDruidClusterSpecFromFile(t, "testdata/druid-test-cr.yaml")
+}
+
+func readDruidClusterSpecFromFile(t *testing.T, filePath string) *v1alpha1.Druid {
+	bytes, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		t.Errorf("Failed to read druid cluster spec")
 	}
