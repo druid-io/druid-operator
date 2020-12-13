@@ -2,22 +2,22 @@
 FROM golang:1.13 as builder
 
 WORKDIR /workspace
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-# cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
-RUN go mod download
 
-# Copy the go source
-COPY main.go main.go
-COPY apis/ apis/
-COPY controllers/ controllers/
+# Install Kubebuilder
+ARG OS_ARCH=amd64
+ARG KUBEBUILDER_VERSION=2.3.1
+RUN curl -L -O "https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${KUBEBUILDER_VERSION}/kubebuilder_${KUBEBUILDER_VERSION}_linux_${OS_ARCH}.tar.gz"
+RUN tar -zxvf kubebuilder_${KUBEBUILDER_VERSION}_linux_${OS_ARCH}.tar.gz
+RUN mv kubebuilder_${KUBEBUILDER_VERSION}_linux_${OS_ARCH} kubebuilder && mv kubebuilder /usr/local/
+RUN export PATH=$PATH:/usr/local/kubebuilder/bin
+
+COPY . .
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go fmt ./...
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go vet ./...
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go test ./...
+RUN go mod download
+RUN go fmt ./...
+RUN go vet ./...
+RUN go test ./...
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
