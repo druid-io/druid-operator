@@ -1,0 +1,8 @@
+domain: apache.org
+multigroup: true
+repo: github.com/druid-io/druid-operator
+resources:
+- group: druid
+  kind: Druid
+  version: v1alpha1
+version: "2"

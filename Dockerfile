@@ -1,31 +1,30 @@
-from golang:1.13.5 as golang
+# Build the manager binary
+FROM golang:1.13 as builder
 
-WORKDIR /druid-operator
+WORKDIR /workspace
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
 
-# Copy over the gocode
-RUN mkdir -p /druid-operator
-COPY . /druid-operator
+# Copy the go source
+COPY main.go main.go
+COPY apis/ apis/
+COPY controllers/ controllers/
 
-# Build the druid-operator binary from gocode
-RUN make -f /druid-operator/Makefile build
+# Build
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go fmt ./...
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go vet ./...
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go test ./...
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager main.go
 
-#############################################################
-# Build the final docker image copied from build/Dockerfile #
-# except the COPY lines, modified to copy from above image  # 
-#############################################################
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+# Use distroless as minimal base image to package the manager binary
+# Refer to https://github.com/GoogleContainerTools/distroless for more details
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/manager .
+USER nonroot:nonroot
 
-ENV OPERATOR=/usr/local/bin/druid-operator \
-    USER_UID=1001 \
-    USER_NAME=druid-operator
-
-# install operator binary
-COPY --from=golang /druid-operator/build/_output/bin/druid-operator ${OPERATOR}
-
-COPY --from=golang /druid-operator/build/bin /usr/local/bin
-RUN  /usr/local/bin/user_setup
-
-ENTRYPOINT ["/usr/local/bin/entrypoint"]
-
-USER ${USER_UID}
-
+ENTRYPOINT ["/manager"]
