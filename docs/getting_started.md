@@ -9,7 +9,7 @@ druid-operator$ kubectl create -f deploy/service_account.yaml
 druid-operator$ kubectl create -f deploy/role.yaml
 druid-operator$ kubectl create -f deploy/role_binding.yaml
 # Setup the CRD
-druid-operator$ kubectl create -f deploy/crds/druid.apache.org_druids_crd.yaml
+druid-operator$ kubectl create -f deploy/crds/druid.apache.org_druids.yaml
 
 # Update the operator manifest to use the druid-operator image name (if you are performing these steps on OSX, see note below)
 druid-operator$ sed -i 's|REPLACE_IMAGE|<druid-operator-image>|g' deploy/operator.yaml
