@@ -1,14 +1,11 @@
-/*
-
- */
-
 package druid
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"time"
+
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,7 +21,7 @@ type DruidReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 	// reconcile time duration, defaults to 10s
-	ReconcileWaitOnError time.Duration
+	ReconcileWait time.Duration
 }
 
 // +kubebuilder:rbac:groups=druid.apache.org,resources=druids,verbs=get;list;watch;create;update;patch;delete
@@ -53,7 +50,7 @@ func (r *DruidReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if err := deployDruidCluster(r, instance); err != nil {
 		return ctrl.Result{}, err
 	} else {
-		return ctrl.Result{RequeueAfter: r.ReconcileWaitOnError}, nil
+		return ctrl.Result{RequeueAfter: r.ReconcileWait}, nil
 	}
 }
 
@@ -65,8 +62,7 @@ func (r *DruidReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func LookupReconcileTime() time.Duration {
-
-	val, exists := os.LookupEnv("RECONCILE_WAIT_ON_ERROR")
+	val, exists := os.LookupEnv("RECONCILE_WAIT")
 	if !exists {
 		return time.Second * 10
 	} else {
