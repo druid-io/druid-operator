@@ -1,6 +1,11 @@
+
+---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
   name: druids.druid.apache.org
 spec:
   group: druid.apache.org
@@ -10,8 +15,6 @@ spec:
     plural: druids
     singular: druid
   scope: Namespaced
-  subresources:
-    status: {}
   validation:
     openAPIV3Schema:
       description: Druid is the Schema for the druids API
@@ -852,7 +855,7 @@ spec:
               description: 'Optional: If true, this spec would be ignored by the operator'
               type: boolean
             image:
-              description: 'Required: Druid Docker Image'
+              description: Required here or at nodeSpec level
               type: string
             imagePullPolicy:
               description: 'Optional:'
@@ -2231,7 +2234,8 @@ spec:
                     - scaleTargetRef
                     type: object
                   image:
-                    description: 'Optional: Overrides image from top level'
+                    description: 'Optional: Overrides image from top level, Required
+                      if no image specified at top level'
                     type: string
                   imagePullPolicy:
                     description: 'Optional: Overrides imagePullPolicy from top level'
@@ -5191,12 +5195,8 @@ spec:
                     type: array
                 required:
                 - druid.port
-                - kind
-                - maxSurge
-                - maxUnavailable
+                - nodeConfigMountPath
                 - nodeType
-                - podDisruptionBudgetSpec
-                - podLabels
                 - replicas
                 - runtime.properties
                 type: object
@@ -7366,15 +7366,8 @@ spec:
           required:
           - common.runtime.properties
           - commonConfigMountPath
-          - deepStorage
-          - forceDeleteStsPodOnError
-          - image
-          - metadataStore
           - nodes
-          - podLabels
-          - serviceAccount
           - startScript
-          - zookeeper
           type: object
         status:
           description: DruidStatus defines the observed state of Druid
@@ -7412,6 +7405,8 @@ spec:
                 type: string
               type: array
           type: object
+      required:
+      - spec
       type: object
   version: v1alpha1
   versions:
