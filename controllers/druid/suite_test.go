@@ -1,19 +1,16 @@
-/*
-
- */
-
 package druid
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/types"
 	"path/filepath"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -76,10 +73,10 @@ func TestAPIs(t *testing.T) {
 
 func setupDruidOperator(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
 	err := (&DruidReconciler{
-		Client:               testK8sCtx.k8sManager.GetClient(),
-		Log:                  ctrl.Log.WithName("controllers").WithName("Druid"),
-		Scheme:               testK8sCtx.k8sManager.GetScheme(),
-		ReconcileWaitOnError: LookupReconcileTime(),
+		Client:        testK8sCtx.k8sManager.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("Druid"),
+		Scheme:        testK8sCtx.k8sManager.GetScheme(),
+		ReconcileWait: LookupReconcileTime(),
 	}).SetupWithManager(testK8sCtx.k8sManager)
 
 	require.NoError(t, err)
@@ -150,6 +147,13 @@ func testDruidOperator(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
 		}
 		if !areStringArraysEqual(druid.Status.HPAutoScalers, expectedHPAs) {
 			return errors.New(fmt.Sprintf("Failed to get expected HPAs, got [%v]", druid.Status.HPAutoScalers))
+		}
+
+		expectedIngress := []string{
+			fmt.Sprintf("druid-%s-routers", druidCR.Name),
+		}
+		if !areStringArraysEqual(druid.Status.Ingress, expectedIngress) {
+			return errors.New(fmt.Sprintf("Failed to get expected Ingress, got [%v]", druid.Status.Ingress))
 		}
 
 		return nil

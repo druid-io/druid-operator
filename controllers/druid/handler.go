@@ -84,7 +84,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 		func() (object, error) { return makeCommonConfigMap(m, ls) },
 		func() object { return makeConfigMapEmptyObj() },
-		nil, m, configMapNames); err != nil {
+		alwaysTrueIsEqualsFn, noopUpdaterFn, m, configMapNames); err != nil {
 		return err
 	}
 
@@ -112,7 +112,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) { return nodeConfig, nil },
 			func() object { return makeConfigMapEmptyObj() },
-			nil, m, configMapNames); err != nil {
+			alwaysTrueIsEqualsFn, noopUpdaterFn, m, configMapNames); err != nil {
 			return err
 		}
 
@@ -122,7 +122,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		for _, svc := range services {
 			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) { return makeService(&svc, &nodeSpec, m, lm, nodeSpecUniqueStr) },
-				func() object { return makeServiceEmptyObj() },
+				func() object { return makeServiceEmptyObj() }, alwaysTrueIsEqualsFn,
 				func(prev, curr object) { (curr.(*v1.Service)).Spec.ClusterIP = (prev.(*v1.Service)).Spec.ClusterIP },
 				m, serviceNames); err != nil {
 				return err
@@ -140,7 +140,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return makeDeployment(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
 				},
 				func() object { return makeDeploymentEmptyObj() },
-				nil, m, deploymentNames); err != nil {
+				deploymentIsEquals, noopUpdaterFn, m, deploymentNames); err != nil {
 				return err
 			} else if m.Spec.RollingDeploy {
 
@@ -161,7 +161,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
 				},
 				func() object { return makeStatefulSetEmptyObj() },
-				nil, m, statefulSetNames); err != nil {
+				statefulSetIsEquals, noopUpdaterFn, m, statefulSetNames); err != nil {
 				return err
 			} else if m.Spec.RollingDeploy {
 
@@ -192,7 +192,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return makeIngress(&nodeSpec, m, ls, nodeSpecUniqueStr)
 				},
 				func() object { return makeIngressEmptyObj() },
-				nil, m, ingressNames); err != nil {
+				alwaysTrueIsEqualsFn, noopUpdaterFn, m, ingressNames); err != nil {
 				return err
 			}
 		}
@@ -202,7 +202,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) { return makePodDisruptionBudget(&nodeSpec, m, lm, nodeSpecUniqueStr) },
 				func() object { return makePodDisruptionBudgetEmptyObj() },
-				nil, m, podDisruptionBudgetNames); err != nil {
+				alwaysTrueIsEqualsFn, noopUpdaterFn, m, podDisruptionBudgetNames); err != nil {
 				return err
 			}
 		}
@@ -214,7 +214,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return makeHorizontalPodAutoscaler(&nodeSpec, m, ls, nodeSpecUniqueStr)
 				},
 				func() object { return makeHorizontalPodAutoscalerEmptyObj() },
-				nil, m, hpaNames); err != nil {
+				alwaysTrueIsEqualsFn, noopUpdaterFn, m, hpaNames); err != nil {
 				return err
 			}
 		}
@@ -431,7 +431,22 @@ type object interface {
 	runtime.Object
 }
 
-func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), emptyObjFn func() object, updaterFn func(prev, curr object), drd *v1alpha1.Druid, names map[string]bool) (string, error) {
+func alwaysTrueIsEqualsFn(prev, curr object) bool {
+	return true
+}
+
+func noopUpdaterFn(prev, curr object) {
+	// do nothing
+}
+
+func sdkCreateOrUpdateAsNeeded(
+	sdk client.Client,
+	objFn func() (object, error),
+	emptyObjFn func() object,
+	isEqualFn func(prev, curr object) bool,
+	updaterFn func(prev, curr object),
+	drd *v1alpha1.Druid,
+	names map[string]bool) (string, error) {
 	if obj, err := objFn(); err != nil {
 		return "", err
 	} else {
@@ -463,12 +478,10 @@ func sdkCreateOrUpdateAsNeeded(sdk client.Client, objFn func() (object, error), 
 			}
 		} else {
 			// resource already exists, updated it if needed
-			if obj.GetAnnotations()[druidOpResourceHash] != prevObj.GetAnnotations()[druidOpResourceHash] {
+			if obj.GetAnnotations()[druidOpResourceHash] != prevObj.GetAnnotations()[druidOpResourceHash] || !isEqualFn(prevObj, obj) {
 
 				obj.SetResourceVersion(prevObj.GetResourceVersion())
-				if updaterFn != nil {
-					updaterFn(prevObj, obj)
-				}
+				updaterFn(prevObj, obj)
 
 				if err := sdk.Update(context.TODO(), obj); err != nil {
 					e := fmt.Errorf("Failed to update [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
@@ -831,6 +844,13 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 	}, nil
 }
 
+// currently only checks for replica count mismatch, can be extended further
+func statefulSetIsEquals(obj1, obj2 object) bool {
+	o1 := obj1.(*appsv1.StatefulSet)
+	o2 := obj2.(*appsv1.StatefulSet)
+	return *o1.Spec.Replicas == *o2.Spec.Replicas
+}
+
 // makeDeployment shall create deployment object.
 func makeDeployment(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr, configMapSHA, serviceName string) (*appsv1.Deployment, error) {
 	return &appsv1.Deployment{
@@ -845,6 +865,13 @@ func makeDeployment(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[
 		},
 		Spec: makeDeploymentSpec(nodeSpec, m, ls, nodeSpecUniqueStr, configMapSHA, serviceName),
 	}, nil
+}
+
+// currently only checks for replica count mismatch, can be extended further
+func deploymentIsEquals(obj1, obj2 object) bool {
+	o1 := obj1.(*appsv1.Deployment)
+	o2 := obj2.(*appsv1.Deployment)
+	return *o1.Spec.Replicas == *o2.Spec.Replicas
 }
 
 // makeStatefulSetSpec shall create statefulset spec for statefulsets.

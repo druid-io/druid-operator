@@ -187,6 +187,19 @@ spec:
       druid.port: 8088
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/query/router"
       replicas: 1
+      ingress:
+        tls:
+         - hosts:
+            - sslexample.foo.com
+           secretName: testsecret-tls
+        rules:
+         - host: sslexample.foo.com
+           http:
+             paths:
+             - path: /
+               backend:
+                 serviceName: service1
+                 servicePort: 80
       runtime.properties: |
         druid.service=druid/router
 
