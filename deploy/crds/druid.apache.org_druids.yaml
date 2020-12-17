@@ -15,6 +15,8 @@ spec:
     plural: druids
     singular: druid
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: Druid is the Schema for the druids API

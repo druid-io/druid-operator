@@ -278,7 +278,7 @@ type DruidStatus struct {
 }
 
 // +kubebuilder:object:root=true
-
+// +kubebuilder:subresource:status
 // Druid is the Schema for the druids API
 type Druid struct {
 	metav1.TypeMeta   `json:",inline"`
