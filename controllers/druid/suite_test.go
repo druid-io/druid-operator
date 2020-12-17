@@ -149,6 +149,13 @@ func testDruidOperator(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
 			return errors.New(fmt.Sprintf("Failed to get expected HPAs, got [%v]", druid.Status.HPAutoScalers))
 		}
 
+		expectedIngress := []string{
+			fmt.Sprintf("druid-%s-routers", druidCR.Name),
+		}
+		if !areStringArraysEqual(druid.Status.Ingress, expectedIngress) {
+			return errors.New(fmt.Sprintf("Failed to get expected Ingress, got [%v]", druid.Status.Ingress))
+		}
+
 		return nil
 	}, time.Millisecond*250, time.Second*45)
 
