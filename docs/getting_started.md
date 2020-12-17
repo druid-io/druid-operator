@@ -35,6 +35,10 @@ druid-operator$ kubectl describe deployment druid-operator
 - There may be use cases where we want the operator to watch all namespaces but restrict few namespaces, due to security, testing flexibility etc reasons.
 - The druid operator supports such cases. In ```deploy/operator.yaml```, user can enable ```DENY_LIST``` env and pass the namespaces to be excluded. Each namespace to be seperated using a comma.
 
+## Reconcile Time in Operator
+- As per operator pattern, the druid operator reconciles every 10s ( default reconcile time ) to make sure the desired state ( druid CR ) in sync with current state.
+- In case user wants to adjust the reconcile time, it can be adjusted by adding an ENV variable in ```deploy/operatoryaml```, user can enable ```RECONCILE_WAIT``` env and pass in the value suffixed with ```s``` string ( example: 30s). The default time is 10s.
+
 ## Deploy a sample Druid cluster
 
 - An example spec to deploy a tiny druid cluster is included. For full details on spec please see `pkg/api/druid/v1alpha1/druid_types.go`

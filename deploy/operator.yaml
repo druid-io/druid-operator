@@ -29,7 +29,7 @@ spec:
           #  - name: DENY_LIST
           #    value: kube-system, default
           # Default Reconcile time is set to 10s
-          #  - name: RECONCILE_WAIT_ON_ERROR
+          #  - name: RECONCILE_WAIT
           #    value: 30s
             - name: POD_NAME
               valueFrom:
