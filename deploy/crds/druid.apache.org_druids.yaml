@@ -3055,6 +3055,7 @@ spec:
                   replicas:
                     description: Required
                     format: int32
+                    minimum: 0
                     type: integer
                   resources:
                     description: 'Optional: CPU/Memory Resources'

@@ -147,6 +147,7 @@ type DruidNodeSpec struct {
 	Kind string `json:"kind,omitempty"`
 
 	// Required
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas"`
 
 	// Optional
