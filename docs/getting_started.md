@@ -53,6 +53,8 @@ druid-operator$ kubectl apply -f examples/tiny-cluster-zk.yaml
 druid-operator$ kubectl apply -f examples/tiny-cluster.yaml
 ```
 
+Note that above tiny-cluster only works on a single node kubernetes cluster(e.g. typical k8s cluster setup for dev using kind or minikube) as it uses local disk as "deep storage".
+
 ## Debugging Problems
 
  - For kubernetes version 1.11 make sure to disable ```type: object``` in the CRD root spec. 
