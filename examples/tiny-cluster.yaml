@@ -4,6 +4,7 @@ metadata:
   name: tiny-cluster
 spec:
   image: apache/druid:0.19.0
+  volumeReclaimPolicy: false
   # Optionally specify image for all nodes. Can be specify on nodes also
   # imagePullSecrets:
   # - name: tutu
@@ -96,19 +97,20 @@ spec:
       extra.jvm.options: |-
         -Xmx1G
         -Xms1G
+      volumeClaimTemplates:
+        - metadata:
+            creationTimestamp: null
+            name: broker-data
+          spec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: 1Gi
+            storageClassName: topology-aware-pd-standard
       volumeMounts:
-        - mountPath: /druid/data
-          name: data-volume
-      volumes:
-        - name: data-volume
-          emptyDir: {}
-      resources:
-        requests:
-          memory: "2G"
-          cpu: "2"
-        limits:
-          memory: "2G"
-          cpu: "2"
+        - mountPath: /opt/druid/var
+          name: broker-data
 
     coordinators:
       # Optionally specify for running coordinator as Deployment
@@ -133,18 +135,19 @@ spec:
         -Xmx1G
         -Xms1G
       volumeMounts:
-        - mountPath: /druid/data
-          name: data-volume
-      volumes:
-        - name: data-volume
-          emptyDir: {}
-      resources:
-        requests:
-          memory: "2G"
-          cpu: "2"
-        limits:
-          memory: "2G"
-          cpu: "2"
+        - mountPath: /opt/druid/var
+          name: coo-data
+      volumeClaimTemplates:
+        - metadata:
+            creationTimestamp: null
+            name: coo-data
+          spec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: 1Gi
+            storageClassName: topology-aware-pd-standard
 
     historicals:
       nodeType: "historical"
@@ -163,19 +166,20 @@ spec:
       extra.jvm.options: |-
         -Xmx1G
         -Xms1G
+      volumeClaimTemplates:
+        - metadata:
+            creationTimestamp: null
+            name: hi-data
+          spec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: 1Gi
+            storageClassName: topology-aware-pd-standard
       volumeMounts:
-        - mountPath: /druid/data
-          name: data-volume
-      volumes:
-        - name: data-volume
-          emptyDir: {}
-      resources:
-        requests:
-          memory: "2G"
-          cpu: "2"
-        limits:
-          memory: "2G"
-          cpu: "2"
+        - mountPath: /opt/druid/var
+          name: hi-data
           
     routers:
       nodeType: "router"
@@ -187,7 +191,7 @@ spec:
         druid.plaintextPort=8888
 
         # HTTP proxy
-        druid.router.http.numConnections=50
+        druid.router.http.numConnections=5
         druid.router.http.readTimeout=PT5M
         druid.router.http.numMaxThreads=100
         druid.server.http.numThreads=100

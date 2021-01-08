@@ -14,6 +14,7 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 
 	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
+	"github.com/prometheus/common/log"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -89,6 +90,40 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		return err
 	}
 
+	/*
+		If volumeReclaimPolciy is set to false, add finalizer to druid CR
+		When the object (druid CR) has for deletion time stamp set, execute the finalizer
+		Finalizer shall execute the following flow :
+		1. Get sts List and PVC List
+		2. Range and Delete sts first and then delete pvc. PVC must be deleted after sts termination has been executed
+		   else pvc finalizer shall block deletion since a pod/sts is referencing it.
+		3. Once delete is executed we block program and return.
+	*/
+	if m.Spec.VolumeReclaimPolicy == false {
+		md := m.GetDeletionTimestamp() != nil
+		if md {
+			err := finalizer(sdk, m)
+			if err != nil {
+				return err
+			} else {
+				return nil
+			}
+		}
+		/*
+			If finalizer isn't present add it to object meta.
+		*/
+		if !ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
+			m.SetFinalizers(append(m.GetFinalizers(), finalizerName))
+			if err := sdk.Update(context.Background(), m); err != nil {
+				e := fmt.Errorf("failed to Update druid CR for [%s] due to [%s]", m.Name, err.Error())
+				sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
+				logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+				return e
+			}
+		}
+
+	}
+
 	for _, elem := range allNodeSpecs {
 		key := elem.key
 		nodeSpec := elem.spec
@@ -134,27 +169,6 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 
 		nodeSpec.Ports = append(nodeSpec.Ports, v1.ContainerPort{ContainerPort: nodeSpec.DruidPort, Name: "druid-port"})
-
-		if m.Spec.VolumeReclaimPolicy {
-			md := m.GetDeletionTimestamp() != nil
-			if md {
-				err := finalizer(sdk, m)
-				if err != nil {
-					return err
-				}
-				return nil
-			}
-			if !ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
-				m.SetFinalizers(append(m.GetFinalizers(), finalizerName))
-				if err := sdk.Update(context.Background(), m); err != nil {
-					e := fmt.Errorf("failed to Update druid CR for [%s] due to [%s]", m.Name, err.Error())
-					sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-					logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-					return e
-				}
-			}
-
-		}
 
 		if nodeSpec.Kind == "Deployment" {
 			if deployCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
@@ -357,7 +371,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	return nil
 }
 
-func deleteSTSCascadeAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []*appsv1.StatefulSet, pvcList []*v1.PersistentVolumeClaim) error {
+func deleteSTSAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []*appsv1.StatefulSet, pvcList []*v1.PersistentVolumeClaim) error {
 
 	for _, sts := range stsList {
 		if err := sdk.Delete(context.TODO(), sts); err != nil {
@@ -370,10 +384,10 @@ func deleteSTSCascadeAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []*app
 			sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
 			logger.Info(msg, "name", m.Name, "namespace", m.Namespace)
 		}
+
 	}
 
 	for i := range pvcList {
-		fmt.Println(pvcList[i].Name)
 		if err := sdk.Delete(context.TODO(), pvcList[i]); err != nil {
 			e := fmt.Errorf("Error deleting pvc [%s:%s] due to [%s]", pvcList[i].Name, m.Namespace, err.Error())
 			sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
@@ -447,18 +461,26 @@ func finalizer(sdk client.Client, m *v1alpha1.Druid) error {
 	if ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
 		pvc := getPVCList(sdk, m)
 		stsList, _ := getSTSList(sdk, m)
-		if err := deleteSTSCascadeAndPVC(sdk, m, stsList, pvc); err != nil {
+		msg := fmt.Sprintf("Trigerring finalizer for CR [%s] in namespace [%s]", m.Name, m.Namespace)
+		sendEvent(sdk, m, v1.EventTypeNormal, "TRIGGER_FINALIZER", msg)
+		log.Info(msg)
+		if err := deleteSTSAndPVC(sdk, m, stsList, pvc); err != nil {
 			return err
+		} else {
+			msg := fmt.Sprintf("Finalizer success for CR [%s] in namespace [%s]", m.Name, m.Namespace)
+			sendEvent(sdk, m, v1.EventTypeNormal, "TRIGGER_FINALIZER_SUCCESS", msg)
+			log.Info(msg)
 		}
 
 		// remove our finalizer from the list and update it.
 		m.ObjectMeta.Finalizers = RemoveString(m.ObjectMeta.Finalizers, finalizerName)
-		if err := sdk.Update(context.Background(), m); err != nil {
+		if err := sdk.Update(context.TODO(), m); err != nil {
 			e := fmt.Errorf("failed to Update druid CR for [%s] due to [%s]", m.Name, err.Error())
 			sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
 			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 			return e
 		}
+
 	}
 	return nil
 
