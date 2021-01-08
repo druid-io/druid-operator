@@ -43,8 +43,9 @@ type DruidSpec struct {
 	// Required: in-container directory to mount with common.runtime.properties
 	CommonConfigMountPath string `json:"commonConfigMountPath"`
 
-	// Optional: If set to true, pvc shall be deleted on deletion of CR
+	// Optional: If set to false, pvc shall be deleted on deletion of CR
 	VolumeReclaimPolicy bool `json:"volumeReclaimPolicy"`
+
 	// Required: path to druid start script to be run on container start
 	StartScript string `json:"startScript"`
 
