@@ -1,11 +1,8 @@
-/*
-
- */
-
 package v1alpha1
 
 import (
 	"encoding/json"
+
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
 	v1 "k8s.io/api/core/v1"
@@ -46,6 +43,8 @@ type DruidSpec struct {
 	// Required: in-container directory to mount with common.runtime.properties
 	CommonConfigMountPath string `json:"commonConfigMountPath"`
 
+	// Optional: If set to true, pvc shall be deleted on deletion of CR
+	VolumeReclaimPolicy bool `json:"volumeReclaimPolicy"`
 	// Required: path to druid start script to be run on container start
 	StartScript string `json:"startScript"`
 

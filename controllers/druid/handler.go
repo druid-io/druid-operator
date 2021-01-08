@@ -39,6 +39,7 @@ const (
 	resourceCreated              = "CREATED"
 	resourceUpdated              = "UPDATED"
 	defaultCommonConfigMountPath = "/druid/conf/druid/_common"
+	finalizerName                = "finalizers.druid.apache.org"
 )
 
 var logger = logf.Log.WithName("druid_operator_handler")
@@ -134,6 +135,27 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 		nodeSpec.Ports = append(nodeSpec.Ports, v1.ContainerPort{ContainerPort: nodeSpec.DruidPort, Name: "druid-port"})
 
+		if m.Spec.VolumeReclaimPolicy {
+			md := m.GetDeletionTimestamp() != nil
+			if md {
+				err := finalizer(sdk, m)
+				if err != nil {
+					return err
+				}
+				return nil
+			}
+			if !ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
+				m.SetFinalizers(append(m.GetFinalizers(), finalizerName))
+				if err := sdk.Update(context.Background(), m); err != nil {
+					e := fmt.Errorf("failed to Update druid CR for [%s] due to [%s]", m.Name, err.Error())
+					sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
+					logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+					return e
+				}
+			}
+
+		}
+
 		if nodeSpec.Kind == "Deployment" {
 			if deployCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) {
@@ -182,7 +204,6 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 			// Default is set to true
 			execCheckCrashStatus(sdk, &nodeSpec, m)
-
 		}
 
 		// Create Ingress Spec
@@ -334,6 +355,113 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	}
 
 	return nil
+}
+
+func deleteSTSCascadeAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []*appsv1.StatefulSet, pvcList []*v1.PersistentVolumeClaim) error {
+
+	for _, sts := range stsList {
+		if err := sdk.Delete(context.TODO(), sts); err != nil {
+			e := fmt.Errorf("Error deleting sts [%s:%s] due to [%s]", sts, m.Namespace, err.Error())
+			sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
+			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+			return e
+		} else {
+			msg := fmt.Sprintf("Deleting sts [%s:%s] successfully", sts.Name, m.Namespace)
+			sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
+			logger.Info(msg, "name", m.Name, "namespace", m.Namespace)
+		}
+	}
+
+	for i := range pvcList {
+		fmt.Println(pvcList[i].Name)
+		if err := sdk.Delete(context.TODO(), pvcList[i]); err != nil {
+			e := fmt.Errorf("Error deleting pvc [%s:%s] due to [%s]", pvcList[i].Name, m.Namespace, err.Error())
+			sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
+			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+			return e
+		} else {
+			msg := fmt.Sprintf("Deleting pvc [%s:%s] successfully", pvcList[i].Name, m.Namespace)
+			sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
+			logger.Info(msg, "name", m.Name, "namespace", m.Namespace)
+		}
+	}
+
+	return nil
+}
+
+// Create pvcList, reference sts using component label
+func getPVCList(sdk client.Client, drd *v1alpha1.Druid) []*v1.PersistentVolumeClaim {
+
+	pvcList := makePersistentVolumeClaimListEmptyObj()
+	listOpts := []client.ListOption{
+		client.InNamespace(drd.Namespace),
+		client.MatchingLabels(map[string]string{
+			"druid_cr": drd.Name,
+		}),
+	}
+
+	if err := sdk.List(context.TODO(), pvcList, listOpts...); err != nil {
+		e := fmt.Errorf("failed to list pvc for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
+		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
+		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+		return nil
+	}
+
+	// create a slice []*pvc
+	pvc := make([]*v1.PersistentVolumeClaim, 0)
+	for i := range pvcList.Items {
+		pvc = append(pvc, &pvcList.Items[i])
+	}
+
+	return pvc
+
+}
+
+func getSTSList(sdk client.Client, drd *v1alpha1.Druid) ([]*appsv1.StatefulSet, error) {
+
+	stsList := makeStatefulSetListEmptyObj()
+	listOpts := []client.ListOption{
+		client.InNamespace(drd.Namespace),
+		client.MatchingLabels(makeLabelsForDruid(drd.Name)),
+	}
+
+	if err := sdk.List(context.TODO(), stsList, listOpts...); err != nil {
+		e := fmt.Errorf("failed to list sts for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
+		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
+		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+		return nil, e
+	}
+
+	// create a slice []*sts
+	sts := make([]*appsv1.StatefulSet, 0)
+	for i := range stsList.Items {
+		sts = append(sts, &stsList.Items[i])
+	}
+
+	return sts, nil
+
+}
+
+func finalizer(sdk client.Client, m *v1alpha1.Druid) error {
+
+	if ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
+		pvc := getPVCList(sdk, m)
+		stsList, _ := getSTSList(sdk, m)
+		if err := deleteSTSCascadeAndPVC(sdk, m, stsList, pvc); err != nil {
+			return err
+		}
+
+		// remove our finalizer from the list and update it.
+		m.ObjectMeta.Finalizers = RemoveString(m.ObjectMeta.Finalizers, finalizerName)
+		if err := sdk.Update(context.Background(), m); err != nil {
+			e := fmt.Errorf("failed to Update druid CR for [%s] due to [%s]", m.Name, err.Error())
+			sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
+			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+			return e
+		}
+	}
+	return nil
+
 }
 
 func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) {
@@ -1165,6 +1293,15 @@ func makeHorizontalPodAutoscalerEmptyObj() *autoscalev2beta1.HorizontalPodAutosc
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "autoscaling/v2beta1",
 			Kind:       "HorizontalPodAutoscaler",
+		},
+	}
+}
+
+func makePersistentVolumeClaimListEmptyObj() *v1.PersistentVolumeClaimList {
+	return &v1.PersistentVolumeClaimList{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
 		},
 	}
 }
