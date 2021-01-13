@@ -27,11 +27,11 @@ run: generate fmt vet manifests
 
 # Install CRDs into a cluster
 install: manifests
-	kubectl apply -f deploy/crds
+	kubectl apply -f deploy/crds/druid.apache.org_druids.yaml
 
 # Uninstall CRDs from a cluster
 uninstall: manifests
-	kubectl delete -f deploy/crds
+	kubectl delete -f deploy/crds/druid.apache.org_druids.yaml
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
