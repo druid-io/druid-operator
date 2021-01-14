@@ -14,7 +14,6 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 
 	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
-	"github.com/prometheus/common/log"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/policy/v1beta1"
@@ -476,13 +475,13 @@ func finalizer(sdk client.Client, m *v1alpha1.Druid) error {
 		stsList, _ := getSTSList(sdk, m)
 		msg := fmt.Sprintf("Trigerring finalizer for CR [%s] in namespace [%s]", m.Name, m.Namespace)
 		sendEvent(sdk, m, v1.EventTypeNormal, "TRIGGER_FINALIZER", msg)
-		log.Info(msg)
+		logger.Info(msg)
 		if err := deleteSTSAndPVC(sdk, m, stsList, pvc); err != nil {
 			return err
 		} else {
 			msg := fmt.Sprintf("Finalizer success for CR [%s] in namespace [%s]", m.Name, m.Namespace)
 			sendEvent(sdk, m, v1.EventTypeNormal, "TRIGGER_FINALIZER_SUCCESS", msg)
-			log.Info(msg)
+			logger.Info(msg)
 		}
 
 		// remove our finalizer from the list and update it.
