@@ -41,8 +41,8 @@ druid-operator$ kubectl describe deployment druid-operator
 
 ## Finalizer in Druid CR
 - Druid Operator supports provisioning of sts as well as deployments. When sts is created a pvc is created along. When druid CR is deleted the sts controller does not delete pvc's associated with sts.
-- In case user does not care about pvc data and wishes not to reclaim it, user can enable ```volumeReclaimPolicy: false``` in druid CR. This shall trigger finalizers and pre-delete hook shall be executed which shall first clean up sts and then pvc referenced by sts.
-- Default behavior is set to true ie after deletion of CR, any pvc's provisioned shall remain as it is.
+- In case user does care about pvc data and wishes  to reclaim it, user can enable ```DisablePVCDeletionFinalizer: true``` in druid CR. Default behavior shall trigger finalizers and pre-delete hooks that shall be executed which shall first clean up sts and then pvc referenced by sts.
+- Default behavior is set to true ie after deletion of CR, any pvc's provisioned in sts shall be deleted.
 
 ## Deploy a sample Druid cluster
 

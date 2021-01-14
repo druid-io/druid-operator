@@ -40,7 +40,7 @@ const (
 	resourceCreated              = "CREATED"
 	resourceUpdated              = "UPDATED"
 	defaultCommonConfigMountPath = "/druid/conf/druid/_common"
-	finalizerName                = "finalizers.druid.apache.org"
+	finalizerName                = "deletepvc.finalizers.druid.apache.org"
 )
 
 var logger = logf.Log.WithName("druid_operator_handler")
@@ -91,15 +91,17 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	}
 
 	/*
-		If volumeReclaimPolciy is set to false, add finalizer to druid CR
+		If EnablePVCDeletionFinalizer is set to false, finalizer shall not be executed
+		Default Behavior: Finalizer shall be always executed resulting in deletion of pvc post deletion of Druid CR
 		When the object (druid CR) has for deletion time stamp set, execute the finalizer
 		Finalizer shall execute the following flow :
 		1. Get sts List and PVC List
 		2. Range and Delete sts first and then delete pvc. PVC must be deleted after sts termination has been executed
-		   else pvc finalizer shall block deletion since a pod/sts is referencing it.
+			else pvc finalizer shall block deletion since a pod/sts is referencing it.
 		3. Once delete is executed we block program and return.
 	*/
-	if m.Spec.VolumeReclaimPolicy == false {
+
+	if m.Spec.DisablePVCDeletionFinalizer != true {
 		md := m.GetDeletionTimestamp() != nil
 		if md {
 			err := finalizer(sdk, m)
@@ -111,17 +113,20 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 		/*
 			If finalizer isn't present add it to object meta.
+			In case cr is already deleted do not call this function
 		*/
-		if !ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
-			m.SetFinalizers(append(m.GetFinalizers(), finalizerName))
-			if err := sdk.Update(context.Background(), m); err != nil {
-				e := fmt.Errorf("failed to Update druid CR for [%s] due to [%s]", m.Name, err.Error())
-				sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-				logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-				return e
+		cr := checkIfCRExists(sdk, m)
+		if cr == true {
+			if !ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
+				m.SetFinalizers(append(m.GetFinalizers(), finalizerName))
+				if err := sdk.Update(context.Background(), m); err != nil {
+					e := fmt.Errorf("failed to Update druid CR for [%s] due to [%s]", m.Name, err.Error())
+					sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
+					logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+					return e
+				}
 			}
 		}
-
 	}
 
 	for _, elem := range allNodeSpecs {
@@ -401,6 +406,14 @@ func deleteSTSAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []*appsv1.Sta
 	}
 
 	return nil
+}
+
+func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid) bool {
+	if err := sdk.Get(context.TODO(), *namespacedName(m.Name, m.Namespace), m); err != nil {
+		return false
+	} else {
+		return true
+	}
 }
 
 // Create pvcList, reference sts using component label
