@@ -31,7 +31,9 @@ type TestK8sEnvCtx struct {
 func setupK8Evn(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
 	ctrl.SetLogger(zap.New())
 	testK8sCtx.env = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "deploy", "crds")},
+		CRDInstallOptions: envtest.CRDInstallOptions{
+			Paths: []string{filepath.Join("..", "..", "deploy", "crds", "druid.apache.org_druids.yaml")},
+		},
 	}
 
 	config, err := testK8sCtx.env.Start()
