@@ -2,14 +2,10 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# Namespace to watch or empty string to watch all namespaces
-watchNamespace: ""
-
-# Comma-separated list of namespaces to ignore
-denyList: "default,kube-system"
-
-# Reconciliation delay
-reconcileWaitOnError: 10s
+env:
+  DENY_LIST: "default,kube-system" # Comma-separated list of namespaces to ignore
+  RECONCILE_WAIT: "10s"            # Reconciliation delay
+  WATCH_NAMESPACE: ""              # Namespace to watch or empty string to watch all namespaces
 
 replicaCount: 1
 

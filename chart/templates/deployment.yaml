@@ -33,18 +33,14 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            - name: WATCH_NAMESPACE
-              value: {{ .Values.watchNamespace }}
-            - name: DENY_LIST
-              value: {{ .Values.denyList }}
-            - name: RECONCILE_WAIT_ON_ERROR
-              value: {{ .Values.reconcileWaitOnError }}
+            {{- range $key, $value :=  .Values.env }}
+            - name: {{ $key }}
+              value: {{ tpl $value $ | quote }}
+            {{- end }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: OPERATOR_NAME
-              value: "druid-operator"
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
