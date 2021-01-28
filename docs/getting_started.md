@@ -64,8 +64,8 @@ helm -n druid-operator template --set env.WATCH_NAMESPACE="mynamespace,yournames
 # To upgrade chart or apply changes in myvalues.yaml
 helm -n druid-operator upgrade -f myvalues.yaml namespaced-druid-operator ./chart
 
-# Rollback
-helm -n druid-operator upgrade -f myvalues.yaml namespaced-druid-operator ./old_chart
+# Rollback to previous revision
+helm -n druid-operator rollback cluster-druid-operator
 ```
 
 ## Deny List in Operator
