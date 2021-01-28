@@ -32,7 +32,7 @@ druid-operator$ kubectl describe deployment druid-operator
 ```
 - Use ```ClusterRole``` and ```CluterRoleBinding``` instead of ```role```and ```roleBinding```.
 
-## Install the operatorm using Helm chart
+## Install the operator using Helm chart
 - Install cluster scope operator into the `druid-operator` namespace:
 ```
 # Create namespace
