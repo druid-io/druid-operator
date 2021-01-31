@@ -90,7 +90,6 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	}
 
 	/*
-		If EnablePVCDeletionFinalizer is set to false, finalizer shall not be executed
 		Default Behavior: Finalizer shall be always executed resulting in deletion of pvc post deletion of Druid CR
 		When the object (druid CR) has for deletion time stamp set, execute the finalizer
 		Finalizer shall execute the following flow :
