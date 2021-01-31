@@ -100,26 +100,21 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		3. Once delete is executed we block program and return.
 	*/
 
-	if m.Spec.DisablePVCDeletionFinalizer != true {
+	if m.Spec.DisablePVCDeletionFinalizer == false {
 		md := m.GetDeletionTimestamp() != nil
 		if md {
-			err := finalizer(sdk, m)
-			if err != nil {
-				return err
-			} else {
-				return nil
-			}
+			return executeFinalizers(sdk, m)
 		}
 		/*
 			If finalizer isn't present add it to object meta.
 			In case cr is already deleted do not call this function
 		*/
 		cr := checkIfCRExists(sdk, m)
-		if cr == true {
+		if cr {
 			if !ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
 				m.SetFinalizers(append(m.GetFinalizers(), finalizerName))
 				if err := sdk.Update(context.Background(), m); err != nil {
-					e := fmt.Errorf("failed to Update druid CR for [%s] due to [%s]", m.Name, err.Error())
+					e := fmt.Errorf("failed to add finalizer to druid CR for [%s] due to [%s]", m.Name, err.Error())
 					sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
 					logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 					return e
@@ -468,7 +463,7 @@ func getSTSList(sdk client.Client, drd *v1alpha1.Druid) ([]*appsv1.StatefulSet, 
 
 }
 
-func finalizer(sdk client.Client, m *v1alpha1.Druid) error {
+func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 
 	if ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
 		pvc := getPVCList(sdk, m)
