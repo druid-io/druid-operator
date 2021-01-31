@@ -27,11 +27,11 @@ run: generate fmt vet manifests
 
 # Install CRDs into a cluster
 install: manifests
-	kubectl apply -f deploy/crds
+	kubectl apply -f deploy/crds/druid.apache.org_druids.yaml
 
 # Uninstall CRDs from a cluster
 uninstall: manifests
-	kubectl delete -f deploy/crds
+	kubectl delete -f deploy/crds/druid.apache.org_druids.yaml
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
@@ -42,7 +42,7 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	#$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./..." output:crd:artifacts:config=deploy/crds/
 
 # Run go fmt against code
 fmt:
@@ -73,7 +73,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.5 ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen

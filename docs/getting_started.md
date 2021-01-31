@@ -9,7 +9,9 @@ druid-operator$ kubectl create -f deploy/service_account.yaml
 druid-operator$ kubectl create -f deploy/role.yaml
 druid-operator$ kubectl create -f deploy/role_binding.yaml
 # Setup the CRD
-druid-operator$ kubectl create -f deploy/crds/druid.apache.org_druids_crd.yaml
+# Following CRD spec contains schema validation, you can find CRD spec without schema validation at
+# deploy/crds/druid.apache.org_druids_crd.yaml
+druid-operator$ kubectl create -f deploy/crds/druid.apache.org_druids.yaml
 
 # Update the operator manifest to use the druid-operator image name (if you are performing these steps on OSX, see note below)
 druid-operator$ sed -i 's|REPLACE_IMAGE|<druid-operator-image>|g' deploy/operator.yaml
@@ -55,6 +57,8 @@ druid-operator$ kubectl apply -f examples/tiny-cluster-zk.yaml
 # deploy druid cluster spec
 druid-operator$ kubectl apply -f examples/tiny-cluster.yaml
 ```
+
+Note that above tiny-cluster only works on a single node kubernetes cluster(e.g. typical k8s cluster setup for dev using kind or minikube) as it uses local disk as "deep storage".
 
 ## Debugging Problems
 

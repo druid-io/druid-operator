@@ -38,7 +38,7 @@ type DruidSpec struct {
 	// Optional: Default is true, will delete the sts pod if sts is set to ordered ready to ensure
 	// issue: https://github.com/kubernetes/kubernetes/issues/67250
 	// doc: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#forced-rollback
-	ForceDeleteStsPodOnError bool `json:"forceDeleteStsPodOnError"`
+	ForceDeleteStsPodOnError bool `json:"forceDeleteStsPodOnError,omitempty"`
 
 	// Required: in-container directory to mount with common.runtime.properties
 	CommonConfigMountPath string `json:"commonConfigMountPath"`
@@ -49,11 +49,11 @@ type DruidSpec struct {
 	// Required: path to druid start script to be run on container start
 	StartScript string `json:"startScript"`
 
-	// Required: Druid Docker Image
-	Image string `json:"image"`
+	// Required here or at nodeSpec level
+	Image string `json:"image,omitempty"`
 
 	// Optional: ServiceAccount for the druid cluster
-	ServiceAccount string `json:"serviceAccount"`
+	ServiceAccount string `json:"serviceAccount,omitempty"`
 
 	// Optional: imagePullSecrets for private registries
 	ImagePullSecrets []v1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
@@ -88,7 +88,7 @@ type DruidSpec struct {
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 
 	// Optional: custom labels to be populated in Druid pods
-	PodLabels map[string]string `json:"podLabels"`
+	PodLabels map[string]string `json:"podLabels,omitempty"`
 
 	// Optional
 	UpdateStrategy *appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
@@ -130,9 +130,9 @@ type DruidSpec struct {
 
 	// futuristic stuff to make Druid dependency setup extensible from within Druid operator
 	// ignore for now.
-	Zookeeper     *ZookeeperSpec     `json:"zookeeper"`
-	MetadataStore *MetadataStoreSpec `json:"metadataStore"`
-	DeepStorage   *DeepStorageSpec   `json:"deepStorage"`
+	Zookeeper     *ZookeeperSpec     `json:"zookeeper,omitempty"`
+	MetadataStore *MetadataStoreSpec `json:"metadataStore,omitempty"`
+	DeepStorage   *DeepStorageSpec   `json:"deepStorage,omitempty"`
 }
 
 type DruidNodeSpec struct {
@@ -144,16 +144,17 @@ type DruidNodeSpec struct {
 
 	// Defaults to statefulsets.
 	// Note: volumeClaimTemplates are ignored when kind=Deployment
-	Kind string `json:"kind"`
+	Kind string `json:"kind,omitempty"`
 
 	// Required
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas"`
 
 	// Optional
-	PodLabels map[string]string `json:"podLabels"`
+	PodLabels map[string]string `json:"podLabels,omitempty"`
 
 	// Optional
-	PodDisruptionBudgetSpec *v1beta1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec"`
+	PodDisruptionBudgetSpec *v1beta1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec,omitempty"`
 
 	// Required
 	RuntimeProperties string `json:"runtime.properties"`
@@ -168,7 +169,7 @@ type DruidNodeSpec struct {
 	Log4jConfig string `json:"log4j.config,omitempty"`
 
 	// Required: in-container directory to mount with runtime.properties, jvm.config, log4j2.xml files
-	NodeConfigMountPath string `json:"nodeConfigMountPath,omitempty"`
+	NodeConfigMountPath string `json:"nodeConfigMountPath"`
 
 	// Optional: Overrides services at top level
 	Services []v1.Service `json:"services,omitempty"`
@@ -185,7 +186,7 @@ type DruidNodeSpec struct {
 	// Optional: extra ports to be added to pod spec
 	Ports []v1.ContainerPort `json:"ports,omitempty"`
 
-	// Optional: Overrides image from top level
+	// Optional: Overrides image from top level, Required if no image specified at top level
 	Image string `json:"image,omitempty"`
 
 	// Optional: Overrides imagePullSecrets from top level
@@ -213,10 +214,10 @@ type DruidNodeSpec struct {
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 
 	// Optional: maxSurge for deployment object, only applicable if kind=Deployment
-	MaxSurge *int32 `json:"maxSurge"`
+	MaxSurge *int32 `json:"maxSurge,omitempty"`
 
 	// Optional: maxUnavailable for deployment object, only applicable if kind=Deployment
-	MaxUnavailable *int32 `json:"maxUnavailable"`
+	MaxUnavailable *int32 `json:"maxUnavailable,omitempty"`
 
 	// Optional
 	UpdateStrategy *appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
@@ -278,13 +279,13 @@ type DruidStatus struct {
 }
 
 // +kubebuilder:object:root=true
-
+// +kubebuilder:subresource:status
 // Druid is the Schema for the druids API
 type Druid struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   DruidSpec   `json:"spec,omitempty"`
+	Spec   DruidSpec   `json:"spec"`
 	Status DruidStatus `json:"status,omitempty"`
 }
 
