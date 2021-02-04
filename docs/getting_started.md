@@ -68,6 +68,16 @@ helm -n druid-operator upgrade -f myvalues.yaml namespaced-druid-operator ./char
 helm -n druid-operator rollback cluster-druid-operator
 ```
 
+- Uninstall operator
+```
+# To avoid destroying existing clusters, helm will not uninstall its CRD. For 
+# complete cleanup annotation needs to be removed first:
+kubectl annotate crd druids.druid.apache.org helm.sh/resource-policy-
+
+# This will uninstall operator
+helm -n druid-operator uninstall cluster-druid-operator
+```
+
 ## Deny List in Operator
 - There may be use cases where we want the operator to watch all namespaces but restrict few namespaces, due to security, testing flexibility etc reasons.
 - The druid operator supports such cases. In ```deploy/operator.yaml```, user can enable ```DENY_LIST``` env and pass the namespaces to be excluded. Each namespace to be seperated using a comma.
