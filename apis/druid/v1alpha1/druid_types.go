@@ -6,6 +6,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
 	v1 "k8s.io/api/core/v1"
@@ -63,6 +64,9 @@ type DruidSpec struct {
 
 	// Optional: environment variables for druid containers
 	Env []v1.EnvVar `json:"env,omitempty"`
+
+	// Optional: Extra environment variables
+	EnvFrom []v1.EnvFromSource `json:"envFrom,omitempty"`
 
 	// Optional: jvm options for druid jvm processes
 	JvmOptions string `json:"jvm.options,omitempty"`
@@ -197,6 +201,9 @@ type DruidNodeSpec struct {
 
 	// Optional: Extra environment variables
 	Env []v1.EnvVar `json:"env,omitempty"`
+
+	// Optional: Extra environment variables
+	EnvFrom []v1.EnvFromSource `json:"envFrom,omitempty"`
 
 	// Optional: CPU/Memory Resources
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
