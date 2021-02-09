@@ -804,6 +804,11 @@ func getStartUpProbe(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) *v1.Pr
 	return startUpProbe
 }
 
+func getEnvFrom(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.EnvFromSource {
+	envFromHolder := firstNonNilValue(nodeSpec.EnvFrom, m.Spec.EnvFrom).([]v1.EnvFromSource)
+	return envFromHolder
+}
+
 func getRollingUpdateStrategy(nodeSpec *v1alpha1.DruidNodeSpec) *appsv1.RollingUpdateDeployment {
 	var nil *int32 = nil
 	if nodeSpec.MaxSurge != nil || nodeSpec.MaxUnavailable != nil {
@@ -940,6 +945,7 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 				Ports:           nodeSpec.Ports,
 				Resources:       nodeSpec.Resources,
 				Env:             getEnv(nodeSpec, m, configMapSHA),
+				EnvFrom:         getEnvFrom(nodeSpec, m),
 				VolumeMounts:    getVolumeMounts(nodeSpec, m),
 				LivenessProbe:   getLivenessProbe(nodeSpec, m),
 				ReadinessProbe:  getReadinessProbe(nodeSpec, m),
