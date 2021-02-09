@@ -1,7 +1,3 @@
-/*
-
- */
-
 package v1alpha1
 
 import (
@@ -46,6 +42,9 @@ type DruidSpec struct {
 
 	// Required: in-container directory to mount with common.runtime.properties
 	CommonConfigMountPath string `json:"commonConfigMountPath"`
+
+	// Optional: Default is set to false, pvc shall be deleted on deletion of CR
+	DisablePVCDeletionFinalizer bool `json:"disablePVCDeletionFinalizer"`
 
 	// Required: path to druid start script to be run on container start
 	StartScript string `json:"startScript"`

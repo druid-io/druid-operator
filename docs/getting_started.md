@@ -41,6 +41,11 @@ druid-operator$ kubectl describe deployment druid-operator
 - As per operator pattern, the druid operator reconciles every 10s ( default reconcile time ) to make sure the desired state ( druid CR ) in sync with current state.
 - In case user wants to adjust the reconcile time, it can be adjusted by adding an ENV variable in ```deploy/operatoryaml```, user can enable ```RECONCILE_WAIT``` env and pass in the value suffixed with ```s``` string ( example: 30s). The default time is 10s.
 
+## Finalizer in Druid CR
+- Druid Operator supports provisioning of sts as well as deployments. When sts is created a pvc is created along. When druid CR is deleted the sts controller does not delete pvc's associated with sts.
+- In case user does care about pvc data and wishes  to reclaim it, user can enable ```DisablePVCDeletionFinalizer: true``` in druid CR. Default behavior shall trigger finalizers and pre-delete hooks that shall be executed which shall first clean up sts and then pvc referenced by sts.
+- Default behavior is set to true ie after deletion of CR, any pvc's provisioned in sts shall be deleted.
+
 ## Deploy a sample Druid cluster
 
 - An example spec to deploy a tiny druid cluster is included. For full details on spec please see `pkg/api/druid/v1alpha1/druid_types.go`
