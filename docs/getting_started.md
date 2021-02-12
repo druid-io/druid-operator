@@ -32,6 +32,51 @@ druid-operator$ kubectl describe deployment druid-operator
 ```
 - Use ```ClusterRole``` and ```CluterRoleBinding``` instead of ```role```and ```roleBinding```.
 
+## Install the operator using Helm chart
+- Install cluster scope operator into the `druid-operator` namespace:
+```
+# Create namespace
+kubectl create namespace druid-operator
+
+# Install Druid operator using Helm
+helm -n druid-operator install cluster-druid-operator ./chart
+
+# ... or generate manifest.yaml to install using other means:
+helm -n druid-operator template cluster-druid-operator ./chart > manifest.yaml
+```
+
+- Install namespaced operator into the `druid-operator` namespace:
+```
+# Create namespace
+kubectl create namespace druid-operator
+
+# Install Druid operator using Helm
+helm -n druid-operator install --set env.WATCH_NAMESPACE="mynamespace,yournamespace" namespaced-druid-operator ./chart
+# you can use myvalues.yaml instead of --set
+helm -n druid-operator install -f myvalues.yaml namespaced-druid-operator ./chart
+
+# ... or generate manifest.yaml to install using other means:
+helm -n druid-operator template --set env.WATCH_NAMESPACE="mynamespace,yournamespace" namespaced-druid-operator ./chart > manifest.yaml
+```
+
+- Update settings, upgrade or rollback:
+```
+# To upgrade chart or apply changes in myvalues.yaml
+helm -n druid-operator upgrade -f myvalues.yaml namespaced-druid-operator ./chart
+
+# Rollback to previous revision
+helm -n druid-operator rollback cluster-druid-operator
+```
+
+- Uninstall operator
+```
+# To avoid destroying existing clusters, helm will not uninstall its CRD. For 
+# complete cleanup annotation needs to be removed first:
+kubectl annotate crd druids.druid.apache.org helm.sh/resource-policy-
+
+# This will uninstall operator
+helm -n druid-operator uninstall cluster-druid-operator
+```
 
 ## Deny List in Operator
 - There may be use cases where we want the operator to watch all namespaces but restrict few namespaces, due to security, testing flexibility etc reasons.

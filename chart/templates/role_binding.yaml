@@ -1,0 +1,23 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+{{- if .Values.watchNamespace }}
+kind: RoleBinding
+{{- else }}
+kind: ClusterRoleBinding
+{{- end }}
+metadata:
+{{- if .Values.watchNamespace }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
+  name: {{ template "druid-operator.fullname" . }}
+  labels:
+    {{- include "druid-operator.labels" . | nindent 4 }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "druid-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: {{ if .Values.watchNamespace }} Role {{ else }} ClusterRole {{ end }}
+  name: {{ template "druid-operator.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
