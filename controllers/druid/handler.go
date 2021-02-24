@@ -11,7 +11,7 @@ import (
 	"sort"
 
 	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 
 	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -295,7 +295,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	updatedStatus.Ingress = deleteUnusedResources(sdk, m, ingressNames, ls,
 		func() runtime.Object { return makeIngressListEmptyObj() },
 		func(listObj runtime.Object) []object {
-			items := listObj.(*extensions.IngressList).Items
+			items := listObj.(*networkingv1beta1.IngressList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
 				result[i] = &items[i]
@@ -1166,10 +1166,10 @@ func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.D
 	return hpa, nil
 }
 
-func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*extensions.Ingress, error) {
+func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*networkingv1beta1.Ingress, error) {
 	nodeIngressSpec := *nodeSpec.Ingress
 
-	ingress := &extensions.Ingress{
+	ingress := &networkingv1beta1.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.k8s.io/v1beta1",
 			Kind:       "Ingress",
@@ -1268,8 +1268,8 @@ func makeHorizontalPodAutoscalerListEmptyObj() *autoscalev2beta1.HorizontalPodAu
 	}
 }
 
-func makeIngressListEmptyObj() *extensions.IngressList {
-	return &extensions.IngressList{
+func makeIngressListEmptyObj() *networkingv1beta1.IngressList {
+	return &networkingv1beta1.IngressList{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.k8s.io/v1beta1",
 			Kind:       "Ingress",
@@ -1340,8 +1340,8 @@ func makePersistentVolumeClaimListEmptyObj() *v1.PersistentVolumeClaimList {
 	}
 }
 
-func makeIngressEmptyObj() *extensions.Ingress {
-	return &extensions.Ingress{
+func makeIngressEmptyObj() *networkingv1beta1.Ingress {
+	return &networkingv1beta1.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.k8s.io/v1beta1",
 			Kind:       "Ingress",

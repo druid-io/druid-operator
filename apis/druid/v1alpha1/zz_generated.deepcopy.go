@@ -13,7 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
-	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/api/policy/v1beta1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -153,6 +153,13 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.EnvFrom != nil {
+		in, out := &in.EnvFrom, &out.EnvFrom
+		*out = make([]v1.EnvFromSource, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	in.Resources.DeepCopyInto(&out.Resources)
 	if in.PodSecurityContext != nil {
 		in, out := &in.PodSecurityContext, &out.PodSecurityContext
@@ -210,7 +217,7 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 	}
 	if in.Ingress != nil {
 		in, out := &in.Ingress, &out.Ingress
-		*out = new(extensionsv1beta1.IngressSpec)
+		*out = new(networkingv1beta1.IngressSpec)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Lifecycle != nil {
@@ -267,6 +274,13 @@ func (in *DruidSpec) DeepCopyInto(out *DruidSpec) {
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
 		*out = make([]v1.EnvVar, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.EnvFrom != nil {
+		in, out := &in.EnvFrom, &out.EnvFrom
+		*out = make([]v1.EnvFromSource, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
