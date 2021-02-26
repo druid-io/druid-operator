@@ -764,6 +764,10 @@ spec:
                 - spec
                 - type
                 type: object
+              disablePVCDeletionFinalizer:
+                description: 'Optional: Default is set to false, pvc shall be deleted
+                  on deletion of CR'
+                type: boolean
               env:
                 description: 'Optional: environment variables for druid containers'
                 items:
@@ -865,6 +869,39 @@ spec:
                       type: object
                   required:
                   - name
+                  type: object
+                type: array
+              envFrom:
+                description: 'Optional: Extra environment variables'
+                items:
+                  description: EnvFromSource represents the source of a set of ConfigMaps
+                  properties:
+                    configMapRef:
+                      description: The ConfigMap to select from
+                      properties:
+                        name:
+                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                            TODO: Add other useful fields. apiVersion, kind, uid?'
+                          type: string
+                        optional:
+                          description: Specify whether the ConfigMap must be defined
+                          type: boolean
+                      type: object
+                    prefix:
+                      description: An optional identifier to prepend to each key in
+                        the ConfigMap. Must be a C_IDENTIFIER.
+                      type: string
+                    secretRef:
+                      description: The Secret to select from
+                      properties:
+                        name:
+                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                            TODO: Add other useful fields. apiVersion, kind, uid?'
+                          type: string
+                        optional:
+                          description: Specify whether the Secret must be defined
+                          type: boolean
+                      type: object
                   type: object
                 type: array
               forceDeleteStsPodOnError:
@@ -1897,6 +1934,43 @@ spec:
                             type: object
                         required:
                         - name
+                        type: object
+                      type: array
+                    envFrom:
+                      description: 'Optional: Extra environment variables'
+                      items:
+                        description: EnvFromSource represents the source of a set
+                          of ConfigMaps
+                        properties:
+                          configMapRef:
+                            description: The ConfigMap to select from
+                            properties:
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind,
+                                  uid?'
+                                type: string
+                              optional:
+                                description: Specify whether the ConfigMap must be
+                                  defined
+                                type: boolean
+                            type: object
+                          prefix:
+                            description: An optional identifier to prepend to each
+                              key in the ConfigMap. Must be a C_IDENTIFIER.
+                            type: string
+                          secretRef:
+                            description: The Secret to select from
+                            properties:
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  TODO: Add other useful fields. apiVersion, kind,
+                                  uid?'
+                                type: string
+                              optional:
+                                description: Specify whether the Secret must be defined
+                                type: boolean
+                            type: object
                         type: object
                       type: array
                     extra.jvm.options:
@@ -7501,6 +7575,7 @@ spec:
             required:
             - common.runtime.properties
             - commonConfigMountPath
+            - disablePVCDeletionFinalizer
             - nodes
             - startScript
             type: object

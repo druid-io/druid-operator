@@ -253,6 +253,12 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 	}
 
+	if err := deleteOrphanPVC(sdk, m); err != nil {
+		e := fmt.Errorf("Error in deleteOrphanPVC [%s]", err.Error())
+		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
+		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+	}
+
 	//update status and delete unwanted resources
 	updatedStatus := v1alpha1.DruidStatus{}
 
@@ -340,7 +346,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		})
 	sort.Strings(updatedStatus.ConfigMaps)
 
-	podList := podList()
+	podList := makePodList()
 	listOpts := []client.ListOption{
 		client.InNamespace(m.Namespace),
 		client.MatchingLabels(makeLabelsForDruid(m.Name)),
@@ -410,7 +416,7 @@ func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid) bool {
 }
 
 // Create pvcList, reference sts using component label
-func getPVCList(sdk client.Client, drd *v1alpha1.Druid) []*v1.PersistentVolumeClaim {
+func getPVCList(sdk client.Client, drd *v1alpha1.Druid) ([]*v1.PersistentVolumeClaim, error) {
 
 	pvcList := makePersistentVolumeClaimListEmptyObj()
 	listOpts := []client.ListOption{
@@ -424,7 +430,7 @@ func getPVCList(sdk client.Client, drd *v1alpha1.Druid) []*v1.PersistentVolumeCl
 		e := fmt.Errorf("failed to list pvc for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
 		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
 		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		return nil
+		return nil, e
 	}
 
 	// create a slice []*pvc
@@ -433,7 +439,7 @@ func getPVCList(sdk client.Client, drd *v1alpha1.Druid) []*v1.PersistentVolumeCl
 		pvc = append(pvc, &pvcList.Items[i])
 	}
 
-	return pvc
+	return pvc, nil
 
 }
 
@@ -462,10 +468,80 @@ func getSTSList(sdk client.Client, drd *v1alpha1.Druid) ([]*appsv1.StatefulSet, 
 
 }
 
+func getPodList(sdk client.Client, drd *v1alpha1.Druid) ([]*v1.Pod, error) {
+
+	podList := makePodList()
+	listOpts := []client.ListOption{
+		client.InNamespace(drd.Namespace),
+		client.MatchingLabels(makeLabelsForDruid(drd.Name)),
+	}
+
+	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
+		e := fmt.Errorf("failed to list pod for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
+		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
+		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+		return nil, e
+	}
+
+	// create a slice []*pod
+	pod := make([]*v1.Pod, 0)
+	for i := range podList.Items {
+		pod = append(pod, &podList.Items[i])
+	}
+
+	return pod, nil
+
+}
+
+func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
+
+	podList, err := getPodList(sdk, drd)
+	if err != nil {
+		return err
+	}
+
+	pvcList, err := getPVCList(sdk, drd)
+	if err != nil {
+		return err
+	}
+
+	mountedPVC := make([]string, len(podList))
+	for _, pod := range podList {
+		if pod.Spec.Volumes != nil {
+			for _, vol := range pod.Spec.Volumes {
+				if vol.PersistentVolumeClaim != nil {
+					if !ContainsString(mountedPVC, vol.PersistentVolumeClaim.ClaimName) {
+						mountedPVC = append(mountedPVC, vol.PersistentVolumeClaim.ClaimName)
+					}
+				}
+			}
+		}
+
+	}
+
+	if mountedPVC != nil {
+		for i, pvc := range pvcList {
+			if !ContainsString(mountedPVC, pvc.Name) {
+				if err := sdk.Delete(context.TODO(), pvcList[i]); err != nil {
+					e := fmt.Errorf("Error deleting orphaned pvc [%s:%s] due to [%s]", pvcList[i].Name, drd.Namespace, err.Error())
+					sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
+					logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+					return nil
+				} else {
+					msg := fmt.Sprintf("Deleted orphaned pvc [%s:%s] successfully", pvcList[i].Name, drd.Namespace)
+					sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
+					logger.Info(msg, "name", drd.Name, "namespace", drd.Namespace)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 
 	if ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
-		pvc := getPVCList(sdk, m)
+		pvc, _ := getPVCList(sdk, m)
 		stsList, _ := getSTSList(sdk, m)
 		msg := fmt.Sprintf("Trigerring finalizer for CR [%s] in namespace [%s]", m.Name, m.Namespace)
 		sendEvent(sdk, m, v1.EventTypeNormal, "TRIGGER_FINALIZER", msg)
@@ -503,7 +579,7 @@ func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m
 }
 
 func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
-	podList := podList()
+	podList := makePodList()
 	listOpts := []client.ListOption{
 		client.InNamespace(m.Namespace),
 		client.MatchingLabels(makeLabelsForDruid(m.Name)),
@@ -1223,7 +1299,7 @@ func asOwner(m *v1alpha1.Druid) metav1.OwnerReference {
 }
 
 // podList returns a v1.PodList object
-func podList() *v1.PodList {
+func makePodList() *v1.PodList {
 	return &v1.PodList{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
