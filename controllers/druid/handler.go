@@ -253,10 +253,12 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 	}
 
-	if err := deleteOrphanPVC(sdk, m); err != nil {
-		e := fmt.Errorf("Error in deleteOrphanPVC [%s]", err.Error())
-		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+	if m.Spec.DeleteOrphanPvc {
+		if err := deleteOrphanPVC(sdk, m); err != nil {
+			e := fmt.Errorf("Error in deleteOrphanPVC [%s]", err.Error())
+			sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
+			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+		}
 	}
 
 	//update status and delete unwanted resources

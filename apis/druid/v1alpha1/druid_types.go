@@ -46,6 +46,9 @@ type DruidSpec struct {
 	// Optional: Default is set to false, pvc shall be deleted on deletion of CR
 	DisablePVCDeletionFinalizer bool `json:"disablePVCDeletionFinalizer"`
 
+	// Optional: Default is set to true, orphaned ( unmounted pvc's ) shall be cleaned up by the operator.
+	DeleteOrphanPvc bool `json:"deleteOrphanPvc"`
+
 	// Required: path to druid start script to be run on container start
 	StartScript string `json:"startScript"`
 
