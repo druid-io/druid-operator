@@ -44,7 +44,7 @@ type DruidSpec struct {
 	CommonConfigMountPath string `json:"commonConfigMountPath"`
 
 	// Optional: Default is set to false, pvc shall be deleted on deletion of CR
-	DisablePVCDeletionFinalizer bool `json:"disablePVCDeletionFinalizer"`
+	DisablePVCDeletionFinalizer bool `json:"disablePVCDeletionFinalizer,omitempty"`
 
 	// Required: path to druid start script to be run on container start
 	StartScript string `json:"startScript"`
