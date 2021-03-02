@@ -524,12 +524,12 @@ func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
 		if p.Status.ContainerStatuses[0].RestartCount > 1 {
 			for _, condition := range p.Status.Conditions {
 				// condition.type Ready means the pod is able to service requests
-				if condition.Type == "Ready" {
+				if condition.Type == v1.ContainersReady {
 					// the below condition evalutes if a pod is in
 					// 1. pending state 2. failed state 3. unknown state
 					// OR condtion.status is false which evalutes if neither of these conditions are met
 					// 1. ContainersReady 2. PodInitialized 3. PodReady 4. PodScheduled
-					if p.Status.Phase != "Running" || condition.Status == "False" {
+					if p.Status.Phase != v1.PodRunning || condition.Status == v1.ConditionFalse {
 						err := sdkDelete(context.TODO(), sdk, p)
 						if err != nil {
 							e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", p.Name, m.GetName(), err.Error())
