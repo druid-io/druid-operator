@@ -764,6 +764,10 @@ spec:
                 - spec
                 - type
                 type: object
+              deleteOrphanPvc:
+                description: 'Optional: Default is set to true, orphaned ( unmounted
+                  pvc''s ) shall be cleaned up by the operator.'
+                type: boolean
               disablePVCDeletionFinalizer:
                 description: 'Optional: Default is set to false, pvc shall be deleted
                   on deletion of CR'
@@ -7575,6 +7579,7 @@ spec:
             required:
             - common.runtime.properties
             - commonConfigMountPath
+            - deleteOrphanPvc
             - disablePVCDeletionFinalizer
             - nodes
             - startScript
