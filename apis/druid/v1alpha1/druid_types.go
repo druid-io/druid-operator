@@ -6,7 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
 	v1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -44,7 +44,7 @@ type DruidSpec struct {
 	CommonConfigMountPath string `json:"commonConfigMountPath"`
 
 	// Optional: Default is set to false, pvc shall be deleted on deletion of CR
-	DisablePVCDeletionFinalizer bool `json:"disablePVCDeletionFinalizer"`
+	DisablePVCDeletionFinalizer bool `json:"disablePVCDeletionFinalizer,omitempty"`
 
 	// Optional: Default is set to true, orphaned ( unmounted pvc's ) shall be cleaned up by the operator.
 	DeleteOrphanPvc bool `json:"deleteOrphanPvc"`
@@ -244,7 +244,7 @@ type DruidNodeSpec struct {
 	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
 
 	// Optional: Ingress Spec
-	Ingress *extensions.IngressSpec `json:"ingress,omitempty"`
+	Ingress *networkingv1beta1.IngressSpec `json:"ingress,omitempty"`
 
 	// Optional
 	Lifecycle *v1.Lifecycle `json:"lifecycle,omitempty"`

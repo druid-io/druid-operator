@@ -11,7 +11,7 @@ import (
 	"sort"
 
 	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 
 	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -303,7 +303,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	updatedStatus.Ingress = deleteUnusedResources(sdk, m, ingressNames, ls,
 		func() runtime.Object { return makeIngressListEmptyObj() },
 		func(listObj runtime.Object) []object {
-			items := listObj.(*extensions.IngressList).Items
+			items := listObj.(*networkingv1beta1.IngressList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
 				result[i] = &items[i]
@@ -602,12 +602,12 @@ func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
 		if p.Status.ContainerStatuses[0].RestartCount > 1 {
 			for _, condition := range p.Status.Conditions {
 				// condition.type Ready means the pod is able to service requests
-				if condition.Type == "Ready" {
+				if condition.Type == v1.ContainersReady {
 					// the below condition evalutes if a pod is in
 					// 1. pending state 2. failed state 3. unknown state
 					// OR condtion.status is false which evalutes if neither of these conditions are met
 					// 1. ContainersReady 2. PodInitialized 3. PodReady 4. PodScheduled
-					if p.Status.Phase != "Running" || condition.Status == "False" {
+					if p.Status.Phase != v1.PodRunning || condition.Status == v1.ConditionFalse {
 						err := sdkDelete(context.TODO(), sdk, p)
 						if err != nil {
 							e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", p.Name, m.GetName(), err.Error())
@@ -1244,10 +1244,10 @@ func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.D
 	return hpa, nil
 }
 
-func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*extensions.Ingress, error) {
+func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*networkingv1beta1.Ingress, error) {
 	nodeIngressSpec := *nodeSpec.Ingress
 
-	ingress := &extensions.Ingress{
+	ingress := &networkingv1beta1.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.k8s.io/v1beta1",
 			Kind:       "Ingress",
@@ -1346,8 +1346,8 @@ func makeHorizontalPodAutoscalerListEmptyObj() *autoscalev2beta1.HorizontalPodAu
 	}
 }
 
-func makeIngressListEmptyObj() *extensions.IngressList {
-	return &extensions.IngressList{
+func makeIngressListEmptyObj() *networkingv1beta1.IngressList {
+	return &networkingv1beta1.IngressList{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.k8s.io/v1beta1",
 			Kind:       "Ingress",
@@ -1418,8 +1418,8 @@ func makePersistentVolumeClaimListEmptyObj() *v1.PersistentVolumeClaimList {
 	}
 }
 
-func makeIngressEmptyObj() *extensions.Ingress {
-	return &extensions.Ingress{
+func makeIngressEmptyObj() *networkingv1beta1.Ingress {
+	return &networkingv1beta1.Ingress{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "networking.k8s.io/v1beta1",
 			Kind:       "Ingress",

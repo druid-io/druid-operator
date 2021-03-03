@@ -93,7 +93,7 @@ helm -n druid-operator uninstall cluster-druid-operator
 
 ## Deploy a sample Druid cluster
 
-- An example spec to deploy a tiny druid cluster is included. For full details on spec please see `pkg/api/druid/v1alpha1/druid_types.go`
+- An example spec to deploy a tiny druid cluster is included. For full details on spec please see `apis/druid/v1alpha1/druid_types.go`
 
 ```
 # deploy single node zookeeper
