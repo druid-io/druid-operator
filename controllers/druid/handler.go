@@ -377,7 +377,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	return nil
 }
 
-func deleteSTSAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []*appsv1.StatefulSet, pvcList []*v1.PersistentVolumeClaim) error {
+func deleteSTSAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []*appsv1.StatefulSet, pvcList []object) error {
 
 	for _, sts := range stsList {
 		if err := sdk.Delete(context.TODO(), sts); err != nil {
@@ -395,12 +395,12 @@ func deleteSTSAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []*appsv1.Sta
 
 	for i := range pvcList {
 		if err := sdk.Delete(context.TODO(), pvcList[i]); err != nil {
-			e := fmt.Errorf("Error deleting pvc [%s:%s] due to [%s]", pvcList[i].Name, m.Namespace, err.Error())
+			e := fmt.Errorf("Error deleting pvc [%s:%s] due to [%s]", pvcList[i].GetName(), m.Namespace, err.Error())
 			sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
 			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 			return e
 		} else {
-			msg := fmt.Sprintf("Deleting pvc [%s:%s] successfully", pvcList[i].Name, m.Namespace)
+			msg := fmt.Sprintf("Deleting pvc [%s:%s] successfully", pvcList[i].GetName(), m.Namespace)
 			sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
 			logger.Info(msg, "name", m.Name, "namespace", m.Namespace)
 		}
@@ -543,12 +543,24 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 
 	if ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
-		pvc, _ := getPVCList(sdk, m)
+		pvcLabels := map[string]string{
+			"druid_cr": m.Name,
+		}
+		//	pvc, _ := getPVCList(sdk, m)
+		pvcList := readers.List(sdk, m, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+			items := listObj.(*v1.PersistentVolumeClaimList).Items
+			result := make([]object, len(items))
+			for i := 0; i < len(items); i++ {
+				result[i] = &items[i]
+			}
+			return result
+		})
+
 		stsList, _ := getSTSList(sdk, m)
 		msg := fmt.Sprintf("Trigerring finalizer for CR [%s] in namespace [%s]", m.Name, m.Namespace)
 		sendEvent(sdk, m, v1.EventTypeNormal, "TRIGGER_FINALIZER", msg)
 		logger.Info(msg)
-		if err := deleteSTSAndPVC(sdk, m, stsList, pvc); err != nil {
+		if err := deleteSTSAndPVC(sdk, m, stsList, pvcList); err != nil {
 			return err
 		} else {
 			msg := fmt.Sprintf("Finalizer success for CR [%s] in namespace [%s]", m.Name, m.Namespace)
