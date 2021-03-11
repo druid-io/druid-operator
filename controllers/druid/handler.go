@@ -377,7 +377,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	return nil
 }
 
-func deleteSTSAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []*appsv1.StatefulSet, pvcList []object) error {
+func deleteSTSAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []object, pvcList []object) error {
 
 	for _, sts := range stsList {
 		if err := sdk.Delete(context.TODO(), sts); err != nil {
@@ -386,7 +386,7 @@ func deleteSTSAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []*appsv1.Sta
 			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 			return e
 		} else {
-			msg := fmt.Sprintf("Deleting sts [%s:%s] successfully", sts.Name, m.Namespace)
+			msg := fmt.Sprintf("Deleting sts [%s:%s] successfully", sts.GetName(), m.Namespace)
 			sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
 			logger.Info(msg, "name", m.Name, "namespace", m.Namespace)
 		}
@@ -415,59 +415,6 @@ func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid) bool {
 	} else {
 		return true
 	}
-}
-
-// Create pvcList, reference sts using component label
-func getPVCList(sdk client.Client, drd *v1alpha1.Druid) ([]*v1.PersistentVolumeClaim, error) {
-
-	pvcList := makePersistentVolumeClaimListEmptyObj()
-	listOpts := []client.ListOption{
-		client.InNamespace(drd.Namespace),
-		client.MatchingLabels(map[string]string{
-			"druid_cr": drd.Name,
-		}),
-	}
-
-	if err := sdk.List(context.TODO(), pvcList, listOpts...); err != nil {
-		e := fmt.Errorf("failed to list pvc for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
-		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		return nil, e
-	}
-
-	// create a slice []*pvc
-	pvc := make([]*v1.PersistentVolumeClaim, 0)
-	for i := range pvcList.Items {
-		pvc = append(pvc, &pvcList.Items[i])
-	}
-
-	return pvc, nil
-
-}
-
-func getSTSList(sdk client.Client, drd *v1alpha1.Druid) ([]*appsv1.StatefulSet, error) {
-
-	stsList := makeStatefulSetListEmptyObj()
-	listOpts := []client.ListOption{
-		client.InNamespace(drd.Namespace),
-		client.MatchingLabels(makeLabelsForDruid(drd.Name)),
-	}
-
-	if err := sdk.List(context.TODO(), stsList, listOpts...); err != nil {
-		e := fmt.Errorf("failed to list sts for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
-		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		return nil, e
-	}
-
-	// create a slice []*sts
-	sts := make([]*appsv1.StatefulSet, 0)
-	for i := range stsList.Items {
-		sts = append(sts, &stsList.Items[i])
-	}
-
-	return sts, nil
-
 }
 
 func getPodList(sdk client.Client, drd *v1alpha1.Druid) ([]*v1.Pod, error) {
@@ -501,11 +448,18 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 	if err != nil {
 		return err
 	}
-
-	pvcList, err := getPVCList(sdk, drd)
-	if err != nil {
-		return err
+	pvcLabels := map[string]string{
+		"druid_cr": drd.Name,
 	}
+	pvcList := readers.List(sdk, drd, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+		items := listObj.(*v1.PersistentVolumeClaimList).Items
+		result := make([]object, len(items))
+		for i := 0; i < len(items); i++ {
+			result[i] = &items[i]
+		}
+		return result
+	})
+	fmt.Println(pvcList)
 
 	mountedPVC := make([]string, len(podList))
 	for _, pod := range podList {
@@ -523,14 +477,15 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 
 	if mountedPVC != nil {
 		for i, pvc := range pvcList {
-			if !ContainsString(mountedPVC, pvc.Name) {
+
+			if !ContainsString(mountedPVC, pvc.GetName()) {
 				if err := sdk.Delete(context.TODO(), pvcList[i]); err != nil {
-					e := fmt.Errorf("Error deleting orphaned pvc [%s:%s] due to [%s]", pvcList[i].Name, drd.Namespace, err.Error())
+					e := fmt.Errorf("Error deleting orphaned pvc [%s:%s] due to [%s]", pvcList[i].GetName(), drd.Namespace, err.Error())
 					sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
 					logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 					return nil
 				} else {
-					msg := fmt.Sprintf("Deleted orphaned pvc [%s:%s] successfully", pvcList[i].Name, drd.Namespace)
+					msg := fmt.Sprintf("Deleted orphaned pvc [%s:%s] successfully", pvcList[i].GetName(), drd.Namespace)
 					sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
 					logger.Info(msg, "name", drd.Name, "namespace", drd.Namespace)
 				}
@@ -546,7 +501,7 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 		pvcLabels := map[string]string{
 			"druid_cr": m.Name,
 		}
-		//	pvc, _ := getPVCList(sdk, m)
+
 		pvcList := readers.List(sdk, m, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 			items := listObj.(*v1.PersistentVolumeClaimList).Items
 			result := make([]object, len(items))
@@ -556,7 +511,15 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 			return result
 		})
 
-		stsList, _ := getSTSList(sdk, m)
+		stsList := readers.List(sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
+			items := listObj.(*appsv1.StatefulSetList).Items
+			result := make([]object, len(items))
+			for i := 0; i < len(items); i++ {
+				result[i] = &items[i]
+			}
+			return result
+		})
+
 		msg := fmt.Sprintf("Trigerring finalizer for CR [%s] in namespace [%s]", m.Name, m.Namespace)
 		sendEvent(sdk, m, v1.EventTypeNormal, "TRIGGER_FINALIZER", msg)
 		logger.Info(msg)
