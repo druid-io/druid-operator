@@ -348,18 +348,16 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		})
 	sort.Strings(updatedStatus.ConfigMaps)
 
-	podList := makePodList()
-	listOpts := []client.ListOption{
-		client.InNamespace(m.Namespace),
-		client.MatchingLabels(makeLabelsForDruid(m.Name)),
-	}
+	podList := readers.List(sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+		items := listObj.(*v1.PodList).Items
+		result := make([]object, len(items))
+		for i := 0; i < len(items); i++ {
+			result[i] = &items[i]
+		}
+		return result
+	})
 
-	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
-		e := fmt.Errorf("failed to list pods for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
-		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-	}
-	updatedStatus.Pods = getPodNames(podList.Items)
+	updatedStatus.Pods = getPodNames(podList)
 	sort.Strings(updatedStatus.Pods)
 
 	if !reflect.DeepEqual(updatedStatus, m.Status) {
@@ -417,40 +415,21 @@ func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid) bool {
 	}
 }
 
-func getPodList(sdk client.Client, drd *v1alpha1.Druid) ([]*v1.Pod, error) {
-
-	podList := makePodList()
-	listOpts := []client.ListOption{
-		client.InNamespace(drd.Namespace),
-		client.MatchingLabels(makeLabelsForDruid(drd.Name)),
-	}
-
-	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
-		e := fmt.Errorf("failed to list pod for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
-		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		return nil, e
-	}
-
-	// create a slice []*pod
-	pod := make([]*v1.Pod, 0)
-	for i := range podList.Items {
-		pod = append(pod, &podList.Items[i])
-	}
-
-	return pod, nil
-
-}
-
 func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 
-	podList, err := getPodList(sdk, drd)
-	if err != nil {
-		return err
-	}
+	podList := readers.List(sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+		items := listObj.(*v1.PodList).Items
+		result := make([]object, len(items))
+		for i := 0; i < len(items); i++ {
+			result[i] = &items[i]
+		}
+		return result
+	})
+
 	pvcLabels := map[string]string{
 		"druid_cr": drd.Name,
 	}
+
 	pvcList := readers.List(sdk, drd, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PersistentVolumeClaimList).Items
 		result := make([]object, len(items))
@@ -459,12 +438,11 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 		}
 		return result
 	})
-	fmt.Println(pvcList)
 
 	mountedPVC := make([]string, len(podList))
 	for _, pod := range podList {
-		if pod.Spec.Volumes != nil {
-			for _, vol := range pod.Spec.Volumes {
+		if pod.(*v1.Pod).Spec.Volumes != nil {
+			for _, vol := range pod.(*v1.Pod).Spec.Volumes {
 				if vol.PersistentVolumeClaim != nil {
 					if !ContainsString(mountedPVC, vol.PersistentVolumeClaim.ClaimName) {
 						mountedPVC = append(mountedPVC, vol.PersistentVolumeClaim.ClaimName)
@@ -555,43 +533,36 @@ func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m
 	}
 }
 
-func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
-	podList := makePodList()
-	listOpts := []client.ListOption{
-		client.InNamespace(m.Namespace),
-		client.MatchingLabels(makeLabelsForDruid(m.Name)),
-	}
+func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) {
 
-	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
-		e := fmt.Errorf("failed to list pods for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
-		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-	}
+	podList := readers.List(sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+		items := listObj.(*v1.PodList).Items
+		result := make([]object, len(items))
+		for i := 0; i < len(items); i++ {
+			result[i] = &items[i]
+		}
+		return result
+	})
 
-	pod := make([]*v1.Pod, 0)
-	for i := range podList.Items {
-		pod = append(pod, &podList.Items[i])
-	}
-
-	for _, p := range pod {
-		if p.Status.ContainerStatuses[0].RestartCount > 1 {
-			for _, condition := range p.Status.Conditions {
+	for _, p := range podList {
+		if p.(*v1.Pod).Status.ContainerStatuses[0].RestartCount > 1 {
+			for _, condition := range p.(*v1.Pod).Status.Conditions {
 				// condition.type Ready means the pod is able to service requests
 				if condition.Type == v1.ContainersReady {
 					// the below condition evalutes if a pod is in
 					// 1. pending state 2. failed state 3. unknown state
 					// OR condtion.status is false which evalutes if neither of these conditions are met
 					// 1. ContainersReady 2. PodInitialized 3. PodReady 4. PodScheduled
-					if p.Status.Phase != v1.PodRunning || condition.Status == v1.ConditionFalse {
+					if p.(*v1.Pod).Status.Phase != v1.PodRunning || condition.Status == v1.ConditionFalse {
 						err := sdkDelete(context.TODO(), sdk, p)
 						if err != nil {
-							e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", p.Name, m.GetName(), err.Error())
-							sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
-							logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+							e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", p.(*v1.Pod).Name, drd.GetName(), err.Error())
+							sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
+							logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 						} else {
 							msg := fmt.Sprintf("Deleted pod [%s] in namespace [%s], since it was in crashloopback state.", p.GetName(), p.GetNamespace())
-							logger.Info(msg, "Object", stringifyForLogging(p, m), "name", m.Name, "namespace", m.Namespace)
-							sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
+							logger.Info(msg, "Object", stringifyForLogging(p, drd), "name", drd.Name, "namespace", drd.Namespace)
+							sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
 						}
 					}
 				}
@@ -1343,6 +1314,15 @@ func makeServiceListEmptyObj() *v1.ServiceList {
 	}
 }
 
+func makePodEmptyObj() *v1.Pod {
+	return &v1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+	}
+}
+
 func makeStatefulSetEmptyObj() *appsv1.StatefulSet {
 	return &appsv1.StatefulSet{
 		TypeMeta: metav1.TypeMeta{
@@ -1416,10 +1396,10 @@ func makeConfigMapEmptyObj() *v1.ConfigMap {
 }
 
 // getPodNames returns the pod names of the array of pods passed in
-func getPodNames(pods []v1.Pod) []string {
+func getPodNames(pods []object) []string {
 	var podNames []string
 	for _, pod := range pods {
-		podNames = append(podNames, pod.Name)
+		podNames = append(podNames, pod.(*v1.Pod).Name)
 	}
 	return podNames
 }
