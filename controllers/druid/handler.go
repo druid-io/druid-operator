@@ -183,7 +183,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				}
 
 				// Check Deployment rolling update status, if in-progress then stop here
-				done, err := isDeploymentFullyDeployed(sdk, nodeSpecUniqueStr, m)
+				done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeDeploymentEmptyObj() })
 				if !done {
 					return err
 				}
@@ -207,8 +207,8 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				// Default is set to true
 				execCheckCrashStatus(sdk, &nodeSpec, m)
 
-				// Check StatefulSet rolling update status, if in-progress then stop here
-				done, err := isStsFullyDeployed(sdk, nodeSpecUniqueStr, m)
+				//Check StatefulSet rolling update status, if in-progress then stop here
+				done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeStatefulSetEmptyObj() })
 				if !done {
 					return err
 				}
@@ -710,42 +710,37 @@ func sdkCreateOrUpdateAsNeeded(
 	}
 }
 
-// Checks if all replicas corresponding to latest updated sts have been deployed
-func isStsFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bool, error) {
-	sts := makeStatefulSetEmptyObj()
-	if err := sdk.Get(context.TODO(), *namespacedName(name, drd.Namespace), sts); err != nil {
-		e := fmt.Errorf("failed to get [StatefuleSet:%s] due to [%s]", name, err.Error())
-		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
-		return false, e
-	} else {
-		if sts.Status.CurrentRevision != sts.Status.UpdateRevision {
-			msg := fmt.Sprintf("StatefulSet[%s] roll out is in progress CurrentRevision[%s] != UpdateRevision[%s], UpdatedReplicas[%d/%d]", name, sts.Status.CurrentRevision, sts.Status.UpdateRevision, sts.Status.UpdatedReplicas, *sts.Spec.Replicas)
-			sendEvent(sdk, drd, v1.EventTypeNormal, "ROLLING_DEPLOYMENT_WAIT", msg)
-			return false, nil
-		} else {
-			return true, nil
-		}
-	}
-}
+// Checks if all replicas corresponding to latest updated obj have been deployed
+func isObjFullyDeployed(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (bool, error) {
 
-// Checks if all replicas desired are in ready state for deployment
-func isDeploymentFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bool, error) {
-	deploy := makeDeploymentEmptyObj()
-	if err := sdk.Get(context.TODO(), *namespacedName(name, drd.Namespace), deploy); err != nil {
-		e := fmt.Errorf("failed to get [Deployment:%s] due to [%s]", name, err.Error())
-		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
-		return false, e
-	} else {
-		if deploy.Status.ReadyReplicas != deploy.Status.Replicas {
-			msg := fmt.Sprintf("Deployment[%s] roll out is in progress, UpdatedReplicas[%d] [%d]", name, deploy.Status.UpdatedReplicas, *deploy.Spec.Replicas)
+	// Get Object
+	obj := readers.Get(sdk, nodeSpecUniqueStr, drd, emptyObjFn)
+	if obj == nil {
+		return false, nil
+	}
+
+	// Detect underlying object type
+	objType := reflect.TypeOf(obj)
+
+	// In case obj is a statefulset or deployment, make sure the sts/deployment has successfully reconciled to desired state
+	if objType.String() == "*v1.StatefulSet" {
+		if obj.(*appsv1.StatefulSet).Status.CurrentRevision != obj.(*appsv1.StatefulSet).Status.UpdateRevision {
+			msg := fmt.Sprintf("StatefulSet[%s] roll out is in progress CurrentRevision[%s] != UpdateRevision[%s], UpdatedReplicas[%d/%d]", nodeSpecUniqueStr, obj.(*appsv1.StatefulSet).Status.CurrentRevision, obj.(*appsv1.StatefulSet).Status.UpdateRevision, obj.(*appsv1.StatefulSet).Status.UpdatedReplicas, *obj.(*appsv1.StatefulSet).Spec.Replicas)
+			sendEvent(sdk, drd, v1.EventTypeNormal, "ROLLING_DEPLOYMENT_WAIT", msg)
+			return false, nil
+		} else {
+			return true, nil
+		}
+	} else if objType.String() == "*v1.Deployment" {
+		if obj.(*appsv1.Deployment).Status.ReadyReplicas != obj.(*appsv1.Deployment).Status.Replicas {
+			msg := fmt.Sprintf("Deployment[%s] roll out is in progress, UpdatedReplicas[%d] [%d]", nodeSpecUniqueStr, obj.(*appsv1.Deployment).Status.UpdatedReplicas, *obj.(*appsv1.Deployment).Spec.Replicas)
 			sendEvent(sdk, drd, v1.EventTypeNormal, "ROLLING_DEPLOYMENT_WAIT", msg)
 			return false, nil
 		} else {
 			return true, nil
 		}
 	}
+	return false, nil
 }
 
 func stringifyForLogging(obj object, drd *v1alpha1.Druid) string {

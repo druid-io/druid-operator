@@ -43,6 +43,7 @@ func (f Funcs) List(sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[s
 		e := fmt.Errorf("failed to list [%s] due to [%s]", listObj.GetObjectKind().GroupVersionKind().Kind, err.Error())
 		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
 		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+		return nil
 	}
 
 	return ListObjFn(listObj)
