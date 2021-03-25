@@ -3363,6 +3363,20 @@ spec:
                           metadata:
                             description: 'Standard object''s metadata. More info:
                               https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                            properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                descriptions: 'Optional: Service annotations.'
+                                type: object
+                              name:
+                                description: 'Name of service.'
+                                type: string
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                descriptions: 'Optional: Service labels.'
+                                type: object
                             type: object
                           spec:
                             description: Spec defines the behavior of a service. https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
@@ -3846,6 +3860,15 @@ spec:
                           metadata:
                             description: 'Standard object''s metadata. More info:
                               https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
+                            properties:
+                              name:
+                                description: 'Name of volume.'
+                                type: string
+                              labels:
+                                additionalProperties:
+                                  type: string
+                                descriptions: 'Volume labels.'
+                                type: object
                             type: object
                           spec:
                             description: 'Spec defines the desired characteristics
