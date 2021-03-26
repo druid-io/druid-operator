@@ -430,6 +430,7 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 		"druid_cr": drd.Name,
 	}
 
+
 	pvcList := readers.List(sdk, drd, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PersistentVolumeClaimList).Items
 		result := make([]object, len(items))
@@ -438,6 +439,19 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 		}
 		return result
 	})
+
+	// Fix: https://github.com/druid-io/druid-operator/issues/149
+	for _, pod := range podList {
+		if pod.Status.Phase != v1.PodRunning {
+			return nil
+		}
+		for _, status := range pod.Status.Conditions {
+			if status.Status != v1.ConditionTrue {
+				return nil
+			}
+		}
+	}
+
 
 	mountedPVC := make([]string, len(podList))
 	for _, pod := range podList {
