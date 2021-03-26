@@ -15,17 +15,42 @@ type Reader interface {
 	Get(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) object
 }
 
-type Funcs struct {
+type Writer interface {
+	Delete(sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object, deleteOptions ...client.DeleteOption) error
+}
+
+type WriterFuncs struct {
+	deleteFunc func(sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object) error
+}
+
+type ReaderFuncs struct {
 	listFunc func(sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) []object
 	getFunc  func(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) object
 }
 
-var readers Reader = Funcs{}
+var readers Reader = ReaderFuncs{}
+var writers Writer = WriterFuncs{}
 
-func (f Funcs) Get(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) object {
+func (f WriterFuncs) Delete(sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object, deleteOptions ...client.DeleteOption) error {
+
+	if err := sdk.Delete(context.TODO(), obj, deleteOptions...); err != nil {
+		e := fmt.Errorf("Error deleting object [%s] in namespace [%s] due to [%s]", obj.GetObjectKind().GroupVersionKind().Kind, drd.Namespace, err.Error())
+		sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
+		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+		return e
+	} else {
+		msg := fmt.Sprintf("Successfully deleted object [%s] in namespace [%s]", obj.GetObjectKind().GroupVersionKind().Kind, drd.Namespace)
+		sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
+		logger.Info(msg, "name", drd.Name, "namespace", drd.Namespace)
+	}
+
+	return nil
+}
+
+func (f ReaderFuncs) Get(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) object {
 	obj := emptyObjFn()
 	if err := sdk.Get(context.TODO(), *namespacedName(nodeSpecUniqueStr, drd.Namespace), obj); err != nil {
-		e := fmt.Errorf("failed to get [StatefuleSet:%s] due to [%s]", nodeSpecUniqueStr, err.Error())
+		e := fmt.Errorf("failed to get [Object:%s] due to [%s]", nodeSpecUniqueStr, err.Error())
 		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 		sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
 		return nil
@@ -33,7 +58,7 @@ func (f Funcs) Get(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Dr
 	return obj
 }
 
-func (f Funcs) List(sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) []object {
+func (f ReaderFuncs) List(sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) []object {
 	listOpts := []client.ListOption{
 		client.InNamespace(drd.Namespace),
 		client.MatchingLabels(selectorLabels),

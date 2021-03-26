@@ -375,32 +375,19 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	return nil
 }
 
-func deleteSTSAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []object, pvcList []object) error {
+func deleteSTSAndPVC(sdk client.Client, drd *v1alpha1.Druid, stsList, pvcList []object) error {
 
 	for _, sts := range stsList {
-		if err := sdk.Delete(context.TODO(), sts); err != nil {
-			e := fmt.Errorf("Error deleting sts [%s:%s] due to [%s]", sts, m.Namespace, err.Error())
-			sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
-			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-			return e
-		} else {
-			msg := fmt.Sprintf("Deleting sts [%s:%s] successfully", sts.GetName(), m.Namespace)
-			sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
-			logger.Info(msg, "name", m.Name, "namespace", m.Namespace)
+		err := writers.Delete(sdk, drd, sts, &client.DeleteAllOfOptions{})
+		if err != nil {
+			return err
 		}
-
 	}
 
 	for i := range pvcList {
-		if err := sdk.Delete(context.TODO(), pvcList[i]); err != nil {
-			e := fmt.Errorf("Error deleting pvc [%s:%s] due to [%s]", pvcList[i].GetName(), m.Namespace, err.Error())
-			sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
-			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-			return e
-		} else {
-			msg := fmt.Sprintf("Deleting pvc [%s:%s] successfully", pvcList[i].GetName(), m.Namespace)
-			sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
-			logger.Info(msg, "name", m.Name, "namespace", m.Namespace)
+		err := writers.Delete(sdk, drd, pvcList[i], &client.DeleteAllOfOptions{})
+		if err != nil {
+			return err
 		}
 	}
 
@@ -430,7 +417,6 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 		"druid_cr": drd.Name,
 	}
 
-
 	pvcList := readers.List(sdk, drd, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PersistentVolumeClaimList).Items
 		result := make([]object, len(items))
@@ -442,16 +428,15 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 
 	// Fix: https://github.com/druid-io/druid-operator/issues/149
 	for _, pod := range podList {
-		if pod.Status.Phase != v1.PodRunning {
+		if pod.(*v1.Pod).Status.Phase != v1.PodRunning {
 			return nil
 		}
-		for _, status := range pod.Status.Conditions {
+		for _, status := range pod.(*v1.Pod).Status.Conditions {
 			if status.Status != v1.ConditionTrue {
 				return nil
 			}
 		}
 	}
-
 
 	mountedPVC := make([]string, len(podList))
 	for _, pod := range podList {
@@ -471,11 +456,9 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 		for i, pvc := range pvcList {
 
 			if !ContainsString(mountedPVC, pvc.GetName()) {
-				if err := sdk.Delete(context.TODO(), pvcList[i]); err != nil {
-					e := fmt.Errorf("Error deleting orphaned pvc [%s:%s] due to [%s]", pvcList[i].GetName(), drd.Namespace, err.Error())
-					sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
-					logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-					return nil
+				err := writers.Delete(sdk, drd, pvcList[i], &client.DeleteAllOfOptions{})
+				if err != nil {
+					return err
 				} else {
 					msg := fmt.Sprintf("Deleted orphaned pvc [%s:%s] successfully", pvcList[i].GetName(), drd.Namespace)
 					sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
@@ -547,7 +530,7 @@ func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m
 	}
 }
 
-func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) {
+func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) error {
 
 	podList := readers.List(sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
@@ -568,11 +551,9 @@ func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) {
 					// OR condtion.status is false which evalutes if neither of these conditions are met
 					// 1. ContainersReady 2. PodInitialized 3. PodReady 4. PodScheduled
 					if p.(*v1.Pod).Status.Phase != v1.PodRunning || condition.Status == v1.ConditionFalse {
-						err := sdkDelete(context.TODO(), sdk, p)
+						err := writers.Delete(sdk, drd, p, &client.DeleteOptions{})
 						if err != nil {
-							e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", p.(*v1.Pod).Name, drd.GetName(), err.Error())
-							sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
-							logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+							return err
 						} else {
 							msg := fmt.Sprintf("Deleted pod [%s] in namespace [%s], since it was in crashloopback state.", p.GetName(), p.GetNamespace())
 							logger.Info(msg, "Object", stringifyForLogging(p, drd), "name", drd.Name, "namespace", drd.Namespace)
@@ -583,6 +564,8 @@ func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) {
 			}
 		}
 	}
+
+	return nil
 }
 
 func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
@@ -596,6 +579,7 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 	survivorNames := make([]string, 0, len(names))
 
 	listObj := emptyListObjFn()
+
 	if err := sdk.List(context.TODO(), listObj, listOpts...); err != nil {
 		e := fmt.Errorf("failed to list [%s] due to [%s]", listObj.GetObjectKind().GroupVersionKind().Kind, err.Error())
 		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
@@ -603,10 +587,8 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 	} else {
 		for _, s := range itemsExtractorFn(listObj) {
 			if names[s.GetName()] == false {
-				if err := sdkDelete(context.TODO(), sdk, s); err != nil {
-					e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName(), err.Error())
-					sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
-					logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+				err := writers.Delete(sdk, drd, s, &client.DeleteOptions{})
+				if err != nil {
 					survivorNames = append(survivorNames, s.GetName())
 				} else {
 					sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", fmt.Sprintf("Deleted [%s:%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName()))
