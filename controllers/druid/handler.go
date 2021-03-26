@@ -255,7 +255,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 	if m.Spec.DeleteOrphanPvc {
 		if err := deleteOrphanPVC(sdk, m); err != nil {
-			e := fmt.Errorf("Error in deleteOrphanPVC [%s]", err.Error())
+			e := fmt.Errorf("Error in deleteOrphanPVC due to [%s]", err.Error())
 			sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
 			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 		}
@@ -348,7 +348,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		})
 	sort.Strings(updatedStatus.ConfigMaps)
 
-	podList := readers.List(sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, _ := readers.List(sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -356,6 +356,9 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 		return result
 	})
+	if err != nil {
+		return nil
+	}
 
 	updatedStatus.Pods = getPodNames(podList)
 	sort.Strings(updatedStatus.Pods)
@@ -404,7 +407,7 @@ func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid) bool {
 
 func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 
-	podList := readers.List(sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, err := readers.List(sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -412,12 +415,15 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 		}
 		return result
 	})
+	if err != nil {
+		return err
+	}
 
 	pvcLabels := map[string]string{
 		"druid_cr": drd.Name,
 	}
 
-	pvcList := readers.List(sdk, drd, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+	pvcList, err := readers.List(sdk, drd, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PersistentVolumeClaimList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -425,6 +431,9 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 		}
 		return result
 	})
+	if err != nil {
+		return err
+	}
 
 	// Fix: https://github.com/druid-io/druid-operator/issues/149
 	for _, pod := range podList {
@@ -477,7 +486,7 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 			"druid_cr": m.Name,
 		}
 
-		pvcList := readers.List(sdk, m, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+		pvcList, err := readers.List(sdk, m, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 			items := listObj.(*v1.PersistentVolumeClaimList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
@@ -485,8 +494,11 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 			}
 			return result
 		})
+		if err != nil {
+			return err
+		}
 
-		stsList := readers.List(sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
+		stsList, err := readers.List(sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
 			items := listObj.(*appsv1.StatefulSetList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
@@ -494,6 +506,9 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 			}
 			return result
 		})
+		if err != nil {
+			return err
+		}
 
 		msg := fmt.Sprintf("Trigerring finalizer for CR [%s] in namespace [%s]", m.Name, m.Namespace)
 		sendEvent(sdk, m, v1.EventTypeNormal, "TRIGGER_FINALIZER", msg)
@@ -532,7 +547,7 @@ func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m
 
 func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) error {
 
-	podList := readers.List(sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, err := readers.List(sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -540,6 +555,9 @@ func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) error {
 		}
 		return result
 	})
+	if err != nil {
+		return err
+	}
 
 	for _, p := range podList {
 		if p.(*v1.Pod).Status.ContainerStatuses[0].RestartCount > 1 {
@@ -632,6 +650,7 @@ func sdkCreateOrUpdateAsNeeded(
 		addHashToObject(obj)
 
 		prevObj := emptyObjFn()
+
 		if err := sdk.Get(context.TODO(), *namespacedName(obj.GetName(), obj.GetNamespace()), prevObj); err != nil {
 			if apierrors.IsNotFound(err) {
 				// resource does not exist, create it.
@@ -681,9 +700,9 @@ func sdkCreateOrUpdateAsNeeded(
 func isObjFullyDeployed(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (bool, error) {
 
 	// Get Object
-	obj := readers.Get(sdk, nodeSpecUniqueStr, drd, emptyObjFn)
-	if obj == nil {
-		return false, nil
+	obj, err := readers.Get(sdk, nodeSpecUniqueStr, drd, emptyObjFn)
+	if err != nil {
+		return false, err
 	}
 
 	// Detect underlying object type

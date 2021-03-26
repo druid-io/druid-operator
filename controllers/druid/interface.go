@@ -11,8 +11,8 @@ import (
 )
 
 type Reader interface {
-	List(sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) []object
-	Get(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) object
+	List(sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) ([]object, error)
+	Get(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (object, error)
 }
 
 type Writer interface {
@@ -24,8 +24,8 @@ type WriterFuncs struct {
 }
 
 type ReaderFuncs struct {
-	listFunc func(sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) []object
-	getFunc  func(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) object
+	listFunc func(sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) ([]object, error)
+	getFunc  func(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (object, error)
 }
 
 var readers Reader = ReaderFuncs{}
@@ -47,18 +47,18 @@ func (f WriterFuncs) Delete(sdk client.Client, drd *v1alpha1.Druid, obj runtime.
 	return nil
 }
 
-func (f ReaderFuncs) Get(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) object {
+func (f ReaderFuncs) Get(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (object, error) {
 	obj := emptyObjFn()
 	if err := sdk.Get(context.TODO(), *namespacedName(nodeSpecUniqueStr, drd.Namespace), obj); err != nil {
 		e := fmt.Errorf("failed to get [Object:%s] due to [%s]", nodeSpecUniqueStr, err.Error())
 		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 		sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
-		return nil
+		return nil, e
 	}
-	return obj
+	return obj, nil
 }
 
-func (f ReaderFuncs) List(sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) []object {
+func (f ReaderFuncs) List(sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) ([]object, error) {
 	listOpts := []client.ListOption{
 		client.InNamespace(drd.Namespace),
 		client.MatchingLabels(selectorLabels),
@@ -68,8 +68,8 @@ func (f ReaderFuncs) List(sdk client.Client, drd *v1alpha1.Druid, selectorLabels
 		e := fmt.Errorf("failed to list [%s] due to [%s]", listObj.GetObjectKind().GroupVersionKind().Kind, err.Error())
 		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
 		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		return nil
+		return nil, e
 	}
 
-	return ListObjFn(listObj)
+	return ListObjFn(listObj), nil
 }
