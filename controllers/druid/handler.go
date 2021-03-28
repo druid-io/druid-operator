@@ -671,17 +671,11 @@ func sdkCreateOrUpdateAsNeeded(
 
 				obj.SetResourceVersion(prevObj.GetResourceVersion())
 				updaterFn(prevObj, obj)
-
-				if err := sdk.Update(context.TODO(), obj); err != nil {
-					e := fmt.Errorf("Failed to update [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
-					logger.Error(e, e.Error(), "Current Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
-					sendEvent(sdk, drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-					return "", e
+				update, err := writers.Update(sdk, drd, obj)
+				if err != nil {
+					return update, nil
 				} else {
-					msg := fmt.Sprintf("Updated [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
-					logger.Info(msg, "Prev Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
-					sendEvent(sdk, drd, v1.EventTypeNormal, "UPDATE_SUCCESS", msg)
-					return resourceUpdated, nil
+					return "", err
 				}
 			} else {
 				return "", nil

@@ -19,11 +19,13 @@ type Reader interface {
 type Writer interface {
 	Delete(sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object, deleteOptions ...client.DeleteOption) error
 	Create(sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
+	Update(sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
 }
 
 type WriterFuncs struct {
 	deleteFunc func(sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object) error
 	createFunc func(sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
+	updateFunc func(sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
 }
 
 type ReaderFuncs struct {
@@ -33,6 +35,22 @@ type ReaderFuncs struct {
 
 var readers Reader = ReaderFuncs{}
 var writers Writer = WriterFuncs{}
+
+func (f WriterFuncs) Update(sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error) {
+
+	if err := sdk.Update(context.TODO(), obj); err != nil {
+		e := fmt.Errorf("Failed to update [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
+		logger.Error(e, e.Error(), "Current Object", stringifyForLogging(obj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
+		sendEvent(sdk, drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
+		return "", e
+	} else {
+		msg := fmt.Sprintf("Updated [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
+		logger.Info(msg, "Prev Object", stringifyForLogging(obj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
+		sendEvent(sdk, drd, v1.EventTypeNormal, "UPDATE_SUCCESS", msg)
+		return resourceUpdated, nil
+	}
+
+}
 
 func (f WriterFuncs) Create(sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error) {
 
