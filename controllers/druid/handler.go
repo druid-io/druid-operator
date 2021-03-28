@@ -650,20 +650,14 @@ func sdkCreateOrUpdateAsNeeded(
 		addHashToObject(obj)
 
 		prevObj := emptyObjFn()
-
 		if err := sdk.Get(context.TODO(), *namespacedName(obj.GetName(), obj.GetNamespace()), prevObj); err != nil {
 			if apierrors.IsNotFound(err) {
 				// resource does not exist, create it.
-				if err := sdkCreate(context.TODO(), sdk, obj); err != nil {
-					e := fmt.Errorf("Failed to create [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
-					logger.Error(e, e.Error(), "object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace, "errorType", apierrors.ReasonForError(err))
-					sendEvent(sdk, drd, v1.EventTypeWarning, "CREATE_FAIL", e.Error())
-					return "", e
+				create, err := writers.Create(sdk, drd, obj)
+				if err != nil {
+					return "", err
 				} else {
-					msg := fmt.Sprintf("Created [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
-					logger.Info(msg, "Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
-					sendEvent(sdk, drd, v1.EventTypeNormal, "CREATE_SUCCESS", msg)
-					return resourceCreated, nil
+					return create, nil
 				}
 			} else {
 				e := fmt.Errorf("Failed to get [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
@@ -696,7 +690,6 @@ func sdkCreateOrUpdateAsNeeded(
 	}
 }
 
-// Checks if all replicas corresponding to latest updated obj have been deployed
 func isObjFullyDeployed(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (bool, error) {
 
 	// Get Object

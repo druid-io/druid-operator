@@ -6,6 +6,7 @@ import (
 
 	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -17,10 +18,12 @@ type Reader interface {
 
 type Writer interface {
 	Delete(sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object, deleteOptions ...client.DeleteOption) error
+	Create(sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
 }
 
 type WriterFuncs struct {
 	deleteFunc func(sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object) error
+	createFunc func(sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
 }
 
 type ReaderFuncs struct {
@@ -30,6 +33,22 @@ type ReaderFuncs struct {
 
 var readers Reader = ReaderFuncs{}
 var writers Writer = WriterFuncs{}
+
+func (f WriterFuncs) Create(sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error) {
+
+	if err := sdk.Create(context.TODO(), obj); err != nil {
+		e := fmt.Errorf("Failed to create [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
+		logger.Error(e, e.Error(), "object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace, "errorType", apierrors.ReasonForError(err))
+		sendEvent(sdk, drd, v1.EventTypeWarning, "CREATE_FAIL", e.Error())
+		return "", e
+	} else {
+		msg := fmt.Sprintf("Created [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
+		logger.Info(msg, "Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
+		sendEvent(sdk, drd, v1.EventTypeNormal, "CREATE_SUCCESS", msg)
+		return resourceCreated, nil
+	}
+
+}
 
 func (f WriterFuncs) Delete(sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object, deleteOptions ...client.DeleteOption) error {
 
