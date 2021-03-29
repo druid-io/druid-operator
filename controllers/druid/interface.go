@@ -47,7 +47,7 @@ type Writer interface {
 	StatusPatch(sdk client.Client, drd *v1alpha1.Druid, obj object, patch client.Patch) error
 }
 
-// WriterFuncs of type func
+// WriterFuncs
 type WriterFuncs struct {
 	deleteFunc      func(sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object) error
 	createFunc      func(sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
@@ -55,7 +55,7 @@ type WriterFuncs struct {
 	statusPatchFunc func(sdk client.Client, drd *v1alpha1.Druid, obj object, patch client.Patch) error
 }
 
-// ReaderFuncs of type func
+// ReaderFuncs
 type ReaderFuncs struct {
 	listFunc func(sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) ([]object, error)
 	getFunc  func(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (object, error)
