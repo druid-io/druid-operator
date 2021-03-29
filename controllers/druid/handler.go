@@ -110,9 +110,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		if cr {
 			if !ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
 				m.SetFinalizers(append(m.GetFinalizers(), finalizerName))
-				_, err = writers.Update(sdk, m, m)
-				e := fmt.Errorf("failed to add finalizer to druid CR for [%s] due to [%s]", m.Name, err.Error())
-				logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+				_, err := writers.Update(context.Background(), sdk, m, m)
 				if err != nil {
 					return err
 				}
@@ -346,7 +344,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		})
 	sort.Strings(updatedStatus.ConfigMaps)
 
-	podList, _ := readers.List(sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, _ := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -366,7 +364,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		if err != nil {
 			return fmt.Errorf("failed to serialize status patch to bytes: %v", err)
 		}
-		_ = writers.StatusPatch(sdk, m, m, client.ConstantPatch(types.MergePatchType, patchBytes))
+		_ = writers.StatusPatch(context.TODO(), sdk, m, m, client.ConstantPatch(types.MergePatchType, patchBytes))
 	}
 
 	return nil
@@ -375,14 +373,14 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 func deleteSTSAndPVC(sdk client.Client, drd *v1alpha1.Druid, stsList, pvcList []object) error {
 
 	for _, sts := range stsList {
-		err := writers.Delete(sdk, drd, sts, &client.DeleteAllOfOptions{})
+		err := writers.Delete(context.TODO(), sdk, drd, sts, &client.DeleteAllOfOptions{})
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range pvcList {
-		err := writers.Delete(sdk, drd, pvcList[i], &client.DeleteAllOfOptions{})
+		err := writers.Delete(context.TODO(), sdk, drd, pvcList[i], &client.DeleteAllOfOptions{})
 		if err != nil {
 			return err
 		}
@@ -392,7 +390,7 @@ func deleteSTSAndPVC(sdk client.Client, drd *v1alpha1.Druid, stsList, pvcList []
 }
 
 func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid) bool {
-	_, err := readers.Get(sdk, m.Name, m, func() object { return makeDruidEmptyObj() })
+	_, err := readers.Get(context.TODO(), sdk, m.Name, m, func() object { return makeDruidEmptyObj() })
 	if err != nil {
 		return false
 	} else {
@@ -402,7 +400,7 @@ func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid) bool {
 
 func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 
-	podList, err := readers.List(sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -418,7 +416,7 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 		"druid_cr": drd.Name,
 	}
 
-	pvcList, err := readers.List(sdk, drd, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PersistentVolumeClaimList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -460,7 +458,7 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 		for i, pvc := range pvcList {
 
 			if !ContainsString(mountedPVC, pvc.GetName()) {
-				err := writers.Delete(sdk, drd, pvcList[i], &client.DeleteAllOfOptions{})
+				err := writers.Delete(context.TODO(), sdk, drd, pvcList[i], &client.DeleteAllOfOptions{})
 				if err != nil {
 					return err
 				} else {
@@ -480,7 +478,7 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 			"druid_cr": m.Name,
 		}
 
-		pvcList, err := readers.List(sdk, m, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+		pvcList, err := readers.List(context.TODO(), sdk, m, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 			items := listObj.(*v1.PersistentVolumeClaimList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
@@ -492,7 +490,7 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 			return err
 		}
 
-		stsList, err := readers.List(sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
+		stsList, err := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
 			items := listObj.(*appsv1.StatefulSetList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
@@ -518,7 +516,7 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 		// remove our finalizer from the list and update it.
 		m.ObjectMeta.Finalizers = RemoveString(m.ObjectMeta.Finalizers, finalizerName)
 
-		_, err = writers.Update(sdk, m, m)
+		_, err = writers.Update(context.TODO(), sdk, m, m)
 		if err != nil {
 			return err
 		}
@@ -540,7 +538,7 @@ func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m
 
 func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) error {
 
-	podList, err := readers.List(sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -562,7 +560,7 @@ func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) error {
 					// OR condtion.status is false which evalutes if neither of these conditions are met
 					// 1. ContainersReady 2. PodInitialized 3. PodReady 4. PodScheduled
 					if p.(*v1.Pod).Status.Phase != v1.PodRunning || condition.Status == v1.ConditionFalse {
-						err := writers.Delete(sdk, drd, p, &client.DeleteOptions{})
+						err := writers.Delete(context.TODO(), sdk, drd, p, &client.DeleteOptions{})
 						if err != nil {
 							return err
 						} else {
@@ -598,7 +596,7 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 	} else {
 		for _, s := range itemsExtractorFn(listObj) {
 			if names[s.GetName()] == false {
-				err := writers.Delete(sdk, drd, s, &client.DeleteOptions{})
+				err := writers.Delete(context.TODO(), sdk, drd, s, &client.DeleteOptions{})
 				if err != nil {
 					survivorNames = append(survivorNames, s.GetName())
 				} else {
@@ -646,7 +644,7 @@ func sdkCreateOrUpdateAsNeeded(
 		if err := sdk.Get(context.TODO(), *namespacedName(obj.GetName(), obj.GetNamespace()), prevObj); err != nil {
 			if apierrors.IsNotFound(err) {
 				// resource does not exist, create it.
-				create, err := writers.Create(sdk, drd, obj)
+				create, err := writers.Create(context.TODO(), sdk, drd, obj)
 				if err != nil {
 					return "", err
 				} else {
@@ -664,7 +662,7 @@ func sdkCreateOrUpdateAsNeeded(
 
 				obj.SetResourceVersion(prevObj.GetResourceVersion())
 				updaterFn(prevObj, obj)
-				update, err := writers.Update(sdk, drd, obj)
+				update, err := writers.Update(context.TODO(), sdk, drd, obj)
 				if err != nil {
 					return update, nil
 				} else {
@@ -680,7 +678,7 @@ func sdkCreateOrUpdateAsNeeded(
 func isObjFullyDeployed(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (bool, error) {
 
 	// Get Object
-	obj, err := readers.Get(sdk, nodeSpecUniqueStr, drd, emptyObjFn)
+	obj, err := readers.Get(context.TODO(), sdk, nodeSpecUniqueStr, drd, emptyObjFn)
 	if err != nil {
 		return false, err
 	}
