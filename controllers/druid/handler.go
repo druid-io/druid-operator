@@ -36,8 +36,6 @@ const (
 	indexer                      = "indexer"
 	historical                   = "historical"
 	router                       = "router"
-	resourceCreated              = "CREATED"
-	resourceUpdated              = "UPDATED"
 	defaultCommonConfigMountPath = "/druid/conf/druid/_common"
 	finalizerName                = "deletepvc.finalizers.druid.apache.org"
 )
@@ -51,7 +49,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 	if err := verifyDruidSpec(m); err != nil {
 		e := fmt.Errorf("invalid DruidSpec[%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
-		sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+		sendEvent(sdk, m, v1.EventTypeWarning, DruidSpecInvalid, e.Error())
 		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 		return nil
 	}
@@ -59,7 +57,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	allNodeSpecs, err := getAllNodeSpecsInDruidPrescribedOrder(m)
 	if err != nil {
 		e := fmt.Errorf("invalid DruidSpec[%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
-		sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+		sendEvent(sdk, m, v1.EventTypeWarning, DruidSpecInvalid, e.Error())
 		return nil
 	}
 
@@ -112,269 +110,263 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		if cr {
 			if !ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
 				m.SetFinalizers(append(m.GetFinalizers(), finalizerName))
-				if err := sdk.Update(context.Background(), m); err != nil {
-					e := fmt.Errorf("failed to add finalizer to druid CR for [%s] due to [%s]", m.Name, err.Error())
-					sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-					logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-					return e
-				}
-			}
-		}
-	}
-
-	for _, elem := range allNodeSpecs {
-		key := elem.key
-		nodeSpec := elem.spec
-
-		//Name in k8s must pass regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
-		//So this unique string must follow same.
-		nodeSpecUniqueStr := makeNodeSpecificUniqueString(m, key)
-
-		lm := makeLabelsForNodeSpec(&nodeSpec, m, m.Name, nodeSpecUniqueStr)
-
-		// create configmap first
-		nodeConfig, err := makeConfigMapForNodeSpec(&nodeSpec, m, lm, nodeSpecUniqueStr)
-		if err != nil {
-			return err
-		}
-
-		nodeConfigSHA, err := getObjectHash(nodeConfig)
-		if err != nil {
-			return err
-		}
-
-		if _, err := sdkCreateOrUpdateAsNeeded(sdk,
-			func() (object, error) { return nodeConfig, nil },
-			func() object { return makeConfigMapEmptyObj() },
-			alwaysTrueIsEqualsFn, noopUpdaterFn, m, configMapNames); err != nil {
-			return err
-		}
-
-		//create services before creating statefulset
-		firstServiceName := ""
-		services := firstNonNilValue(nodeSpec.Services, m.Spec.Services).([]v1.Service)
-		for _, svc := range services {
-			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
-				func() (object, error) { return makeService(&svc, &nodeSpec, m, lm, nodeSpecUniqueStr) },
-				func() object { return makeServiceEmptyObj() }, alwaysTrueIsEqualsFn,
-				func(prev, curr object) { (curr.(*v1.Service)).Spec.ClusterIP = (prev.(*v1.Service)).Spec.ClusterIP },
-				m, serviceNames); err != nil {
-				return err
-			}
-			if firstServiceName == "" {
-				firstServiceName = svc.ObjectMeta.Name
-			}
-		}
-
-		nodeSpec.Ports = append(nodeSpec.Ports, v1.ContainerPort{ContainerPort: nodeSpec.DruidPort, Name: "druid-port"})
-
-		if nodeSpec.Kind == "Deployment" {
-			if deployCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
-				func() (object, error) {
-					return makeDeployment(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
-				},
-				func() object { return makeDeploymentEmptyObj() },
-				deploymentIsEquals, noopUpdaterFn, m, deploymentNames); err != nil {
-				return err
-			} else if m.Spec.RollingDeploy {
-
-				if deployCreateUpdateStatus == resourceUpdated {
-					return nil
-				}
-
-				// Check Deployment rolling update status, if in-progress then stop here
-				done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeDeploymentEmptyObj() })
-				if !done {
+				_, err = writers.Update(sdk, m, m)
+				if err != nil {
 					return err
 				}
-			}
-		} else {
-			// Create/Update StatefulSet
-			if stsCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
-				func() (object, error) {
-					return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
-				},
-				func() object { return makeStatefulSetEmptyObj() },
-				statefulSetIsEquals, noopUpdaterFn, m, statefulSetNames); err != nil {
-				return err
-			} else if m.Spec.RollingDeploy {
 
-				if stsCreateUpdateStatus == resourceUpdated {
-					// we just updated, give sts controller some time to update status of replicas after update
-					return nil
+			}
+		}
+
+		for _, elem := range allNodeSpecs {
+			key := elem.key
+			nodeSpec := elem.spec
+
+			//Name in k8s must pass regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
+			//So this unique string must follow same.
+			nodeSpecUniqueStr := makeNodeSpecificUniqueString(m, key)
+
+			lm := makeLabelsForNodeSpec(&nodeSpec, m, m.Name, nodeSpecUniqueStr)
+
+			// create configmap first
+			nodeConfig, err := makeConfigMapForNodeSpec(&nodeSpec, m, lm, nodeSpecUniqueStr)
+			if err != nil {
+				return err
+			}
+
+			nodeConfigSHA, err := getObjectHash(nodeConfig)
+			if err != nil {
+				return err
+			}
+
+			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
+				func() (object, error) { return nodeConfig, nil },
+				func() object { return makeConfigMapEmptyObj() },
+				alwaysTrueIsEqualsFn, noopUpdaterFn, m, configMapNames); err != nil {
+				return err
+			}
+
+			//create services before creating statefulset
+			firstServiceName := ""
+			services := firstNonNilValue(nodeSpec.Services, m.Spec.Services).([]v1.Service)
+			for _, svc := range services {
+				if _, err := sdkCreateOrUpdateAsNeeded(sdk,
+					func() (object, error) { return makeService(&svc, &nodeSpec, m, lm, nodeSpecUniqueStr) },
+					func() object { return makeServiceEmptyObj() }, alwaysTrueIsEqualsFn,
+					func(prev, curr object) { (curr.(*v1.Service)).Spec.ClusterIP = (prev.(*v1.Service)).Spec.ClusterIP },
+					m, serviceNames); err != nil {
+					return err
+				}
+				if firstServiceName == "" {
+					firstServiceName = svc.ObjectMeta.Name
+				}
+			}
+
+			nodeSpec.Ports = append(nodeSpec.Ports, v1.ContainerPort{ContainerPort: nodeSpec.DruidPort, Name: "druid-port"})
+
+			if nodeSpec.Kind == "Deployment" {
+				if deployCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
+					func() (object, error) {
+						return makeDeployment(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
+					},
+					func() object { return makeDeploymentEmptyObj() },
+					deploymentIsEquals, noopUpdaterFn, m, deploymentNames); err != nil {
+					return err
+				} else if m.Spec.RollingDeploy {
+
+					if deployCreateUpdateStatus == resourceUpdated {
+						return nil
+					}
+
+					// Check Deployment rolling update status, if in-progress then stop here
+					done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeDeploymentEmptyObj() })
+					if !done {
+						return err
+					}
+				}
+			} else {
+				// Create/Update StatefulSet
+				if stsCreateUpdateStatus, err := sdkCreateOrUpdateAsNeeded(sdk,
+					func() (object, error) {
+						return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
+					},
+					func() object { return makeStatefulSetEmptyObj() },
+					statefulSetIsEquals, noopUpdaterFn, m, statefulSetNames); err != nil {
+					return err
+				} else if m.Spec.RollingDeploy {
+
+					if stsCreateUpdateStatus == resourceUpdated {
+						// we just updated, give sts controller some time to update status of replicas after update
+						return nil
+					}
+
+					// Default is set to true
+					execCheckCrashStatus(sdk, &nodeSpec, m)
+
+					//Check StatefulSet rolling update status, if in-progress then stop here
+					done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeStatefulSetEmptyObj() })
+					if !done {
+						return err
+					}
 				}
 
 				// Default is set to true
 				execCheckCrashStatus(sdk, &nodeSpec, m)
+			}
 
-				//Check StatefulSet rolling update status, if in-progress then stop here
-				done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeStatefulSetEmptyObj() })
-				if !done {
+			// Create Ingress Spec
+			if nodeSpec.Ingress != nil {
+				if _, err := sdkCreateOrUpdateAsNeeded(sdk,
+					func() (object, error) {
+						return makeIngress(&nodeSpec, m, ls, nodeSpecUniqueStr)
+					},
+					func() object { return makeIngressEmptyObj() },
+					alwaysTrueIsEqualsFn, noopUpdaterFn, m, ingressNames); err != nil {
 					return err
 				}
 			}
 
-			// Default is set to true
-			execCheckCrashStatus(sdk, &nodeSpec, m)
-		}
+			// Create PodDisruptionBudget
+			if nodeSpec.PodDisruptionBudgetSpec != nil {
+				if _, err := sdkCreateOrUpdateAsNeeded(sdk,
+					func() (object, error) { return makePodDisruptionBudget(&nodeSpec, m, lm, nodeSpecUniqueStr) },
+					func() object { return makePodDisruptionBudgetEmptyObj() },
+					alwaysTrueIsEqualsFn, noopUpdaterFn, m, podDisruptionBudgetNames); err != nil {
+					return err
+				}
+			}
 
-		// Create Ingress Spec
-		if nodeSpec.Ingress != nil {
-			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
-				func() (object, error) {
-					return makeIngress(&nodeSpec, m, ls, nodeSpecUniqueStr)
-				},
-				func() object { return makeIngressEmptyObj() },
-				alwaysTrueIsEqualsFn, noopUpdaterFn, m, ingressNames); err != nil {
-				return err
+			// Create HPA Spec
+			if nodeSpec.HPAutoScaler != nil {
+				if _, err := sdkCreateOrUpdateAsNeeded(sdk,
+					func() (object, error) {
+						return makeHorizontalPodAutoscaler(&nodeSpec, m, ls, nodeSpecUniqueStr)
+					},
+					func() object { return makeHorizontalPodAutoscalerEmptyObj() },
+					alwaysTrueIsEqualsFn, noopUpdaterFn, m, hpaNames); err != nil {
+					return err
+				}
 			}
 		}
 
-		// Create PodDisruptionBudget
-		if nodeSpec.PodDisruptionBudgetSpec != nil {
-			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
-				func() (object, error) { return makePodDisruptionBudget(&nodeSpec, m, lm, nodeSpecUniqueStr) },
-				func() object { return makePodDisruptionBudgetEmptyObj() },
-				alwaysTrueIsEqualsFn, noopUpdaterFn, m, podDisruptionBudgetNames); err != nil {
-				return err
+		if m.Spec.DeleteOrphanPvc {
+			if err := deleteOrphanPVC(sdk, m); err != nil {
+				e := fmt.Errorf("Error in deleteOrphanPVC due to [%s]", err.Error())
+				sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
+				logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 			}
 		}
 
-		// Create HPA Spec
-		if nodeSpec.HPAutoScaler != nil {
-			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
-				func() (object, error) {
-					return makeHorizontalPodAutoscaler(&nodeSpec, m, ls, nodeSpecUniqueStr)
-				},
-				func() object { return makeHorizontalPodAutoscalerEmptyObj() },
-				alwaysTrueIsEqualsFn, noopUpdaterFn, m, hpaNames); err != nil {
-				return err
-			}
-		}
-	}
+		//update status and delete unwanted resources
+		updatedStatus := v1alpha1.DruidStatus{}
 
-	if m.Spec.DeleteOrphanPvc {
-		if err := deleteOrphanPVC(sdk, m); err != nil {
-			e := fmt.Errorf("Error in deleteOrphanPVC due to [%s]", err.Error())
-			sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-		}
-	}
+		updatedStatus.StatefulSets = deleteUnusedResources(sdk, m, statefulSetNames, ls,
+			func() runtime.Object { return makeStatefulSetListEmptyObj() },
+			func(listObj runtime.Object) []object {
+				items := listObj.(*appsv1.StatefulSetList).Items
+				result := make([]object, len(items))
+				for i := 0; i < len(items); i++ {
+					result[i] = &items[i]
+				}
+				return result
+			})
+		sort.Strings(updatedStatus.StatefulSets)
 
-	//update status and delete unwanted resources
-	updatedStatus := v1alpha1.DruidStatus{}
+		updatedStatus.Deployments = deleteUnusedResources(sdk, m, deploymentNames, ls,
+			func() runtime.Object { return makeDeloymentListEmptyObj() },
+			func(listObj runtime.Object) []object {
+				items := listObj.(*appsv1.DeploymentList).Items
+				result := make([]object, len(items))
+				for i := 0; i < len(items); i++ {
+					result[i] = &items[i]
+				}
+				return result
+			})
+		sort.Strings(updatedStatus.Deployments)
 
-	updatedStatus.StatefulSets = deleteUnusedResources(sdk, m, statefulSetNames, ls,
-		func() runtime.Object { return makeStatefulSetListEmptyObj() },
-		func(listObj runtime.Object) []object {
-			items := listObj.(*appsv1.StatefulSetList).Items
+		updatedStatus.HPAutoScalers = deleteUnusedResources(sdk, m, hpaNames, ls,
+			func() runtime.Object { return makeHorizontalPodAutoscalerListEmptyObj() },
+			func(listObj runtime.Object) []object {
+				items := listObj.(*autoscalev2beta1.HorizontalPodAutoscalerList).Items
+				result := make([]object, len(items))
+				for i := 0; i < len(items); i++ {
+					result[i] = &items[i]
+				}
+				return result
+			})
+		sort.Strings(updatedStatus.HPAutoScalers)
+
+		updatedStatus.Ingress = deleteUnusedResources(sdk, m, ingressNames, ls,
+			func() runtime.Object { return makeIngressListEmptyObj() },
+			func(listObj runtime.Object) []object {
+				items := listObj.(*networkingv1beta1.IngressList).Items
+				result := make([]object, len(items))
+				for i := 0; i < len(items); i++ {
+					result[i] = &items[i]
+				}
+				return result
+			})
+		sort.Strings(updatedStatus.Ingress)
+
+		updatedStatus.PodDisruptionBudgets = deleteUnusedResources(sdk, m, podDisruptionBudgetNames, ls,
+			func() runtime.Object { return makePodDisruptionBudgetListEmptyObj() },
+			func(listObj runtime.Object) []object {
+				items := listObj.(*v1beta1.PodDisruptionBudgetList).Items
+				result := make([]object, len(items))
+				for i := 0; i < len(items); i++ {
+					result[i] = &items[i]
+				}
+				return result
+			})
+		sort.Strings(updatedStatus.PodDisruptionBudgets)
+
+		updatedStatus.Services = deleteUnusedResources(sdk, m, serviceNames, ls,
+			func() runtime.Object { return makeServiceListEmptyObj() },
+			func(listObj runtime.Object) []object {
+				items := listObj.(*v1.ServiceList).Items
+				result := make([]object, len(items))
+				for i := 0; i < len(items); i++ {
+					result[i] = &items[i]
+				}
+				return result
+			})
+		sort.Strings(updatedStatus.Services)
+
+		updatedStatus.ConfigMaps = deleteUnusedResources(sdk, m, configMapNames, ls,
+			func() runtime.Object { return makeConfigMapListEmptyObj() },
+			func(listObj runtime.Object) []object {
+				items := listObj.(*v1.ConfigMapList).Items
+				result := make([]object, len(items))
+				for i := 0; i < len(items); i++ {
+					result[i] = &items[i]
+				}
+				return result
+			})
+		sort.Strings(updatedStatus.ConfigMaps)
+
+		podList, _ := readers.List(sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+			items := listObj.(*v1.PodList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
 				result[i] = &items[i]
 			}
 			return result
 		})
-	sort.Strings(updatedStatus.StatefulSets)
-
-	updatedStatus.Deployments = deleteUnusedResources(sdk, m, deploymentNames, ls,
-		func() runtime.Object { return makeDeloymentListEmptyObj() },
-		func(listObj runtime.Object) []object {
-			items := listObj.(*appsv1.DeploymentList).Items
-			result := make([]object, len(items))
-			for i := 0; i < len(items); i++ {
-				result[i] = &items[i]
-			}
-			return result
-		})
-	sort.Strings(updatedStatus.Deployments)
-
-	updatedStatus.HPAutoScalers = deleteUnusedResources(sdk, m, hpaNames, ls,
-		func() runtime.Object { return makeHorizontalPodAutoscalerListEmptyObj() },
-		func(listObj runtime.Object) []object {
-			items := listObj.(*autoscalev2beta1.HorizontalPodAutoscalerList).Items
-			result := make([]object, len(items))
-			for i := 0; i < len(items); i++ {
-				result[i] = &items[i]
-			}
-			return result
-		})
-	sort.Strings(updatedStatus.HPAutoScalers)
-
-	updatedStatus.Ingress = deleteUnusedResources(sdk, m, ingressNames, ls,
-		func() runtime.Object { return makeIngressListEmptyObj() },
-		func(listObj runtime.Object) []object {
-			items := listObj.(*networkingv1beta1.IngressList).Items
-			result := make([]object, len(items))
-			for i := 0; i < len(items); i++ {
-				result[i] = &items[i]
-			}
-			return result
-		})
-	sort.Strings(updatedStatus.Ingress)
-
-	updatedStatus.PodDisruptionBudgets = deleteUnusedResources(sdk, m, podDisruptionBudgetNames, ls,
-		func() runtime.Object { return makePodDisruptionBudgetListEmptyObj() },
-		func(listObj runtime.Object) []object {
-			items := listObj.(*v1beta1.PodDisruptionBudgetList).Items
-			result := make([]object, len(items))
-			for i := 0; i < len(items); i++ {
-				result[i] = &items[i]
-			}
-			return result
-		})
-	sort.Strings(updatedStatus.PodDisruptionBudgets)
-
-	updatedStatus.Services = deleteUnusedResources(sdk, m, serviceNames, ls,
-		func() runtime.Object { return makeServiceListEmptyObj() },
-		func(listObj runtime.Object) []object {
-			items := listObj.(*v1.ServiceList).Items
-			result := make([]object, len(items))
-			for i := 0; i < len(items); i++ {
-				result[i] = &items[i]
-			}
-			return result
-		})
-	sort.Strings(updatedStatus.Services)
-
-	updatedStatus.ConfigMaps = deleteUnusedResources(sdk, m, configMapNames, ls,
-		func() runtime.Object { return makeConfigMapListEmptyObj() },
-		func(listObj runtime.Object) []object {
-			items := listObj.(*v1.ConfigMapList).Items
-			result := make([]object, len(items))
-			for i := 0; i < len(items); i++ {
-				result[i] = &items[i]
-			}
-			return result
-		})
-	sort.Strings(updatedStatus.ConfigMaps)
-
-	podList, _ := readers.List(sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
-		items := listObj.(*v1.PodList).Items
-		result := make([]object, len(items))
-		for i := 0; i < len(items); i++ {
-			result[i] = &items[i]
-		}
-		return result
-	})
-	if err != nil {
-		return nil
-	}
-
-	updatedStatus.Pods = getPodNames(podList)
-	sort.Strings(updatedStatus.Pods)
-
-	if !reflect.DeepEqual(updatedStatus, m.Status) {
-		patchBytes, err := json.Marshal(map[string]v1alpha1.DruidStatus{"status": updatedStatus})
 		if err != nil {
-			return fmt.Errorf("failed to serialize status patch to bytes: %v", err)
+			return nil
 		}
-		if err := sdk.Status().Patch(context.TODO(), m, client.ConstantPatch(types.MergePatchType, patchBytes)); err != nil {
-			e := fmt.Errorf("failed to update status for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
-			sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+
+		updatedStatus.Pods = getPodNames(podList)
+		sort.Strings(updatedStatus.Pods)
+
+		if !reflect.DeepEqual(updatedStatus, m.Status) {
+			patchBytes, err := json.Marshal(map[string]v1alpha1.DruidStatus{"status": updatedStatus})
+			if err != nil {
+				return fmt.Errorf("failed to serialize status patch to bytes: %v", err)
+			}
+			_ = writers.StatusPatch(sdk, m, m, client.ConstantPatch(types.MergePatchType, patchBytes))
 		}
 	}
-
 	return nil
 }
 
@@ -398,7 +390,8 @@ func deleteSTSAndPVC(sdk client.Client, drd *v1alpha1.Druid, stsList, pvcList []
 }
 
 func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid) bool {
-	if err := sdk.Get(context.TODO(), *namespacedName(m.Name, m.Namespace), m); err != nil {
+	_, err := readers.Get(sdk, m.Name, m, func() object { return makeDruidEmptyObj() })
+	if err != nil {
 		return false
 	} else {
 		return true
@@ -470,7 +463,6 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 					return err
 				} else {
 					msg := fmt.Sprintf("Deleted orphaned pvc [%s:%s] successfully", pvcList[i].GetName(), drd.Namespace)
-					sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
 					logger.Info(msg, "name", drd.Name, "namespace", drd.Namespace)
 				}
 			}
@@ -511,23 +503,22 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 
 		msg := fmt.Sprintf("Trigerring finalizer for CR [%s] in namespace [%s]", m.Name, m.Namespace)
-		sendEvent(sdk, m, v1.EventTypeNormal, "TRIGGER_FINALIZER", msg)
+		sendEvent(sdk, m, v1.EventTypeNormal, DruidFinalizer, msg)
 		logger.Info(msg)
 		if err := deleteSTSAndPVC(sdk, m, stsList, pvcList); err != nil {
 			return err
 		} else {
 			msg := fmt.Sprintf("Finalizer success for CR [%s] in namespace [%s]", m.Name, m.Namespace)
-			sendEvent(sdk, m, v1.EventTypeNormal, "TRIGGER_FINALIZER_SUCCESS", msg)
+			sendEvent(sdk, m, v1.EventTypeNormal, DruidFinalizerSuccess, msg)
 			logger.Info(msg)
 		}
 
 		// remove our finalizer from the list and update it.
 		m.ObjectMeta.Finalizers = RemoveString(m.ObjectMeta.Finalizers, finalizerName)
-		if err := sdk.Update(context.TODO(), m); err != nil {
-			e := fmt.Errorf("failed to Update druid CR for [%s] due to [%s]", m.Name, err.Error())
-			sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-			return e
+
+		_, err = writers.Update(sdk, m, m)
+		if err != nil {
+			return err
 		}
 
 	}
@@ -575,7 +566,7 @@ func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) error {
 						} else {
 							msg := fmt.Sprintf("Deleted pod [%s] in namespace [%s], since it was in crashloopback state.", p.GetName(), p.GetNamespace())
 							logger.Info(msg, "Object", stringifyForLogging(p, drd), "name", drd.Name, "namespace", drd.Namespace)
-							sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
+							sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeDeleteSuccess, msg)
 						}
 					}
 				}
@@ -600,7 +591,7 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 
 	if err := sdk.List(context.TODO(), listObj, listOpts...); err != nil {
 		e := fmt.Errorf("failed to list [%s] due to [%s]", listObj.GetObjectKind().GroupVersionKind().Kind, err.Error())
-		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
+		sendEvent(sdk, drd, v1.EventTypeWarning, DruidObjectListFail, e.Error())
 		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 	} else {
 		for _, s := range itemsExtractorFn(listObj) {
@@ -609,7 +600,7 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 				if err != nil {
 					survivorNames = append(survivorNames, s.GetName())
 				} else {
-					sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", fmt.Sprintf("Deleted [%s:%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName()))
+					sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeDeleteSuccess, fmt.Sprintf("Deleted [%s:%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName()))
 				}
 			} else {
 				survivorNames = append(survivorNames, s.GetName())
@@ -662,7 +653,7 @@ func sdkCreateOrUpdateAsNeeded(
 			} else {
 				e := fmt.Errorf("Failed to get [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 				logger.Error(e, e.Error(), "Prev object", stringifyForLogging(prevObj, drd), "name", drd.Name, "namespace", drd.Namespace)
-				sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
+				sendEvent(sdk, drd, v1.EventTypeWarning, DruidOjectGetFail, e.Error())
 				return "", e
 			}
 		} else {
@@ -699,7 +690,7 @@ func isObjFullyDeployed(sdk client.Client, nodeSpecUniqueStr string, drd *v1alph
 	if objType.String() == "*v1.StatefulSet" {
 		if obj.(*appsv1.StatefulSet).Status.CurrentRevision != obj.(*appsv1.StatefulSet).Status.UpdateRevision {
 			msg := fmt.Sprintf("StatefulSet[%s] roll out is in progress CurrentRevision[%s] != UpdateRevision[%s], UpdatedReplicas[%d/%d]", nodeSpecUniqueStr, obj.(*appsv1.StatefulSet).Status.CurrentRevision, obj.(*appsv1.StatefulSet).Status.UpdateRevision, obj.(*appsv1.StatefulSet).Status.UpdatedReplicas, *obj.(*appsv1.StatefulSet).Spec.Replicas)
-			sendEvent(sdk, drd, v1.EventTypeNormal, "ROLLING_DEPLOYMENT_WAIT", msg)
+			sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeRollingDeploymentWait, msg)
 			return false, nil
 		} else {
 			return true, nil
@@ -707,7 +698,7 @@ func isObjFullyDeployed(sdk client.Client, nodeSpecUniqueStr string, drd *v1alph
 	} else if objType.String() == "*v1.Deployment" {
 		if obj.(*appsv1.Deployment).Status.ReadyReplicas != obj.(*appsv1.Deployment).Status.Replicas {
 			msg := fmt.Sprintf("Deployment[%s] roll out is in progress, UpdatedReplicas[%d] [%d]", nodeSpecUniqueStr, obj.(*appsv1.Deployment).Status.UpdatedReplicas, *obj.(*appsv1.Deployment).Spec.Replicas)
-			sendEvent(sdk, drd, v1.EventTypeNormal, "ROLLING_DEPLOYMENT_WAIT", msg)
+			sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeRollingDeploymentWait, msg)
 			return false, nil
 		} else {
 			return true, nil
@@ -1249,6 +1240,15 @@ func makePodList() *v1.PodList {
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
 			APIVersion: "v1",
+		},
+	}
+}
+
+func makeDruidEmptyObj() *v1alpha1.Druid {
+	return &v1alpha1.Druid{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Druid",
+			APIVersion: "v1alpha1",
 		},
 	}
 }
