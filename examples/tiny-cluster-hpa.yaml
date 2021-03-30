@@ -116,7 +116,7 @@ spec:
         druid.coordinator.period=PT30S
 
         # Configure this coordinator to also run as Overlord
-        druid.coordinator.asOverlord.enable=true
+        druid.coordinator.asOverlord.enabled=true
         druid.coordinator.asOverlord.overlordService=druid/overlord
         druid.indexer.queue.startDelay=PT30S
         druid.indexer.runner.type=local
