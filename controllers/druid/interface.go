@@ -72,7 +72,7 @@ var writers Writer = WriterFuncs{}
 func (f WriterFuncs) StatusPatch(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, patch client.Patch) error {
 
 	if err := sdk.Status().Patch(ctx, obj, patch); err != nil {
-		e := fmt.Errorf("failed to update status for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
+		e := fmt.Errorf("failed to patch status for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
 		sendEvent(sdk, drd, v1.EventTypeWarning, DruidNodePatchFail, e.Error())
 		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 		return e
