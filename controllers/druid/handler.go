@@ -352,9 +352,6 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 		return result
 	})
-	if err != nil {
-		return nil
-	}
 
 	updatedStatus.Pods = getPodNames(podList)
 	sort.Strings(updatedStatus.Pods)
@@ -364,7 +361,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		if err != nil {
 			return fmt.Errorf("failed to serialize status patch to bytes: %v", err)
 		}
-		_ = writers.StatusPatch(context.TODO(), sdk, m, m, client.ConstantPatch(types.MergePatchType, patchBytes))
+		_ = writers.Patch(context.TODO(), sdk, m, m, true, client.ConstantPatch(types.MergePatchType, patchBytes))
 	}
 
 	return nil

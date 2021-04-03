@@ -44,15 +44,15 @@ type Writer interface {
 	Delete(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object, deleteOptions ...client.DeleteOption) error
 	Create(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
 	Update(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
-	StatusPatch(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, patch client.Patch) error
+	Patch(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, status bool, patch client.Patch) error
 }
 
 // WriterFuncs struct
 type WriterFuncs struct {
-	deleteFunc      func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object) error
-	createFunc      func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
-	updateFunc      func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
-	statusPatchFunc func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, patch client.Patch) error
+	deleteFunc func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object) error
+	createFunc func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
+	updateFunc func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
+	patchFunc  func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, status bool, patch client.Patch) error
 }
 
 // ReaderFuncs struct
@@ -67,15 +67,25 @@ var readers Reader = ReaderFuncs{}
 // Initalize Writer
 var writers Writer = WriterFuncs{}
 
-// StatusPatch method shall patch the status of Obj
+// Patch method shall patch the status of Obj or the status.
+// Pass status as true to patch the object status.
 // NOTE: Not logging on patch success, it shall keep logging on each reconcile
-func (f WriterFuncs) StatusPatch(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, patch client.Patch) error {
+func (f WriterFuncs) Patch(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, status bool, patch client.Patch) error {
 
-	if err := sdk.Status().Patch(ctx, obj, patch); err != nil {
-		e := fmt.Errorf("failed to patch status for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
-		sendEvent(sdk, drd, v1.EventTypeWarning, DruidNodePatchFail, e.Error())
-		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		return e
+	if !status {
+		if err := sdk.Patch(ctx, obj, patch); err != nil {
+			e := fmt.Errorf("failed to patch for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
+			sendEvent(sdk, drd, v1.EventTypeWarning, DruidNodePatchFail, e.Error())
+			logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+			return e
+		}
+	} else {
+		if err := sdk.Status().Patch(ctx, obj, patch); err != nil {
+			e := fmt.Errorf("failed to patch status object for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
+			sendEvent(sdk, drd, v1.EventTypeWarning, DruidNodePatchFail, e.Error())
+			logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+			return e
+		}
 	}
 	return nil
 }
