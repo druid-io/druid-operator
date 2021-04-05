@@ -921,7 +921,7 @@ func makeService(svc *v1.Service, nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.
 		Kind:       "Service",
 	}
 
-	svc.ObjectMeta.Name = getSvcName(svc.ObjectMeta.Name, nodeSpecUniqueStr)
+	svc.ObjectMeta.Name = getServiceName(svc.ObjectMeta.Name, nodeSpecUniqueStr)
 
 	svc.ObjectMeta.Namespace = m.Namespace
 
@@ -954,7 +954,7 @@ func makeService(svc *v1.Service, nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.
 	return svc, nil
 }
 
-func getSvcName(nameTemplate, nodeSpecUniqueStr string) string {
+func getServiceName(nameTemplate, nodeSpecUniqueStr string) string {
 	if nameTemplate == "" {
 		return nodeSpecUniqueStr
 	} else {
