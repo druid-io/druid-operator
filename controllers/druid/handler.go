@@ -661,9 +661,9 @@ func sdkCreateOrUpdateAsNeeded(
 				updaterFn(prevObj, obj)
 				update, err := writers.Update(context.TODO(), sdk, drd, obj)
 				if err != nil {
-					return update, nil
-				} else {
 					return "", err
+				} else {
+					return update, err
 				}
 			} else {
 				return "", nil
