@@ -47,3 +47,26 @@ func TestFirstNonEmptyStr(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func TestContainsString(t *testing.T) {
+	if ContainsString([]string{"a", "b"}, "a") == false {
+		t.Fail()
+	}
+}
+
+func TestRemoveString(t *testing.T) {
+	rs := RemoveString([]string{"a", "b"}, "a")
+	if linearsearch(rs, "a") {
+		t.Fail()
+	}
+
+}
+
+func linearsearch(list []string, key string) bool {
+	for _, item := range list {
+		if item == key {
+			return true
+		}
+	}
+	return false
+}
