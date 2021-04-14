@@ -220,6 +220,13 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 		*out = new(networkingv1beta1.IngressSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PersistentVolumeClaim != nil {
+		in, out := &in.PersistentVolumeClaim, &out.PersistentVolumeClaim
+		*out = make([]v1.PersistentVolumeClaim, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.Lifecycle != nil {
 		in, out := &in.Lifecycle, &out.Lifecycle
 		*out = new(v1.Lifecycle)
@@ -450,6 +457,11 @@ func (in *DruidStatus) DeepCopyInto(out *DruidStatus) {
 	}
 	if in.Pods != nil {
 		in, out := &in.Pods, &out.Pods
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.PersistentVolumeClaims != nil {
+		in, out := &in.PersistentVolumeClaims, &out.PersistentVolumeClaims
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

@@ -246,6 +246,9 @@ type DruidNodeSpec struct {
 	// Optional: Ingress Spec
 	Ingress *networkingv1beta1.IngressSpec `json:"ingress,omitempty"`
 
+	// Optional: Persistant volume claim
+	PersistentVolumeClaim []v1.PersistentVolumeClaim `json:"persistentVolumeClaim,omitempty"`
+
 	// Optional
 	Lifecycle *v1.Lifecycle `json:"lifecycle,omitempty"`
 
@@ -277,14 +280,15 @@ type DruidStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	StatefulSets         []string `json:"statefulSets,omitempty"`
-	Deployments          []string `json:"deployments,omitempty"`
-	Services             []string `json:"services,omitempty"`
-	ConfigMaps           []string `json:"configMaps,omitempty"`
-	PodDisruptionBudgets []string `json:"podDisruptionBudgets,omitempty"`
-	Ingress              []string `json:"ingress,omitempty"`
-	HPAutoScalers        []string `json:"hpAutoscalers,omitempty"`
-	Pods                 []string `json:"pods,omitempty"`
+	StatefulSets           []string `json:"statefulSets,omitempty"`
+	Deployments            []string `json:"deployments,omitempty"`
+	Services               []string `json:"services,omitempty"`
+	ConfigMaps             []string `json:"configMaps,omitempty"`
+	PodDisruptionBudgets   []string `json:"podDisruptionBudgets,omitempty"`
+	Ingress                []string `json:"ingress,omitempty"`
+	HPAutoScalers          []string `json:"hpAutoscalers,omitempty"`
+	Pods                   []string `json:"pods,omitempty"`
+	PersistentVolumeClaims []string `json:"persistentVolumeClaims,omitempty"`
 }
 
 // +kubebuilder:object:root=true
