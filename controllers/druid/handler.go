@@ -1120,11 +1120,12 @@ func makeStatefulSet(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 	}, nil
 }
 
-// currently only checks for replica count mismatch, can be extended further
 func statefulSetIsEquals(obj1, obj2 object) bool {
-	o1 := obj1.(*appsv1.StatefulSet)
-	o2 := obj2.(*appsv1.StatefulSet)
-	return *o1.Spec.Replicas == *o2.Spec.Replicas
+
+	// This used to match replica counts, but was reverted to fix https://github.com/druid-io/druid-operator/issues/160
+	// because it is legitimate for HPA to change replica counts and operator shouldn't reset those.
+
+	return true;
 }
 
 // makeDeployment shall create deployment object.
@@ -1143,11 +1144,12 @@ func makeDeployment(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[
 	}, nil
 }
 
-// currently only checks for replica count mismatch, can be extended further
 func deploymentIsEquals(obj1, obj2 object) bool {
-	o1 := obj1.(*appsv1.Deployment)
-	o2 := obj2.(*appsv1.Deployment)
-	return *o1.Spec.Replicas == *o2.Spec.Replicas
+
+	// This used to match replica counts, but was reverted to fix https://github.com/druid-io/druid-operator/issues/160
+	// because it is legitimate for HPA to change replica counts and operator shouldn't reset those.
+
+	return true;
 }
 
 // makeStatefulSetSpec shall create statefulset spec for statefulsets.
