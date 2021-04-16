@@ -172,6 +172,17 @@ spec:
       extra.jvm.options: |-
         -Xmx512M
         -Xms512M
+      volumeClaimTemplates:
+        - metadata:
+            creationTimestamp: null
+            name: broker-data
+          spec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: 1Gi
+            storageClassName: do-block-storage
           
     routers:
       nodeType: "router"
