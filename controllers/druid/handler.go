@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"sort"
 
-	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
+	autoscalev2beta2 "k8s.io/api/autoscaling/v2beta2"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 
 	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
@@ -304,7 +304,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	updatedStatus.HPAutoScalers = deleteUnusedResources(sdk, m, hpaNames, ls,
 		func() runtime.Object { return makeHorizontalPodAutoscalerListEmptyObj() },
 		func(listObj runtime.Object) []object {
-			items := listObj.(*autoscalev2beta1.HorizontalPodAutoscalerList).Items
+			items := listObj.(*autoscalev2beta2.HorizontalPodAutoscalerList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
 				result[i] = &items[i]
@@ -1125,7 +1125,7 @@ func statefulSetIsEquals(obj1, obj2 object) bool {
 	// This used to match replica counts, but was reverted to fix https://github.com/druid-io/druid-operator/issues/160
 	// because it is legitimate for HPA to change replica counts and operator shouldn't reset those.
 
-	return true;
+	return true
 }
 
 // makeDeployment shall create deployment object.
@@ -1149,7 +1149,7 @@ func deploymentIsEquals(obj1, obj2 object) bool {
 	// This used to match replica counts, but was reverted to fix https://github.com/druid-io/druid-operator/issues/160
 	// because it is legitimate for HPA to change replica counts and operator shouldn't reset those.
 
-	return true;
+	return true
 }
 
 // makeStatefulSetSpec shall create statefulset spec for statefulsets.
@@ -1264,10 +1264,10 @@ func makePodDisruptionBudget(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid
 	return pdb, nil
 }
 
-func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*autoscalev2beta1.HorizontalPodAutoscaler, error) {
+func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*autoscalev2beta2.HorizontalPodAutoscaler, error) {
 	nodeHSpec := *nodeSpec.HPAutoScaler
 
-	hpa := &autoscalev2beta1.HorizontalPodAutoscaler{
+	hpa := &autoscalev2beta2.HorizontalPodAutoscaler{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "autoscaling/v2beta1",
 			Kind:       "HorizontalPodAutoscaler",
@@ -1406,10 +1406,10 @@ func makePodDisruptionBudgetListEmptyObj() *v1beta1.PodDisruptionBudgetList {
 	}
 }
 
-func makeHorizontalPodAutoscalerListEmptyObj() *autoscalev2beta1.HorizontalPodAutoscalerList {
-	return &autoscalev2beta1.HorizontalPodAutoscalerList{
+func makeHorizontalPodAutoscalerListEmptyObj() *autoscalev2beta2.HorizontalPodAutoscalerList {
+	return &autoscalev2beta2.HorizontalPodAutoscalerList{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "autoscaling/v2beta1",
+			APIVersion: "autoscaling/v2beta2",
 			Kind:       "HorizontalPodAutoscaler",
 		},
 	}
@@ -1469,10 +1469,10 @@ func makePodDisruptionBudgetEmptyObj() *v1beta1.PodDisruptionBudget {
 	}
 }
 
-func makeHorizontalPodAutoscalerEmptyObj() *autoscalev2beta1.HorizontalPodAutoscaler {
-	return &autoscalev2beta1.HorizontalPodAutoscaler{
+func makeHorizontalPodAutoscalerEmptyObj() *autoscalev2beta2.HorizontalPodAutoscaler {
+	return &autoscalev2beta2.HorizontalPodAutoscaler{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "autoscaling/v2beta1",
+			APIVersion: "autoscaling/v2beta2",
 			Kind:       "HorizontalPodAutoscaler",
 		},
 	}
