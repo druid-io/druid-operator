@@ -140,10 +140,11 @@ spec:
            name: druid-tiny-cluster-brokers
         metrics:
          - type: Resource
-            name: cpu
-            target:
-              type: Utilization
-              averageUtilization: 50
+           resource:
+             name: cpu
+             target:
+               type: Utilization
+               averageUtilization: 50
 
     coordinators:
       # Optionally specify for running coordinator as Deployment
