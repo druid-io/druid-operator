@@ -11,7 +11,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/autoscaling/v2beta1"
+	"k8s.io/api/autoscaling/v2beta2"
 	"k8s.io/api/core/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/api/policy/v1beta1"
@@ -234,7 +234,7 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 	}
 	if in.HPAutoScaler != nil {
 		in, out := &in.HPAutoScaler, &out.HPAutoScaler
-		*out = new(v2beta1.HorizontalPodAutoscalerSpec)
+		*out = new(v2beta2.HorizontalPodAutoscalerSpec)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.VolumeClaimTemplates != nil {

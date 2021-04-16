@@ -104,12 +104,11 @@
         metrics:
          - type: Resource
            resource:
-            name: cpu
-            targetAverageUtilization: 60
-         - type: Resource
-           resource:
-             name: memory
-             targetAverageUtilization: 60
+             name: cpu
+             target:
+               type: Utilization
+               averageUtilization: 50
+
 ```
 
 ## Configure Ingress

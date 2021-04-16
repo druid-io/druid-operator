@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalev2beta1 "k8s.io/api/autoscaling/v2beta1"
+	autoscalev2beta2 "k8s.io/api/autoscaling/v2beta2"
 	v1 "k8s.io/api/core/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/api/policy/v1beta1"
@@ -253,7 +253,7 @@ type DruidNodeSpec struct {
 	Lifecycle *v1.Lifecycle `json:"lifecycle,omitempty"`
 
 	// Optional
-	HPAutoScaler *autoscalev2beta1.HorizontalPodAutoscalerSpec `json:"hpAutoscaler,omitempty"`
+	HPAutoScaler *autoscalev2beta2.HorizontalPodAutoscalerSpec `json:"hpAutoscaler,omitempty"`
 
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 	VolumeMounts         []v1.VolumeMount           `json:"volumeMounts,omitempty"`
