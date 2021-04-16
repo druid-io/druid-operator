@@ -174,7 +174,6 @@ spec:
         -Xms512M
       volumeClaimTemplates:
         - metadata:
-            creationTimestamp: null
             name: broker-data
           spec:
             accessModes:
