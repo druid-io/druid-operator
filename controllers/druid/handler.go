@@ -1125,7 +1125,7 @@ func statefulSetIsEquals(obj1, obj2 object) bool {
 	// This used to match replica counts, but was reverted to fix https://github.com/druid-io/druid-operator/issues/160
 	// because it is legitimate for HPA to change replica counts and operator shouldn't reset those.
 
-	return true;
+	return true
 }
 
 // makeDeployment shall create deployment object.
@@ -1149,7 +1149,7 @@ func deploymentIsEquals(obj1, obj2 object) bool {
 	// This used to match replica counts, but was reverted to fix https://github.com/druid-io/druid-operator/issues/160
 	// because it is legitimate for HPA to change replica counts and operator shouldn't reset those.
 
-	return true;
+	return true
 }
 
 // makeStatefulSetSpec shall create statefulset spec for statefulsets.
