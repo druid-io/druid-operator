@@ -356,8 +356,8 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			return result
 		})
 	sort.Strings(updatedStatus.ConfigMaps)
-  
-        updatedStatus.PersistentVolumeClaims = deleteUnusedResources(sdk, m, pvcNames, ls,
+
+	updatedStatus.PersistentVolumeClaims = deleteUnusedResources(sdk, m, pvcNames, ls,
 		func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*v1.PersistentVolumeClaimList).Items
@@ -368,7 +368,6 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			return result
 		})
 	sort.Strings(updatedStatus.PersistentVolumeClaims)
-  
 
 	podList, _ := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
@@ -654,7 +653,7 @@ func sdkCreateOrUpdateAsNeeded(
 	isEqualFn func(prev, curr object) bool,
 	updaterFn func(prev, curr object),
 	drd *v1alpha1.Druid,
-	names map[string]bool) (string, error) {
+	names map[string]bool) (DruidNodeStatus, error) {
 	if obj, err := objFn(); err != nil {
 		return "", err
 	} else {

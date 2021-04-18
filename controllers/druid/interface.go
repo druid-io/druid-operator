@@ -11,9 +11,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+type DruidNodeStatus string
+
 const (
-	resourceCreated string = "CREATED"
-	resourceUpdated string = "UPDATED"
+	resourceCreated DruidNodeStatus = "CREATED"
+	resourceUpdated DruidNodeStatus = "UPDATED"
 )
 
 const (
@@ -42,8 +44,8 @@ type Reader interface {
 // Writer Interface
 type Writer interface {
 	Delete(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object, deleteOptions ...client.DeleteOption) error
-	Create(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
-	Update(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
+	Create(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (DruidNodeStatus, error)
+	Update(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (DruidNodeStatus, error)
 	Patch(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, status bool, patch client.Patch) error
 }
 
@@ -82,7 +84,7 @@ func (f WriterFuncs) Patch(ctx context.Context, sdk client.Client, drd *v1alpha1
 }
 
 // Update Func shall update the Object
-func (f WriterFuncs) Update(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error) {
+func (f WriterFuncs) Update(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (DruidNodeStatus, error) {
 
 	if err := sdk.Update(ctx, obj); err != nil {
 		e := fmt.Errorf("Failed to update [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
@@ -99,7 +101,7 @@ func (f WriterFuncs) Update(ctx context.Context, sdk client.Client, drd *v1alpha
 }
 
 // Create methods shall create an object, and returns a string, error
-func (f WriterFuncs) Create(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error) {
+func (f WriterFuncs) Create(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (DruidNodeStatus, error) {
 
 	if err := sdk.Create(ctx, obj); err != nil {
 		e := fmt.Errorf("Failed to create [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
