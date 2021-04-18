@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	resourceCreated = "CREATED"
-	resourceUpdated = "UPDATED"
+	resourceCreated string = "CREATED"
+	resourceUpdated string = "UPDATED"
 )
 
 const (
