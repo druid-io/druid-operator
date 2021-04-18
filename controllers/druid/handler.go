@@ -68,6 +68,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	podDisruptionBudgetNames := make(map[string]bool)
 	hpaNames := make(map[string]bool)
 	ingressNames := make(map[string]bool)
+	pvcNames := make(map[string]bool)
 
 	ls := makeLabelsForDruid(m.Name)
 
@@ -247,6 +248,18 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				return err
 			}
 		}
+
+		if nodeSpec.PersistentVolumeClaim != nil {
+			for _, pvc := range nodeSpec.PersistentVolumeClaim {
+				if _, err := sdkCreateOrUpdateAsNeeded(sdk,
+					func() (object, error) { return makePersistentVolumeClaim(&pvc, &nodeSpec, m, lm, nodeSpecUniqueStr) },
+					func() object { return makePersistentVolumeClaimEmptyObj() }, alwaysTrueIsEqualsFn,
+					noopUpdaterFn,
+					m, pvcNames); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	if m.Spec.DeleteOrphanPvc {
@@ -343,6 +356,19 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			return result
 		})
 	sort.Strings(updatedStatus.ConfigMaps)
+  
+        updatedStatus.PersistentVolumeClaims = deleteUnusedResources(sdk, m, pvcNames, ls,
+		func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() },
+		func(listObj runtime.Object) []object {
+			items := listObj.(*v1.PersistentVolumeClaimList).Items
+			result := make([]object, len(items))
+			for i := 0; i < len(items); i++ {
+				result[i] = &items[i]
+			}
+			return result
+		})
+	sort.Strings(updatedStatus.PersistentVolumeClaims)
+  
 
 	podList, _ := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
@@ -1195,6 +1221,36 @@ func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[str
 	return ingress, nil
 }
 
+func makePersistentVolumeClaim(pvc *v1.PersistentVolumeClaim, nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*v1.PersistentVolumeClaim, error) {
+
+	pvc.TypeMeta = metav1.TypeMeta{
+		APIVersion: "v1",
+		Kind:       "PersistentVolumeClaim",
+	}
+
+	pvc.ObjectMeta.Namespace = m.Namespace
+
+	if pvc.ObjectMeta.Labels == nil {
+		pvc.ObjectMeta.Labels = ls
+	} else {
+		for k, v := range ls {
+			pvc.ObjectMeta.Labels[k] = v
+		}
+	}
+
+	if pvc.ObjectMeta.Name == "" {
+		pvc.ObjectMeta.Name = nodeSpecUniqueStr
+	} else {
+		for _, p := range nodeSpec.PersistentVolumeClaim {
+			pvc.ObjectMeta.Name = p.Name
+			pvc.Spec = p.Spec
+		}
+
+	}
+
+	return pvc, nil
+}
+
 // makeLabelsForDruid returns the labels for selecting the resources
 // belonging to the given druid CR name.
 func makeLabelsForDruid(name string) map[string]string {
@@ -1354,6 +1410,15 @@ func makeHorizontalPodAutoscalerEmptyObj() *autoscalev2beta1.HorizontalPodAutosc
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "autoscaling/v2beta1",
 			Kind:       "HorizontalPodAutoscaler",
+		},
+	}
+}
+
+func makePersistentVolumeClaimEmptyObj() *v1.PersistentVolumeClaim {
+	return &v1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
 		},
 	}
 }
