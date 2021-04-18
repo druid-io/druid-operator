@@ -48,18 +48,10 @@ type Writer interface {
 }
 
 // WriterFuncs struct
-type WriterFuncs struct {
-	deleteFunc func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object) error
-	createFunc func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
-	updateFunc func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (string, error)
-	patchFunc  func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, status bool, patch client.Patch) error
-}
+type WriterFuncs struct{}
 
 // ReaderFuncs struct
-type ReaderFuncs struct {
-	listFunc func(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) ([]object, error)
-	getFunc  func(ctx context.Context, sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (object, error)
-}
+type ReaderFuncs struct{}
 
 // Initalizie Reader
 var readers Reader = ReaderFuncs{}
@@ -71,7 +63,6 @@ var writers Writer = WriterFuncs{}
 // Pass status as true to patch the object status.
 // NOTE: Not logging on patch success, it shall keep logging on each reconcile
 func (f WriterFuncs) Patch(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, status bool, patch client.Patch) error {
-
 	if !status {
 		if err := sdk.Patch(ctx, obj, patch); err != nil {
 			e := fmt.Errorf("failed to patch for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
