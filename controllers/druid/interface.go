@@ -23,7 +23,7 @@ const (
 	DruidNodeUpdateSuccess         string = "UPDATE_SUCCESS"
 	DruidNodeRollingDeploymentWait string = "ROLLING_DEPLOYMENT_WAIT"
 	DruidNodeDeleteFail            string = "DELETE_FAIL"
-	DruidNodeDeleteSuccess         string = "SUCCESS_FAIL"
+	DruidNodeDeleteSuccess         string = "DELETE_SUCCESS"
 	DruidNodeCreateSuccess         string = "CREATE_SUCCESS"
 	DruidNodeCreateFail            string = "CREATE_FAIL"
 	DruidNodePatchFail             string = "PATCH_FAIL"
