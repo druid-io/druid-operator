@@ -32,7 +32,7 @@ func setupK8Evn(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
 	ctrl.SetLogger(zap.New())
 	testK8sCtx.env = &envtest.Environment{
 		CRDInstallOptions: envtest.CRDInstallOptions{
-			Paths: []string{filepath.Join("..", "..", "deploy", "crds", "druid.apache.org_druids.yaml")},
+			Paths: []string{filepath.Join("..", "..", "deploy", "crds", "druid.apache.org_druids_crd.yaml")},
 		},
 	}
 
