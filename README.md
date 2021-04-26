@@ -1,5 +1,5 @@
 # Druid Operator
-[![Build Status](https://api.travis-ci.org/druid-io/druid-operator.svg?branch=master)](https://travis-ci.org/github/druid-io/druid-operator)
+[![Build Status](https://github.com/druid-io/druid-operator/actions/workflows/docker-image.yml/badge.svg)]![release](https://badgen.net/github/release/druid-io/druid-operator/)
 - Druid operator provisions and manages druid cluster on kubernetes. 
 - It is built using the [kubebuilder](https://github.com/kubernetes-sigs/kubebuilder).
 - Language used is GoLang 
