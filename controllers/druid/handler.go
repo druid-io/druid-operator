@@ -36,8 +36,6 @@ const (
 	indexer                      = "indexer"
 	historical                   = "historical"
 	router                       = "router"
-	resourceCreated              = "CREATED"
-	resourceUpdated              = "UPDATED"
 	defaultCommonConfigMountPath = "/druid/conf/druid/_common"
 	finalizerName                = "deletepvc.finalizers.druid.apache.org"
 )
@@ -51,7 +49,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 	if err := verifyDruidSpec(m); err != nil {
 		e := fmt.Errorf("invalid DruidSpec[%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
-		sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+		sendEvent(sdk, m, v1.EventTypeWarning, DruidSpecInvalid, e.Error())
 		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 		return nil
 	}
@@ -59,7 +57,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	allNodeSpecs, err := getAllNodeSpecsInDruidPrescribedOrder(m)
 	if err != nil {
 		e := fmt.Errorf("invalid DruidSpec[%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
-		sendEvent(sdk, m, v1.EventTypeWarning, "SPEC_INVALID", e.Error())
+		sendEvent(sdk, m, v1.EventTypeWarning, DruidSpecInvalid, e.Error())
 		return nil
 	}
 
@@ -113,11 +111,9 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		if cr {
 			if !ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
 				m.SetFinalizers(append(m.GetFinalizers(), finalizerName))
-				if err := sdk.Update(context.Background(), m); err != nil {
-					e := fmt.Errorf("failed to add finalizer to druid CR for [%s] due to [%s]", m.Name, err.Error())
-					sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-					logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-					return e
+				_, err := writers.Update(context.Background(), sdk, m, m)
+				if err != nil {
+					return err
 				}
 			}
 		}
@@ -184,7 +180,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				}
 
 				// Check Deployment rolling update status, if in-progress then stop here
-				done, err := isDeploymentFullyDeployed(sdk, nodeSpecUniqueStr, m)
+				done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeDeploymentEmptyObj() })
 				if !done {
 					return err
 				}
@@ -208,8 +204,8 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				// Default is set to true
 				execCheckCrashStatus(sdk, &nodeSpec, m)
 
-				// Check StatefulSet rolling update status, if in-progress then stop here
-				done, err := isStsFullyDeployed(sdk, nodeSpecUniqueStr, m)
+				//Check StatefulSet rolling update status, if in-progress then stop here
+				done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeStatefulSetEmptyObj() })
 				if !done {
 					return err
 				}
@@ -268,7 +264,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 	if m.Spec.DeleteOrphanPvc {
 		if err := deleteOrphanPVC(sdk, m); err != nil {
-			e := fmt.Errorf("Error in deleteOrphanPVC [%s]", err.Error())
+			e := fmt.Errorf("Error in deleteOrphanPVC due to [%s]", err.Error())
 			sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
 			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 		}
@@ -373,18 +369,16 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		})
 	sort.Strings(updatedStatus.PersistentVolumeClaims)
 
-	podList := makePodList()
-	listOpts := []client.ListOption{
-		client.InNamespace(m.Namespace),
-		client.MatchingLabels(makeLabelsForDruid(m.Name)),
-	}
+	podList, _ := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+		items := listObj.(*v1.PodList).Items
+		result := make([]object, len(items))
+		for i := 0; i < len(items); i++ {
+			result[i] = &items[i]
+		}
+		return result
+	})
 
-	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
-		e := fmt.Errorf("failed to list pods for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
-		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-	}
-	updatedStatus.Pods = getPodNames(podList.Items)
+	updatedStatus.Pods = getPodNames(podList)
 	sort.Strings(updatedStatus.Pods)
 
 	if !reflect.DeepEqual(updatedStatus, m.Status) {
@@ -392,42 +386,25 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		if err != nil {
 			return fmt.Errorf("failed to serialize status patch to bytes: %v", err)
 		}
-		if err := sdk.Status().Patch(context.TODO(), m, client.ConstantPatch(types.MergePatchType, patchBytes)); err != nil {
-			e := fmt.Errorf("failed to update status for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
-			sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-		}
+		_ = writers.Patch(context.TODO(), sdk, m, m, true, client.ConstantPatch(types.MergePatchType, patchBytes))
 	}
 
 	return nil
 }
 
-func deleteSTSAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []*appsv1.StatefulSet, pvcList []*v1.PersistentVolumeClaim) error {
+func deleteSTSAndPVC(sdk client.Client, drd *v1alpha1.Druid, stsList, pvcList []object) error {
 
 	for _, sts := range stsList {
-		if err := sdk.Delete(context.TODO(), sts); err != nil {
-			e := fmt.Errorf("Error deleting sts [%s:%s] due to [%s]", sts, m.Namespace, err.Error())
-			sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
-			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-			return e
-		} else {
-			msg := fmt.Sprintf("Deleting sts [%s:%s] successfully", sts.Name, m.Namespace)
-			sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
-			logger.Info(msg, "name", m.Name, "namespace", m.Namespace)
+		err := writers.Delete(context.TODO(), sdk, drd, sts, &client.DeleteAllOfOptions{})
+		if err != nil {
+			return err
 		}
-
 	}
 
 	for i := range pvcList {
-		if err := sdk.Delete(context.TODO(), pvcList[i]); err != nil {
-			e := fmt.Errorf("Error deleting pvc [%s:%s] due to [%s]", pvcList[i].Name, m.Namespace, err.Error())
-			sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
-			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-			return e
-		} else {
-			msg := fmt.Sprintf("Deleting pvc [%s:%s] successfully", pvcList[i].Name, m.Namespace)
-			sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
-			logger.Info(msg, "name", m.Name, "namespace", m.Namespace)
+		err := writers.Delete(context.TODO(), sdk, drd, pvcList[i], &client.DeleteAllOfOptions{})
+		if err != nil {
+			return err
 		}
 	}
 
@@ -435,109 +412,50 @@ func deleteSTSAndPVC(sdk client.Client, m *v1alpha1.Druid, stsList []*appsv1.Sta
 }
 
 func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid) bool {
-	if err := sdk.Get(context.TODO(), *namespacedName(m.Name, m.Namespace), m); err != nil {
+	_, err := readers.Get(context.TODO(), sdk, m.Name, m, func() object { return makeDruidEmptyObj() })
+	if err != nil {
 		return false
 	} else {
 		return true
 	}
 }
 
-// Create pvcList, reference sts using component label
-func getPVCList(sdk client.Client, drd *v1alpha1.Druid) ([]*v1.PersistentVolumeClaim, error) {
-
-	pvcList := makePersistentVolumeClaimListEmptyObj()
-	listOpts := []client.ListOption{
-		client.InNamespace(drd.Namespace),
-		client.MatchingLabels(map[string]string{
-			"druid_cr": drd.Name,
-		}),
-	}
-
-	if err := sdk.List(context.TODO(), pvcList, listOpts...); err != nil {
-		e := fmt.Errorf("failed to list pvc for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
-		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		return nil, e
-	}
-
-	// create a slice []*pvc
-	pvc := make([]*v1.PersistentVolumeClaim, 0)
-	for i := range pvcList.Items {
-		pvc = append(pvc, &pvcList.Items[i])
-	}
-
-	return pvc, nil
-
-}
-
-func getSTSList(sdk client.Client, drd *v1alpha1.Druid) ([]*appsv1.StatefulSet, error) {
-
-	stsList := makeStatefulSetListEmptyObj()
-	listOpts := []client.ListOption{
-		client.InNamespace(drd.Namespace),
-		client.MatchingLabels(makeLabelsForDruid(drd.Name)),
-	}
-
-	if err := sdk.List(context.TODO(), stsList, listOpts...); err != nil {
-		e := fmt.Errorf("failed to list sts for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
-		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		return nil, e
-	}
-
-	// create a slice []*sts
-	sts := make([]*appsv1.StatefulSet, 0)
-	for i := range stsList.Items {
-		sts = append(sts, &stsList.Items[i])
-	}
-
-	return sts, nil
-
-}
-
-func getPodList(sdk client.Client, drd *v1alpha1.Druid) ([]*v1.Pod, error) {
-
-	podList := makePodList()
-	listOpts := []client.ListOption{
-		client.InNamespace(drd.Namespace),
-		client.MatchingLabels(makeLabelsForDruid(drd.Name)),
-	}
-
-	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
-		e := fmt.Errorf("failed to list pod for [%s:%s] due to [%s]", drd.Kind, drd.Name, err.Error())
-		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		return nil, e
-	}
-
-	// create a slice []*pod
-	pod := make([]*v1.Pod, 0)
-	for i := range podList.Items {
-		pod = append(pod, &podList.Items[i])
-	}
-
-	return pod, nil
-
-}
-
 func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 
-	podList, err := getPodList(sdk, drd)
+	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+		items := listObj.(*v1.PodList).Items
+		result := make([]object, len(items))
+		for i := 0; i < len(items); i++ {
+			result[i] = &items[i]
+		}
+		return result
+	})
 	if err != nil {
 		return err
 	}
 
-	pvcList, err := getPVCList(sdk, drd)
+	pvcLabels := map[string]string{
+		"druid_cr": drd.Name,
+	}
+
+	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+		items := listObj.(*v1.PersistentVolumeClaimList).Items
+		result := make([]object, len(items))
+		for i := 0; i < len(items); i++ {
+			result[i] = &items[i]
+		}
+		return result
+	})
 	if err != nil {
 		return err
 	}
 
 	// Fix: https://github.com/druid-io/druid-operator/issues/149
 	for _, pod := range podList {
-		if pod.Status.Phase != v1.PodRunning {
+		if pod.(*v1.Pod).Status.Phase != v1.PodRunning {
 			return nil
 		}
-		for _, status := range pod.Status.Conditions {
+		for _, status := range pod.(*v1.Pod).Status.Conditions {
 			if status.Status != v1.ConditionTrue {
 				return nil
 			}
@@ -546,8 +464,8 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 
 	mountedPVC := make([]string, len(podList))
 	for _, pod := range podList {
-		if pod.Spec.Volumes != nil {
-			for _, vol := range pod.Spec.Volumes {
+		if pod.(*v1.Pod).Spec.Volumes != nil {
+			for _, vol := range pod.(*v1.Pod).Spec.Volumes {
 				if vol.PersistentVolumeClaim != nil {
 					if !ContainsString(mountedPVC, vol.PersistentVolumeClaim.ClaimName) {
 						mountedPVC = append(mountedPVC, vol.PersistentVolumeClaim.ClaimName)
@@ -560,15 +478,13 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 
 	if mountedPVC != nil {
 		for i, pvc := range pvcList {
-			if !ContainsString(mountedPVC, pvc.Name) {
-				if err := sdk.Delete(context.TODO(), pvcList[i]); err != nil {
-					e := fmt.Errorf("Error deleting orphaned pvc [%s:%s] due to [%s]", pvcList[i].Name, drd.Namespace, err.Error())
-					sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
-					logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-					return nil
+
+			if !ContainsString(mountedPVC, pvc.GetName()) {
+				err := writers.Delete(context.TODO(), sdk, drd, pvcList[i], &client.DeleteAllOfOptions{})
+				if err != nil {
+					return err
 				} else {
-					msg := fmt.Sprintf("Deleted orphaned pvc [%s:%s] successfully", pvcList[i].Name, drd.Namespace)
-					sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
+					msg := fmt.Sprintf("Deleted orphaned pvc [%s:%s] successfully", pvcList[i].GetName(), drd.Namespace)
 					logger.Info(msg, "name", drd.Name, "namespace", drd.Namespace)
 				}
 			}
@@ -580,26 +496,51 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 
 	if ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
-		pvc, _ := getPVCList(sdk, m)
-		stsList, _ := getSTSList(sdk, m)
+		pvcLabels := map[string]string{
+			"druid_cr": m.Name,
+		}
+
+		pvcList, err := readers.List(context.TODO(), sdk, m, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+			items := listObj.(*v1.PersistentVolumeClaimList).Items
+			result := make([]object, len(items))
+			for i := 0; i < len(items); i++ {
+				result[i] = &items[i]
+			}
+			return result
+		})
+		if err != nil {
+			return err
+		}
+
+		stsList, err := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
+			items := listObj.(*appsv1.StatefulSetList).Items
+			result := make([]object, len(items))
+			for i := 0; i < len(items); i++ {
+				result[i] = &items[i]
+			}
+			return result
+		})
+		if err != nil {
+			return err
+		}
+
 		msg := fmt.Sprintf("Trigerring finalizer for CR [%s] in namespace [%s]", m.Name, m.Namespace)
-		sendEvent(sdk, m, v1.EventTypeNormal, "TRIGGER_FINALIZER", msg)
+		sendEvent(sdk, m, v1.EventTypeNormal, DruidFinalizer, msg)
 		logger.Info(msg)
-		if err := deleteSTSAndPVC(sdk, m, stsList, pvc); err != nil {
+		if err := deleteSTSAndPVC(sdk, m, stsList, pvcList); err != nil {
 			return err
 		} else {
 			msg := fmt.Sprintf("Finalizer success for CR [%s] in namespace [%s]", m.Name, m.Namespace)
-			sendEvent(sdk, m, v1.EventTypeNormal, "TRIGGER_FINALIZER_SUCCESS", msg)
+			sendEvent(sdk, m, v1.EventTypeNormal, DruidFinalizerSuccess, msg)
 			logger.Info(msg)
 		}
 
 		// remove our finalizer from the list and update it.
 		m.ObjectMeta.Finalizers = RemoveString(m.ObjectMeta.Finalizers, finalizerName)
-		if err := sdk.Update(context.TODO(), m); err != nil {
-			e := fmt.Errorf("failed to Update druid CR for [%s] due to [%s]", m.Name, err.Error())
-			sendEvent(sdk, m, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-			return e
+
+		_, err = writers.Update(context.TODO(), sdk, m, m)
+		if err != nil {
+			return err
 		}
 
 	}
@@ -617,49 +558,45 @@ func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m
 	}
 }
 
-func checkCrashStatus(sdk client.Client, m *v1alpha1.Druid) {
-	podList := makePodList()
-	listOpts := []client.ListOption{
-		client.InNamespace(m.Namespace),
-		client.MatchingLabels(makeLabelsForDruid(m.Name)),
+func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) error {
+
+	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+		items := listObj.(*v1.PodList).Items
+		result := make([]object, len(items))
+		for i := 0; i < len(items); i++ {
+			result[i] = &items[i]
+		}
+		return result
+	})
+	if err != nil {
+		return err
 	}
 
-	if err := sdk.List(context.TODO(), podList, listOpts...); err != nil {
-		e := fmt.Errorf("failed to list pods for [%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
-		sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-	}
-
-	pod := make([]*v1.Pod, 0)
-	for i := range podList.Items {
-		pod = append(pod, &podList.Items[i])
-	}
-
-	for _, p := range pod {
-		if p.Status.ContainerStatuses[0].RestartCount > 1 {
-			for _, condition := range p.Status.Conditions {
+	for _, p := range podList {
+		if p.(*v1.Pod).Status.ContainerStatuses[0].RestartCount > 1 {
+			for _, condition := range p.(*v1.Pod).Status.Conditions {
 				// condition.type Ready means the pod is able to service requests
 				if condition.Type == v1.ContainersReady {
 					// the below condition evalutes if a pod is in
 					// 1. pending state 2. failed state 3. unknown state
 					// OR condtion.status is false which evalutes if neither of these conditions are met
 					// 1. ContainersReady 2. PodInitialized 3. PodReady 4. PodScheduled
-					if p.Status.Phase != v1.PodRunning || condition.Status == v1.ConditionFalse {
-						err := sdkDelete(context.TODO(), sdk, p)
+					if p.(*v1.Pod).Status.Phase != v1.PodRunning || condition.Status == v1.ConditionFalse {
+						err := writers.Delete(context.TODO(), sdk, drd, p, &client.DeleteOptions{})
 						if err != nil {
-							e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", p.Name, m.GetName(), err.Error())
-							sendEvent(sdk, m, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
-							logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+							return err
 						} else {
 							msg := fmt.Sprintf("Deleted pod [%s] in namespace [%s], since it was in crashloopback state.", p.GetName(), p.GetNamespace())
-							logger.Info(msg, "Object", stringifyForLogging(p, m), "name", m.Name, "namespace", m.Namespace)
-							sendEvent(sdk, m, v1.EventTypeNormal, "DELETE_SUCCESS", msg)
+							logger.Info(msg, "Object", stringifyForLogging(p, drd), "name", drd.Name, "namespace", drd.Namespace)
+							sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeDeleteSuccess, msg)
 						}
 					}
 				}
 			}
 		}
 	}
+
+	return nil
 }
 
 func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
@@ -673,20 +610,19 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 	survivorNames := make([]string, 0, len(names))
 
 	listObj := emptyListObjFn()
+
 	if err := sdk.List(context.TODO(), listObj, listOpts...); err != nil {
 		e := fmt.Errorf("failed to list [%s] due to [%s]", listObj.GetObjectKind().GroupVersionKind().Kind, err.Error())
-		sendEvent(sdk, drd, v1.EventTypeWarning, "LIST_FAIL", e.Error())
+		sendEvent(sdk, drd, v1.EventTypeWarning, DruidObjectListFail, e.Error())
 		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 	} else {
 		for _, s := range itemsExtractorFn(listObj) {
 			if names[s.GetName()] == false {
-				if err := sdkDelete(context.TODO(), sdk, s); err != nil {
-					e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName(), err.Error())
-					sendEvent(sdk, drd, v1.EventTypeWarning, "DELETE_FAIL", e.Error())
-					logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
+				err := writers.Delete(context.TODO(), sdk, drd, s, &client.DeleteOptions{})
+				if err != nil {
 					survivorNames = append(survivorNames, s.GetName())
 				} else {
-					sendEvent(sdk, drd, v1.EventTypeNormal, "DELETE_SUCCESS", fmt.Sprintf("Deleted [%s:%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName()))
+					sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeDeleteSuccess, fmt.Sprintf("Deleted [%s:%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName()))
 				}
 			} else {
 				survivorNames = append(survivorNames, s.GetName())
@@ -717,7 +653,7 @@ func sdkCreateOrUpdateAsNeeded(
 	isEqualFn func(prev, curr object) bool,
 	updaterFn func(prev, curr object),
 	drd *v1alpha1.Druid,
-	names map[string]bool) (string, error) {
+	names map[string]bool) (DruidNodeStatus, error) {
 	if obj, err := objFn(); err != nil {
 		return "", err
 	} else {
@@ -730,21 +666,16 @@ func sdkCreateOrUpdateAsNeeded(
 		if err := sdk.Get(context.TODO(), *namespacedName(obj.GetName(), obj.GetNamespace()), prevObj); err != nil {
 			if apierrors.IsNotFound(err) {
 				// resource does not exist, create it.
-				if err := sdkCreate(context.TODO(), sdk, obj); err != nil {
-					e := fmt.Errorf("Failed to create [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
-					logger.Error(e, e.Error(), "object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace, "errorType", apierrors.ReasonForError(err))
-					sendEvent(sdk, drd, v1.EventTypeWarning, "CREATE_FAIL", e.Error())
-					return "", e
+				create, err := writers.Create(context.TODO(), sdk, drd, obj)
+				if err != nil {
+					return "", err
 				} else {
-					msg := fmt.Sprintf("Created [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
-					logger.Info(msg, "Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
-					sendEvent(sdk, drd, v1.EventTypeNormal, "CREATE_SUCCESS", msg)
-					return resourceCreated, nil
+					return create, nil
 				}
 			} else {
 				e := fmt.Errorf("Failed to get [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 				logger.Error(e, e.Error(), "Prev object", stringifyForLogging(prevObj, drd), "name", drd.Name, "namespace", drd.Namespace)
-				sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
+				sendEvent(sdk, drd, v1.EventTypeWarning, DruidOjectGetFail, e.Error())
 				return "", e
 			}
 		} else {
@@ -753,17 +684,11 @@ func sdkCreateOrUpdateAsNeeded(
 
 				obj.SetResourceVersion(prevObj.GetResourceVersion())
 				updaterFn(prevObj, obj)
-
-				if err := sdk.Update(context.TODO(), obj); err != nil {
-					e := fmt.Errorf("Failed to update [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
-					logger.Error(e, e.Error(), "Current Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
-					sendEvent(sdk, drd, v1.EventTypeWarning, "UPDATE_FAIL", e.Error())
-					return "", e
+				update, err := writers.Update(context.TODO(), sdk, drd, obj)
+				if err != nil {
+					return "", err
 				} else {
-					msg := fmt.Sprintf("Updated [%s:%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName())
-					logger.Info(msg, "Prev Object", stringifyForLogging(prevObj, drd), "Updated Object", stringifyForLogging(obj, drd), "name", drd.Name, "namespace", drd.Namespace)
-					sendEvent(sdk, drd, v1.EventTypeNormal, "UPDATE_SUCCESS", msg)
-					return resourceUpdated, nil
+					return update, err
 				}
 			} else {
 				return "", nil
@@ -772,42 +697,36 @@ func sdkCreateOrUpdateAsNeeded(
 	}
 }
 
-// Checks if all replicas corresponding to latest updated sts have been deployed
-func isStsFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bool, error) {
-	sts := makeStatefulSetEmptyObj()
-	if err := sdk.Get(context.TODO(), *namespacedName(name, drd.Namespace), sts); err != nil {
-		e := fmt.Errorf("failed to get [StatefuleSet:%s] due to [%s]", name, err.Error())
-		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
-		return false, e
-	} else {
-		if sts.Status.CurrentRevision != sts.Status.UpdateRevision {
-			msg := fmt.Sprintf("StatefulSet[%s] roll out is in progress CurrentRevision[%s] != UpdateRevision[%s], UpdatedReplicas[%d/%d]", name, sts.Status.CurrentRevision, sts.Status.UpdateRevision, sts.Status.UpdatedReplicas, *sts.Spec.Replicas)
-			sendEvent(sdk, drd, v1.EventTypeNormal, "ROLLING_DEPLOYMENT_WAIT", msg)
-			return false, nil
-		} else {
-			return true, nil
-		}
-	}
-}
+func isObjFullyDeployed(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (bool, error) {
 
-// Checks if all replicas desired are in ready state for deployment
-func isDeploymentFullyDeployed(sdk client.Client, name string, drd *v1alpha1.Druid) (bool, error) {
-	deploy := makeDeploymentEmptyObj()
-	if err := sdk.Get(context.TODO(), *namespacedName(name, drd.Namespace), deploy); err != nil {
-		e := fmt.Errorf("failed to get [Deployment:%s] due to [%s]", name, err.Error())
-		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-		sendEvent(sdk, drd, v1.EventTypeWarning, "GET_FAIL", e.Error())
-		return false, e
-	} else {
-		if deploy.Status.ReadyReplicas != deploy.Status.Replicas {
-			msg := fmt.Sprintf("Deployment[%s] roll out is in progress, UpdatedReplicas[%d] [%d]", name, deploy.Status.UpdatedReplicas, *deploy.Spec.Replicas)
-			sendEvent(sdk, drd, v1.EventTypeNormal, "ROLLING_DEPLOYMENT_WAIT", msg)
+	// Get Object
+	obj, err := readers.Get(context.TODO(), sdk, nodeSpecUniqueStr, drd, emptyObjFn)
+	if err != nil {
+		return false, err
+	}
+
+	// Detect underlying object type
+	objType := reflect.TypeOf(obj)
+
+	// In case obj is a statefulset or deployment, make sure the sts/deployment has successfully reconciled to desired state
+	if objType.String() == "*v1.StatefulSet" {
+		if obj.(*appsv1.StatefulSet).Status.CurrentRevision != obj.(*appsv1.StatefulSet).Status.UpdateRevision {
+			msg := fmt.Sprintf("StatefulSet[%s] roll out is in progress CurrentRevision[%s] != UpdateRevision[%s], UpdatedReplicas[%d/%d]", nodeSpecUniqueStr, obj.(*appsv1.StatefulSet).Status.CurrentRevision, obj.(*appsv1.StatefulSet).Status.UpdateRevision, obj.(*appsv1.StatefulSet).Status.UpdatedReplicas, *obj.(*appsv1.StatefulSet).Spec.Replicas)
+			sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeRollingDeploymentWait, msg)
+			return false, nil
+		} else {
+			return true, nil
+		}
+	} else if objType.String() == "*v1.Deployment" {
+		if obj.(*appsv1.Deployment).Status.ReadyReplicas != obj.(*appsv1.Deployment).Status.Replicas {
+			msg := fmt.Sprintf("Deployment[%s] roll out is in progress, UpdatedReplicas[%d] [%d]", nodeSpecUniqueStr, obj.(*appsv1.Deployment).Status.UpdatedReplicas, *obj.(*appsv1.Deployment).Spec.Replicas)
+			sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeRollingDeploymentWait, msg)
 			return false, nil
 		} else {
 			return true, nil
 		}
 	}
+	return false, nil
 }
 
 func stringifyForLogging(obj object, drd *v1alpha1.Druid) string {
@@ -1379,6 +1298,15 @@ func makePodList() *v1.PodList {
 	}
 }
 
+func makeDruidEmptyObj() *v1alpha1.Druid {
+	return &v1alpha1.Druid{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Druid",
+			APIVersion: "v1alpha1",
+		},
+	}
+}
+
 func makeStatefulSetListEmptyObj() *appsv1.StatefulSetList {
 	return &appsv1.StatefulSetList{
 		TypeMeta: metav1.TypeMeta{
@@ -1438,6 +1366,15 @@ func makeServiceListEmptyObj() *v1.ServiceList {
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
+		},
+	}
+}
+
+func makePodEmptyObj() *v1.Pod {
+	return &v1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
 		},
 	}
 }
@@ -1524,10 +1461,10 @@ func makeConfigMapEmptyObj() *v1.ConfigMap {
 }
 
 // getPodNames returns the pod names of the array of pods passed in
-func getPodNames(pods []v1.Pod) []string {
+func getPodNames(pods []object) []string {
 	var podNames []string
 	for _, pod := range pods {
-		podNames = append(podNames, pod.Name)
+		podNames = append(podNames, pod.(*v1.Pod).Name)
 	}
 	return podNames
 }
