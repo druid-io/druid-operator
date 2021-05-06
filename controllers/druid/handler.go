@@ -20,7 +20,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -274,7 +273,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	updatedStatus := v1alpha1.DruidStatus{}
 
 	updatedStatus.StatefulSets = deleteUnusedResources(sdk, m, statefulSetNames, ls,
-		func() runtime.Object { return makeStatefulSetListEmptyObj() },
+		func() objectList { return makeStatefulSetListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*appsv1.StatefulSetList).Items
 			result := make([]object, len(items))
@@ -286,7 +285,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	sort.Strings(updatedStatus.StatefulSets)
 
 	updatedStatus.Deployments = deleteUnusedResources(sdk, m, deploymentNames, ls,
-		func() runtime.Object { return makeDeloymentListEmptyObj() },
+		func() objectList { return makeDeloymentListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*appsv1.DeploymentList).Items
 			result := make([]object, len(items))
@@ -298,7 +297,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	sort.Strings(updatedStatus.Deployments)
 
 	updatedStatus.HPAutoScalers = deleteUnusedResources(sdk, m, hpaNames, ls,
-		func() runtime.Object { return makeHorizontalPodAutoscalerListEmptyObj() },
+		func() objectList { return makeHorizontalPodAutoscalerListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*autoscalev2beta2.HorizontalPodAutoscalerList).Items
 			result := make([]object, len(items))
@@ -310,7 +309,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	sort.Strings(updatedStatus.HPAutoScalers)
 
 	updatedStatus.Ingress = deleteUnusedResources(sdk, m, ingressNames, ls,
-		func() runtime.Object { return makeIngressListEmptyObj() },
+		func() objectList { return makeIngressListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*networkingv1beta1.IngressList).Items
 			result := make([]object, len(items))
@@ -322,7 +321,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	sort.Strings(updatedStatus.Ingress)
 
 	updatedStatus.PodDisruptionBudgets = deleteUnusedResources(sdk, m, podDisruptionBudgetNames, ls,
-		func() runtime.Object { return makePodDisruptionBudgetListEmptyObj() },
+		func() objectList { return makePodDisruptionBudgetListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*v1beta1.PodDisruptionBudgetList).Items
 			result := make([]object, len(items))
@@ -334,7 +333,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	sort.Strings(updatedStatus.PodDisruptionBudgets)
 
 	updatedStatus.Services = deleteUnusedResources(sdk, m, serviceNames, ls,
-		func() runtime.Object { return makeServiceListEmptyObj() },
+		func() objectList { return makeServiceListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*v1.ServiceList).Items
 			result := make([]object, len(items))
@@ -346,7 +345,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	sort.Strings(updatedStatus.Services)
 
 	updatedStatus.ConfigMaps = deleteUnusedResources(sdk, m, configMapNames, ls,
-		func() runtime.Object { return makeConfigMapListEmptyObj() },
+		func() objectList { return makeConfigMapListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*v1.ConfigMapList).Items
 			result := make([]object, len(items))
@@ -358,7 +357,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	sort.Strings(updatedStatus.ConfigMaps)
 
 	updatedStatus.PersistentVolumeClaims = deleteUnusedResources(sdk, m, pvcNames, ls,
-		func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() },
+		func() objectList { return makePersistentVolumeClaimListEmptyObj() },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*v1.PersistentVolumeClaimList).Items
 			result := make([]object, len(items))
@@ -369,7 +368,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		})
 	sort.Strings(updatedStatus.PersistentVolumeClaims)
 
-	podList, _ := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, _ := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -386,7 +385,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		if err != nil {
 			return fmt.Errorf("failed to serialize status patch to bytes: %v", err)
 		}
-		_ = writers.Patch(context.TODO(), sdk, m, m, true, client.ConstantPatch(types.MergePatchType, patchBytes))
+		_ = writers.Patch(context.TODO(), sdk, m, m, true, client.RawPatch(types.MergePatchType, patchBytes))
 	}
 
 	return nil
@@ -422,7 +421,7 @@ func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid) bool {
 
 func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 
-	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -438,7 +437,7 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 		"druid_cr": drd.Name,
 	}
 
-	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, func() objectList { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PersistentVolumeClaimList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -500,7 +499,7 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 			"druid_cr": m.Name,
 		}
 
-		pvcList, err := readers.List(context.TODO(), sdk, m, pvcLabels, func() runtime.Object { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+		pvcList, err := readers.List(context.TODO(), sdk, m, pvcLabels, func() objectList { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 			items := listObj.(*v1.PersistentVolumeClaimList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
@@ -512,7 +511,7 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 			return err
 		}
 
-		stsList, err := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() runtime.Object { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
+		stsList, err := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() objectList { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
 			items := listObj.(*appsv1.StatefulSetList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
@@ -560,7 +559,7 @@ func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m
 
 func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) error {
 
-	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), func() runtime.Object { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -600,7 +599,7 @@ func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) error {
 }
 
 func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
-	names map[string]bool, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, itemsExtractorFn func(obj runtime.Object) []object) []string {
+	names map[string]bool, selectorLabels map[string]string, emptyListObjFn func() objectList, itemsExtractorFn func(obj runtime.Object) []object) []string {
 
 	listOpts := []client.ListOption{
 		client.InNamespace(drd.Namespace),
@@ -631,11 +630,6 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 	}
 
 	return survivorNames
-}
-
-type object interface {
-	metav1.Object
-	runtime.Object
 }
 
 func alwaysTrueIsEqualsFn(prev, curr object) bool {
@@ -1605,30 +1599,3 @@ func getAllNodeSpecsInDruidPrescribedOrder(m *v1alpha1.Druid) ([]keyAndNodeSpec,
 func namespacedName(name, namespace string) *types.NamespacedName {
 	return &types.NamespacedName{Name: name, Namespace: namespace}
 }
-
-//-------------------------------------------
-// resetGroupVersionKind func is copied from controller-runtime/pkg/client/client.go to retain TypeMeta
-// on sdk.Create/Delete , PATCH/UPDATE already retain that
-
-// resetGroupVersionKind is a helper function to restore and preserve GroupVersionKind on an object.
-// TODO(vincepri): Remove this function and its calls once    controller-runtime dependencies are upgraded to 1.15.
-func resetGroupVersionKind(obj runtime.Object, gvk schema.GroupVersionKind) {
-	if gvk != schema.EmptyObjectKind.GroupVersionKind() {
-		if v, ok := obj.(schema.ObjectKind); ok {
-			v.SetGroupVersionKind(gvk)
-		}
-	}
-}
-
-// Create implements client.Client
-func sdkCreate(ctx context.Context, sdk client.Client, obj runtime.Object) error {
-	defer resetGroupVersionKind(obj, obj.GetObjectKind().GroupVersionKind())
-	return sdk.Create(ctx, obj)
-}
-
-func sdkDelete(ctx context.Context, sdk client.Client, obj runtime.Object) error {
-	defer resetGroupVersionKind(obj, obj.GetObjectKind().GroupVersionKind())
-	return sdk.Delete(ctx, obj)
-}
-
-//--------------------------------------------------------------------------------------------------------------------

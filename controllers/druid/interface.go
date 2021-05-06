@@ -7,6 +7,7 @@ import (
 	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -37,13 +38,13 @@ const (
 
 // Reader Interface
 type Reader interface {
-	List(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) ([]object, error)
+	List(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() objectList, ListObjFn func(obj runtime.Object) []object) ([]object, error)
 	Get(ctx context.Context, sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (object, error)
 }
 
 // Writer Interface
 type Writer interface {
-	Delete(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object, deleteOptions ...client.DeleteOption) error
+	Delete(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, deleteOptions ...client.DeleteOption) error
 	Create(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (DruidNodeStatus, error)
 	Update(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object) (DruidNodeStatus, error)
 	Patch(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, status bool, patch client.Patch) error
@@ -60,6 +61,18 @@ var readers Reader = ReaderFuncs{}
 
 // Initalize Writer
 var writers Writer = WriterFuncs{}
+
+// Object Interface : Wrapper interface includes metav1 object and runtime object interface.
+type object interface {
+	metav1.Object
+	runtime.Object
+}
+
+// Object List Interface : Wrapper interface includes metav1 List and
+type objectList interface {
+	metav1.ListInterface
+	runtime.Object
+}
 
 // Patch method shall patch the status of Obj or the status.
 // Pass status as true to patch the object status.
@@ -118,7 +131,7 @@ func (f WriterFuncs) Create(ctx context.Context, sdk client.Client, drd *v1alpha
 }
 
 // Delete methods shall delete the object, deleteOptions is a variadic parameter to support various delete options such as cascade deletion.
-func (f WriterFuncs) Delete(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj runtime.Object, deleteOptions ...client.DeleteOption) error {
+func (f WriterFuncs) Delete(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, deleteOptions ...client.DeleteOption) error {
 
 	if err := sdk.Delete(ctx, obj, deleteOptions...); err != nil {
 		e := fmt.Errorf("Error deleting object [%s] in namespace [%s] due to [%s]", obj.GetObjectKind().GroupVersionKind().Kind, drd.Namespace, err.Error())
@@ -147,7 +160,7 @@ func (f ReaderFuncs) Get(ctx context.Context, sdk client.Client, nodeSpecUniqueS
 }
 
 // List methods shall return the list of an object
-func (f ReaderFuncs) List(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() runtime.Object, ListObjFn func(obj runtime.Object) []object) ([]object, error) {
+func (f ReaderFuncs) List(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, selectorLabels map[string]string, emptyListObjFn func() objectList, ListObjFn func(obj runtime.Object) []object) ([]object, error) {
 	listOpts := []client.ListOption{
 		client.InNamespace(drd.Namespace),
 		client.MatchingLabels(selectorLabels),

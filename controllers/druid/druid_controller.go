@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	druidv1alpha1 "github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 )
@@ -27,15 +28,15 @@ type DruidReconciler struct {
 // +kubebuilder:rbac:groups=druid.apache.org,resources=druids,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=druid.apache.org,resources=druids/status,verbs=get;update;patch
 
-func (r *DruidReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *DruidReconciler) Reconcile(ctx context.Context, request reconcile.Request) (ctrl.Result, error) {
 	_ = context.Background()
-	_ = r.Log.WithValues("druid", req.NamespacedName)
+	_ = r.Log.WithValues("druid", request.NamespacedName)
 
 	// your logic here
 
 	// Fetch the Druid instance
 	instance := &druidv1alpha1.Druid{}
-	err := r.Get(context.TODO(), req.NamespacedName, instance)
+	err := r.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -47,7 +48,7 @@ func (r *DruidReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	if err := deployDruidCluster(r, instance); err != nil {
+	if err := deployDruidCluster(r.Client, instance); err != nil {
 		return ctrl.Result{}, err
 	} else {
 		return ctrl.Result{RequeueAfter: r.ReconcileWait}, nil
