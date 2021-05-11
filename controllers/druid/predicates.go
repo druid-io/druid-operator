@@ -13,8 +13,8 @@ func ignoreNamespacePredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			for _, namespace := range namespaces {
-				if e.Meta.GetNamespace() == namespace {
-					msg := fmt.Sprintf("druid operator will not re-concile namespace [%s], alter DENY_LIST to re-concile", e.Meta.GetNamespace())
+				if e.Object.GetNamespace() == namespace {
+					msg := fmt.Sprintf("druid operator will not re-concile namespace [%s], alter DENY_LIST to re-concile", e.Object.GetNamespace())
 					logger.Info(msg)
 					return false
 				}
@@ -23,8 +23,8 @@ func ignoreNamespacePredicate() predicate.Predicate {
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			for _, namespace := range namespaces {
-				if e.MetaNew.GetNamespace() == namespace {
-					msg := fmt.Sprintf("druid operator will not re-concile namespace [%s], alter DENY_LIST to re-concile", e.MetaNew.GetNamespace())
+				if e.ObjectNew.GetNamespace() == namespace {
+					msg := fmt.Sprintf("druid operator will not re-concile namespace [%s], alter DENY_LIST to re-concile", e.ObjectNew.GetNamespace())
 					logger.Info(msg)
 					return false
 				}
