@@ -68,7 +68,7 @@ type object interface {
 	runtime.Object
 }
 
-// Object List Interface : Wrapper interface includes metav1 List and
+// Object List Interface : Wrapper interface includes metav1 List and runtime object interface.
 type objectList interface {
 	metav1.ListInterface
 	runtime.Object
