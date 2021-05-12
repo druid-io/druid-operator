@@ -1,13 +1,13 @@
 {{- if .Values.rbac.create }}
 apiVersion: rbac.authorization.k8s.io/v1
-{{- if .Values.watchNamespace }}
+{{- if .Values.env.WATCH_NAMESPACE }}
 kind: RoleBinding
 {{- else }}
 kind: ClusterRoleBinding
 {{- end }}
 metadata:
-{{- if .Values.watchNamespace }}
-  namespace: {{ .Release.Namespace }}
+{{- if .Values.env.WATCH_NAMESPACE }}
+  namespace: {{ .Values.env.WATCH_NAMESPACE }}
 {{- end }}
   name: {{ template "druid-operator.fullname" . }}
   labels:
@@ -17,7 +17,7 @@ subjects:
   name: {{ include "druid-operator.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
 roleRef:
-  kind: {{ if .Values.watchNamespace }} Role {{ else }} ClusterRole {{ end }}
+  kind: {{ if .Values.env.WATCH_NAMESPACE }} Role {{ else }} ClusterRole {{ end }}
   name: {{ template "druid-operator.fullname" . }}
   apiGroup: rbac.authorization.k8s.io
 {{- end }}

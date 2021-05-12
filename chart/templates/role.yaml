@@ -1,13 +1,13 @@
 {{- if .Values.rbac.create }}
 apiVersion: rbac.authorization.k8s.io/v1
-{{- if .Values.watchNamespace }}
+{{- if .Values.env.WATCH_NAMESPACE }}
 kind: Role
 {{- else }}
 kind: ClusterRole
 {{- end }}
 metadata:
-{{- if .Values.watchNamespace }}
-  namespace: {{ .Release.Namespace }}
+{{- if .Values.env.WATCH_NAMESPACE }}
+  namespace: {{ .Values.env.WATCH_NAMESPACE }}
 {{- end }}
   name: {{ template "druid-operator.fullname" . }}
   labels:
@@ -49,6 +49,7 @@ rules:
     - '*'
 - apiGroups:
     - extensions
+    - networking.k8s.io
   resources:
     - ingresses
   verbs:
