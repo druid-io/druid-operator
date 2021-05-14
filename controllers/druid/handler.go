@@ -20,6 +20,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -356,6 +357,18 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		})
 	sort.Strings(updatedStatus.ConfigMaps)
 
+	updatedStatus.PersistentVolumeClaims = deleteUnusedResources(sdk, m, pvcNames, ls,
+		func() objectList { return makePersistentVolumeClaimListEmptyObj() },
+		func(listObj runtime.Object) []object {
+			items := listObj.(*v1.PersistentVolumeClaimList).Items
+			result := make([]object, len(items))
+			for i := 0; i < len(items); i++ {
+				result[i] = &items[i]
+			}
+			return result
+		})
+	sort.Strings(updatedStatus.PersistentVolumeClaims)
+
 	podList, _ := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
@@ -605,8 +618,12 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 	} else {
 		for _, s := range itemsExtractorFn(listObj) {
 			if names[s.GetName()] == false {
-				err := writers.Delete(context.TODO(), sdk, drd, s, &client.DeleteOptions{})
-				if err != nil {
+				// writers.Delete() shall delete the object
+				// using sdkDelete() to preserve the object
+				if err := sdkDelete(context.TODO(), sdk, s); err != nil {
+					e := fmt.Errorf("failed to delete [%s:%s] due to [%s]", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName(), err.Error())
+					sendEvent(sdk, drd, v1.EventTypeWarning, DruidNodeDeleteFail, e.Error())
+					logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 					survivorNames = append(survivorNames, s.GetName())
 				} else {
 					sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeDeleteSuccess, fmt.Sprintf("Deleted [%s:%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName()))
@@ -1586,4 +1603,17 @@ func getAllNodeSpecsInDruidPrescribedOrder(m *v1alpha1.Druid) ([]keyAndNodeSpec,
 
 func namespacedName(name, namespace string) *types.NamespacedName {
 	return &types.NamespacedName{Name: name, Namespace: namespace}
+}
+
+func resetGroupVersionKind(obj runtime.Object, gvk schema.GroupVersionKind) {
+	if gvk != schema.EmptyObjectKind.GroupVersionKind() {
+		if v, ok := obj.(schema.ObjectKind); ok {
+			v.SetGroupVersionKind(gvk)
+		}
+	}
+}
+
+func sdkDelete(ctx context.Context, sdk client.Client, obj object) error {
+	defer resetGroupVersionKind(obj, obj.GetObjectKind().GroupVersionKind())
+	return sdk.Delete(ctx, obj)
 }
