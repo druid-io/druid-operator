@@ -20,7 +20,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -619,25 +618,6 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 	}
 
 	return survivorNames
-}
-
-func resetGroupVersionKind(obj runtime.Object, gvk schema.GroupVersionKind) {
-	if gvk != schema.EmptyObjectKind.GroupVersionKind() {
-		if v, ok := obj.(schema.ObjectKind); ok {
-			v.SetGroupVersionKind(gvk)
-		}
-	}
-}
-
-// Create implements client.Client
-func sdkCreate(ctx context.Context, sdk client.Client, obj object) error {
-	defer resetGroupVersionKind(obj, obj.GetObjectKind().GroupVersionKind())
-	return sdk.Create(ctx, obj)
-}
-
-func sdkDelete(ctx context.Context, sdk client.Client, obj object) error {
-	defer resetGroupVersionKind(obj, obj.GetObjectKind().GroupVersionKind())
-	return sdk.Delete(ctx, obj)
 }
 
 func alwaysTrueIsEqualsFn(prev, curr object) bool {
