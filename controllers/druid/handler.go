@@ -356,18 +356,6 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		})
 	sort.Strings(updatedStatus.ConfigMaps)
 
-	updatedStatus.PersistentVolumeClaims = deleteUnusedResources(sdk, m, pvcNames, ls,
-		func() objectList { return makePersistentVolumeClaimListEmptyObj() },
-		func(listObj runtime.Object) []object {
-			items := listObj.(*v1.PersistentVolumeClaimList).Items
-			result := make([]object, len(items))
-			for i := 0; i < len(items); i++ {
-				result[i] = &items[i]
-			}
-			return result
-		})
-	sort.Strings(updatedStatus.PersistentVolumeClaims)
-
 	podList, _ := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
