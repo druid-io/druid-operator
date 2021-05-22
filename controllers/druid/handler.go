@@ -179,7 +179,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				}
 
 				// Ignore isObjFullyDeployed() for the first iteration ie cluster creation
-				// will force cluster cretion in parallel, post first iternation rolling updates
+				// will force cluster creation in parallel, post first iteration rolling updates
 				// will be sequential.
 				if m.Generation > 1 {
 					// Check Deployment rolling update status, if in-progress then stop here
@@ -209,7 +209,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				execCheckCrashStatus(sdk, &nodeSpec, m)
 
 				// Ignore isObjFullyDeployed() for the first iteration ie cluster creation
-				// will force cluster cretion in parallel, post first iternation rolling updates
+				// will force cluster creation in parallel, post first iteration rolling updates
 				// will be sequential.
 				if m.Generation > 1 {
 					//Check StatefulSet rolling update status, if in-progress then stop here
