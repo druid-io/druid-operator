@@ -178,10 +178,15 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return nil
 				}
 
-				// Check Deployment rolling update status, if in-progress then stop here
-				done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeDeploymentEmptyObj() })
-				if !done {
-					return err
+				// Ignore isObjFullyDeployed() for the first iteration ie cluster creation
+				// will force cluster creation in parallel, post first iteration rolling updates
+				// will be sequential.
+				if m.Generation > 1 {
+					// Check Deployment rolling update status, if in-progress then stop here
+					done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeDeploymentEmptyObj() })
+					if !done {
+						return err
+					}
 				}
 			}
 		} else {
@@ -203,10 +208,15 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				// Default is set to true
 				execCheckCrashStatus(sdk, &nodeSpec, m)
 
-				//Check StatefulSet rolling update status, if in-progress then stop here
-				done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeStatefulSetEmptyObj() })
-				if !done {
-					return err
+				// Ignore isObjFullyDeployed() for the first iteration ie cluster creation
+				// will force cluster creation in parallel, post first iteration rolling updates
+				// will be sequential.
+				if m.Generation > 1 {
+					//Check StatefulSet rolling update status, if in-progress then stop here
+					done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeStatefulSetEmptyObj() })
+					if !done {
+						return err
+					}
 				}
 			}
 
