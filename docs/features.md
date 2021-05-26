@@ -10,7 +10,8 @@
 
 ## Deny List in Operator
 - There may be use cases where we want the operator to watch all namespaces but restrict few namespaces, due to security, testing flexibility etc reasons.
-- The druid operator supports such cases. In ```deploy/operator.yaml```, user can enable ```DENY_LIST``` env and pass the namespaces to be excluded. 
+- The druid operator supports such cases. In ```deploy/operator.yaml```, user can enable ```DENY_LIST``` env and pass the namespaces to be excluded.
+- 
 - Each namespace to be seperated using a comma.
 
 ## Reconcile Time in Operator
@@ -24,8 +25,8 @@
 - Default behavior is set to true ie after deletion of CR, any pvc's provisioned by sts shall be deleted.
 
 ## Deletetion of Orphan PVC's
-- Assume ingestion is kicked off on druid, the MiddleManagers nodes are scaled to a certain number of replicas, and when the ingestion is completed. The middlemanagers are scaled down to avoid costs etc. 
-- Sts on scale down, just terminated the pods it owns not the PVC. PVC are left orpahned and are of little or no use.
+- Assume ingestion is kicked off on druid, the sts MiddleManagers nodes are scaled to a certain number of replicas, and when the ingestion is completed. The middlemanagers are scaled down to avoid costs etc. 
+- Sts on scale down, just terminates the pods it owns not the PVC. PVC are left orpahned and are of little or no use.
 - In such cases druid-operator supports deletion of pvc orphaned by the sts. 
 - To enable this feature users need to add a flag in the druid cluster spec ```deleteOrphanPvc: true```.
 
