@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -689,6 +690,7 @@ func sdkCreateOrUpdateAsNeeded(
 	}
 }
 
+// In case obj is a statefulset or deployment, make sure the sts/deployment has successfully reconciled to desired state
 func isObjFullyDeployed(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (bool, error) {
 
 	// Get Object
@@ -700,24 +702,36 @@ func isObjFullyDeployed(sdk client.Client, nodeSpecUniqueStr string, drd *v1alph
 	// Detect underlying object type
 	objType := reflect.TypeOf(obj)
 
-	// In case obj is a statefulset or deployment, make sure the sts/deployment has successfully reconciled to desired state
+	// TODO: @AdheipSingh https://github.com/kubernetes/kubernetes/blob/master/pkg/apis/apps/types.go#L217, once k8s sts conditions detect sts fail errors.
 	if objType.String() == "*v1.StatefulSet" {
 		if obj.(*appsv1.StatefulSet).Status.CurrentRevision != obj.(*appsv1.StatefulSet).Status.UpdateRevision {
-			msg := fmt.Sprintf("StatefulSet[%s] roll out is in progress CurrentRevision[%s] != UpdateRevision[%s], UpdatedReplicas[%d/%d]", nodeSpecUniqueStr, obj.(*appsv1.StatefulSet).Status.CurrentRevision, obj.(*appsv1.StatefulSet).Status.UpdateRevision, obj.(*appsv1.StatefulSet).Status.UpdatedReplicas, *obj.(*appsv1.StatefulSet).Spec.Replicas)
-			sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeRollingDeploymentWait, msg)
+			msg := fmt.Sprintf("StatefulSet[%s] roll out is in progress CurrentRevision[%s] != UpdateRevision[%s], UpdatedReplicas[%d] [%d]", nodeSpecUniqueStr, obj.(*appsv1.StatefulSet).Status.CurrentRevision, obj.(*appsv1.StatefulSet).Status.UpdateRevision, obj.(*appsv1.StatefulSet).Status.UpdatedReplicas, *obj.(*appsv1.StatefulSet).Spec.Replicas)
+			sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeRollingDeployWait, msg)
+			return false, nil
+		} else if obj.(*appsv1.StatefulSet).Status.CurrentReplicas != obj.(*appsv1.StatefulSet).Status.ReadyReplicas {
+			msg := fmt.Sprintf("StatefulSet[%s] roll out is in progress CurrentReplicas[%d] != ReadyReplicas[%d]", nodeSpecUniqueStr, obj.(*appsv1.StatefulSet).Status.CurrentReplicas, obj.(*appsv1.StatefulSet).Status.ReadyReplicas)
+			sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeRollingDeployWait, msg)
 			return false, nil
 		} else {
-			return true, nil
+			return obj.(*appsv1.StatefulSet).Status.CurrentRevision == obj.(*appsv1.StatefulSet).Status.UpdateRevision, nil
 		}
 	} else if objType.String() == "*v1.Deployment" {
-		if obj.(*appsv1.Deployment).Status.ReadyReplicas != obj.(*appsv1.Deployment).Status.Replicas {
-			msg := fmt.Sprintf("Deployment[%s] roll out is in progress, UpdatedReplicas[%d] [%d]", nodeSpecUniqueStr, obj.(*appsv1.Deployment).Status.UpdatedReplicas, *obj.(*appsv1.Deployment).Spec.Replicas)
-			sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeRollingDeploymentWait, msg)
-			return false, nil
-		} else {
-			return true, nil
+		for _, condition := range obj.(*appsv1.Deployment).Status.Conditions {
+			// This detects a failure condition, operator should send a rolling deployment failed event
+			if condition.Type == appsv1.DeploymentReplicaFailure {
+				msg := fmt.Sprintf("Deployment[%s] roll out failed in namespace [%s] due to error [%s]", obj.(*appsv1.Deployment).Name, drd.Namespace, condition.Reason)
+				sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeRollingDeployFail, msg)
+				return false, errors.New(condition.Reason)
+			} else if condition.Type == appsv1.DeploymentProgressing && condition.Status != v1.ConditionTrue || obj.(*appsv1.Deployment).Status.ReadyReplicas != obj.(*appsv1.Deployment).Status.Replicas {
+				msg := fmt.Sprintf("Deployment[%s] roll out is in progress in namespace [%s], ReadyReplicas [%d] != Current Replicas [%d]", obj.(*appsv1.Deployment).Name, drd.Namespace, obj.(*appsv1.Deployment).Status.ReadyReplicas, obj.(*appsv1.Deployment).Status.Replicas)
+				sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeRollingDeployWait, msg)
+				return false, nil
+			} else {
+				return obj.(*appsv1.Deployment).Status.ReadyReplicas == obj.(*appsv1.Deployment).Status.Replicas, nil
+			}
 		}
 	}
+
 	return false, nil
 }
 
