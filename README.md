@@ -1,8 +1,11 @@
 # Druid Operator
-![Build Status](https://github.com/druid-io/druid-operator/actions/workflows/docker-image.yml/badge.svg)
-- Druid operator provisions and manages druid cluster on kubernetes. 
+![Build Status](https://github.com/druid-io/druid-operator/actions/workflows/docker-image.yml/badge.svg) ![Docker pull](https://img.shields.io/docker/pulls/druidio/druid-operator.svg) [![Latest Version](https://img.shields.io/github/tag/druid-io/druid-operator)](https://github.com/druid-io/druid-operator/releases)
+
+- Druid operator provisions and manages druid cluster on kubernetes.
+- Druid operator is designed to provision and manage druid in distributed mode only.
 - It is built using the [kubebuilder](https://github.com/kubernetes-sigs/kubebuilder).
-- Language used is GoLang 
+- Language used is GoLang.
+- Druid Operator is available on [operatorhub.io](https://operatorhub.io/operator/druid-operator)
 - Refer to [Documentation](./docs/README.md) for getting started.
 
 ### Supported CR
@@ -10,6 +13,7 @@
 - ```Druid``` CR belongs to api Group ```druid.apache.org``` and version ```v1alpha1```
 
 ### Notifications
-- Users may experience HPA issues with druid operator with release 0.0.5, as described in the issue https://github.com/druid-io/druid-operator/issues/160. 
+- Users may experience HPA issues with druid operator with release 0.0.5, as described in the [issue]( https://github.com/druid-io/druid-operator/issues/160). 
 - The latest release 0.0.6 has fixes for the above issue.
 - The operator has moved from HPA apiVersion autoscaling/v2beta1 to autoscaling/v2beta2 API users will need to update there HPA Specs according v2beta2 api in order to work with the latest druid operator release.
+- Users may experience pvc deletion [issue](https://github.com/druid-io/druid-operator/issues/186) in release 0.0.6, this issue has been fixed in patch release 0.0.6.1.
