@@ -6,7 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalev2beta2 "k8s.io/api/autoscaling/v2beta2"
 	v1 "k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -245,7 +245,7 @@ type DruidNodeSpec struct {
 	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
 
 	// Optional: Ingress Spec
-	Ingress *networkingv1beta1.IngressSpec `json:"ingress,omitempty"`
+	Ingress *networkingv1.IngressSpec `json:"ingress,omitempty"`
 
 	// Optional: Persistant volume claim
 	PersistentVolumeClaim []v1.PersistentVolumeClaim `json:"persistentVolumeClaim,omitempty"`

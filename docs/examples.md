@@ -115,23 +115,27 @@
 
 ```
  brokers:
-      nodeType: "broker"
-      druid.port: 8080
-      ingressAnnotations:
-          "nginx.ingress.kubernetes.io/rewrite-target": "/"
-      ingress:
-        tls:
-         - hosts:
-            - sslexample.foo.com
-           secretName: testsecret-tls
-        rules:
-         - host: sslexample.foo.com
-           http:
-             paths:
-             - path: /
-               backend:
-                 serviceName: service1
-                 servicePort: 80    
+  nodeType: "broker"
+  druid.port: 8080
+  ingressAnnotations:
+      "nginx.ingress.kubernetes.io/rewrite-target": "/"
+  ingress:
+    ingressClassName: nginx # specific to ingress controllers.
+    rules:
+    - host: broker.myhostname.com
+      http:
+        paths:
+        - backend:
+            service:
+              name: broker_svc
+              port:
+                name: http
+          path: /
+          pathType: ImplementationSpecific
+    tls:
+    - hosts:
+      - broker.myhostname.com
+      secretName: tls-broker-druid-cluster
 ```
 
 ## Configure Deployments 

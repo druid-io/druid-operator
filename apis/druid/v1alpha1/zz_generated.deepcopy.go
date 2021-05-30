@@ -13,7 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/autoscaling/v2beta2"
 	"k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/api/policy/v1beta1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -217,7 +217,7 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 	}
 	if in.Ingress != nil {
 		in, out := &in.Ingress, &out.Ingress
-		*out = new(networkingv1beta1.IngressSpec)
+		*out = new(networkingv1.IngressSpec)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.PersistentVolumeClaim != nil {
