@@ -1199,7 +1199,7 @@ func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[str
 
 	ingress := &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1beta1",
+			APIVersion: "networking.k8s.io/v1",
 			Kind:       "Ingress",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -1338,7 +1338,7 @@ func makeHorizontalPodAutoscalerListEmptyObj() *autoscalev2beta2.HorizontalPodAu
 func makeIngressListEmptyObj() *networkingv1.IngressList {
 	return &networkingv1.IngressList{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1beta1",
+			APIVersion: "networking.k8s.io/v1",
 			Kind:       "Ingress",
 		},
 	}
@@ -1428,7 +1428,7 @@ func makePersistentVolumeClaimListEmptyObj() *v1.PersistentVolumeClaimList {
 func makeIngressEmptyObj() *networkingv1.Ingress {
 	return &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1beta1",
+			APIVersion: "networking.k8s.io/v1",
 			Kind:       "Ingress",
 		},
 	}
