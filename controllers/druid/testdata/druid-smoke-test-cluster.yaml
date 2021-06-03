@@ -194,7 +194,7 @@ spec:
             paths:
             - backend:
                 service:
-                  name: broker_svc
+                  name: brokersvc
                   port:
                     name: http
               path: /
