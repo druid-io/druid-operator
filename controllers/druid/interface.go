@@ -34,6 +34,9 @@ const (
 	DruidOjectGetFail              string = "GET_FAIL"
 	DruidFinalizerSuccess          string = "TRIGGER_FINALIZER_SUCCESS"
 	DruidFinalizer                 string = "TRIGGER_FINALIZER"
+	DruidStsResizeFail             string = "STS_PVC_RESIZE_FAIL"
+	DruidStsSizeDetected           string = "STS_SIZE_DETECTED"
+	DruidNodePatchSucess           string = "PATCH_SUCCESS"
 )
 
 // Reader Interface
