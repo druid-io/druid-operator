@@ -12,7 +12,7 @@ import (
 	"sort"
 
 	autoscalev2beta2 "k8s.io/api/autoscaling/v2beta2"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 
 	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -322,7 +322,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	updatedStatus.Ingress = deleteUnusedResources(sdk, m, ingressNames, ls,
 		func() objectList { return makeIngressListEmptyObj() },
 		func(listObj runtime.Object) []object {
-			items := listObj.(*networkingv1beta1.IngressList).Items
+			items := listObj.(*networkingv1.IngressList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
 				result[i] = &items[i]
@@ -1208,12 +1208,12 @@ func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.D
 	return hpa, nil
 }
 
-func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*networkingv1beta1.Ingress, error) {
+func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*networkingv1.Ingress, error) {
 	nodeIngressSpec := *nodeSpec.Ingress
 
-	ingress := &networkingv1beta1.Ingress{
+	ingress := &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1beta1",
+			APIVersion: "networking.k8s.io/v1",
 			Kind:       "Ingress",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -1349,10 +1349,10 @@ func makeHorizontalPodAutoscalerListEmptyObj() *autoscalev2beta2.HorizontalPodAu
 	}
 }
 
-func makeIngressListEmptyObj() *networkingv1beta1.IngressList {
-	return &networkingv1beta1.IngressList{
+func makeIngressListEmptyObj() *networkingv1.IngressList {
+	return &networkingv1.IngressList{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1beta1",
+			APIVersion: "networking.k8s.io/v1",
 			Kind:       "Ingress",
 		},
 	}
@@ -1439,10 +1439,10 @@ func makePersistentVolumeClaimListEmptyObj() *v1.PersistentVolumeClaimList {
 	}
 }
 
-func makeIngressEmptyObj() *networkingv1beta1.Ingress {
-	return &networkingv1beta1.Ingress{
+func makeIngressEmptyObj() *networkingv1.Ingress {
+	return &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1beta1",
+			APIVersion: "networking.k8s.io/v1",
 			Kind:       "Ingress",
 		},
 	}
