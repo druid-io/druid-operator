@@ -20,20 +20,21 @@ const (
 )
 
 const (
-	DruidNodeUpdateFail            string = "UPDATE_FAIL"
-	DruidNodeUpdateSuccess         string = "UPDATE_SUCCESS"
-	DruidNodeRollingDeploymentWait string = "ROLLING_DEPLOYMENT_WAIT"
-	DruidNodeDeleteFail            string = "DELETE_FAIL"
-	DruidNodeDeleteSuccess         string = "DELETE_SUCCESS"
-	DruidNodeCreateSuccess         string = "CREATE_SUCCESS"
-	DruidNodeCreateFail            string = "CREATE_FAIL"
-	DruidNodePatchFail             string = "PATCH_FAIL"
-	DruidSpecInvalid               string = "SPEC_INVALID"
-	DruidNodeRunning               string = "RUNNING"
-	DruidObjectListFail            string = "LIST_FAIL"
-	DruidOjectGetFail              string = "GET_FAIL"
-	DruidFinalizerSuccess          string = "TRIGGER_FINALIZER_SUCCESS"
-	DruidFinalizer                 string = "TRIGGER_FINALIZER"
+	DruidNodeUpdateFail        string = "UPDATE_FAIL"
+	DruidNodeUpdateSuccess     string = "UPDATE_SUCCESS"
+	DruidNodeRollingDeployWait string = "ROLLING_DEPLOY_WAIT"
+	DruidNodeRollingDeployFail string = "ROLLING_DEPLOY_FAIL"
+	DruidNodeDeleteFail        string = "DELETE_FAIL"
+	DruidNodeDeleteSuccess     string = "DELETE_SUCCESS"
+	DruidNodeCreateSuccess     string = "CREATE_SUCCESS"
+	DruidNodeCreateFail        string = "CREATE_FAIL"
+	DruidNodePatchFail         string = "PATCH_FAIL"
+	DruidSpecInvalid           string = "SPEC_INVALID"
+	DruidNodeRunning           string = "RUNNING"
+	DruidObjectListFail        string = "LIST_FAIL"
+	DruidOjectGetFail          string = "GET_FAIL"
+	DruidFinalizerSuccess      string = "TRIGGER_FINALIZER_SUCCESS"
+	DruidFinalizer             string = "TRIGGER_FINALIZER"
 )
 
 // Reader Interface
