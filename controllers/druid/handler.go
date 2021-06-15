@@ -938,6 +938,16 @@ func getTolerations(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.To
 	return tolerations
 }
 
+func getTopologySpreadConstraints(nodeSpec *v1alpha1.DruidNodeSpec) []v1.TopologySpreadConstraint {
+	var topologySpreadConstraint []v1.TopologySpreadConstraint
+
+	for _, val := range nodeSpec.TopologySpreadConstraints {
+		topologySpreadConstraint = append(topologySpreadConstraint, val)
+	}
+
+	return topologySpreadConstraint
+}
+
 func getVolume(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUniqueStr string) []v1.Volume {
 	volumesHolder := []v1.Volume{
 		{
@@ -1130,10 +1140,11 @@ func makePodTemplate(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 // makePodSpec shall create podSpec common to both deployment and statefulset.
 func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUniqueStr, configMapSHA string) v1.PodSpec {
 	spec := v1.PodSpec{
-		NodeSelector:     m.Spec.NodeSelector,
-		Tolerations:      getTolerations(nodeSpec, m),
-		Affinity:         getAffinity(nodeSpec, m),
-		ImagePullSecrets: firstNonNilValue(nodeSpec.ImagePullSecrets, m.Spec.ImagePullSecrets).([]v1.LocalObjectReference),
+		NodeSelector:              m.Spec.NodeSelector,
+		TopologySpreadConstraints: getTopologySpreadConstraints(nodeSpec),
+		Tolerations:               getTolerations(nodeSpec, m),
+		Affinity:                  getAffinity(nodeSpec, m),
+		ImagePullSecrets:          firstNonNilValue(nodeSpec.ImagePullSecrets, m.Spec.ImagePullSecrets).([]v1.LocalObjectReference),
 		Containers: []v1.Container{
 			{
 				Image:           firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),

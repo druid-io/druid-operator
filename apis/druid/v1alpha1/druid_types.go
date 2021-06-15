@@ -256,6 +256,9 @@ type DruidNodeSpec struct {
 	// Optional
 	HPAutoScaler *autoscalev2beta2.HorizontalPodAutoscalerSpec `json:"hpAutoscaler,omitempty"`
 
+	// Optional
+	TopologySpreadConstraints []v1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
+
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 	VolumeMounts         []v1.VolumeMount           `json:"volumeMounts,omitempty"`
 	Volumes              []v1.Volume                `json:"volumes,omitempty"`
