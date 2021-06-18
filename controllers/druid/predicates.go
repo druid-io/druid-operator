@@ -15,40 +15,24 @@ type GenericPredicates struct {
 
 // create() to filter create events
 func (GenericPredicates) Create(e event.CreateEvent) bool {
-	namespaces := getEnvAsSlice("DENY_LIST", nil, ",")
-
-	for _, namespace := range namespaces {
-		if e.Object.GetNamespace() == namespace {
-			msg := fmt.Sprintf("druid operator will not re-concile namespace [%s], alter DENY_LIST to re-concile", e.Object.GetNamespace())
-			logger.Info(msg)
-			return false
-		}
-	}
-	return true
-
+	return IgnoreNamespacePredicate(e.Object)
 }
 
 // update() to filter update events
 func (GenericPredicates) Update(e event.UpdateEvent) bool {
+	return IgnoreNamespacePredicate(e.ObjectNew)
+
+}
+
+func IgnoreNamespacePredicate(obj object) bool {
 	namespaces := getEnvAsSlice("DENY_LIST", nil, ",")
 
 	for _, namespace := range namespaces {
-		if e.ObjectNew.GetNamespace() == namespace {
-			msg := fmt.Sprintf("druid operator will not re-concile namespace [%s], alter DENY_LIST to re-concile", e.ObjectNew.GetNamespace())
+		if obj.GetNamespace() == namespace {
+			msg := fmt.Sprintf("druid operator will not re-concile namespace [%s], alter DENY_LIST to re-concile", obj.GetNamespace())
 			logger.Info(msg)
 			return false
 		}
 	}
 	return true
-
 }
-
-// Delete() to filter delete events
-//func (GenericPredicates) Delete(e event.DeleteEvent) bool {
-//	return true
-//}
-
-// Genreric() to filter generic events
-//func (GenericPredicates)  Genreric(e event.GenericEvent) bool {
-//	return true
-//}
