@@ -273,14 +273,13 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	}
 
 	// Ignore on cluster creation
-	if m.Generation > 1 {
-		if m.Spec.DeleteOrphanPvc {
-			if err := deleteOrphanPVC(sdk, m); err != nil {
-				e := fmt.Errorf("Error in deleteOrphanPVC due to [%s]", err.Error())
-				sendEvent(sdk, m, v1.EventTypeWarning, DruidNodeDeleteFail, e.Error())
-				logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
-			}
+	if m.Generation > 1 && m.Spec.DeleteOrphanPvc {
+		if err := deleteOrphanPVC(sdk, m); err != nil {
+			e := fmt.Errorf("Error in deleteOrphanPVC due to [%s]", err.Error())
+			sendEvent(sdk, m, v1.EventTypeWarning, DruidNodeDeleteFail, e.Error())
+			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
 		}
+
 	}
 
 	//update status and delete unwanted resources
