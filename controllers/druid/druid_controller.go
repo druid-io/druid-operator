@@ -58,7 +58,7 @@ func (r *DruidReconciler) Reconcile(ctx context.Context, request reconcile.Reque
 func (r *DruidReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&druidv1alpha1.Druid{}).
-		WithEventFilter(ignoreNamespacePredicate()).
+		WithEventFilter(GenericPredicates{}).
 		Complete(r)
 }
 
