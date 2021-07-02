@@ -61,9 +61,9 @@ func (r *DruidReconciler) Reconcile(ctx context.Context, request reconcile.Reque
 	}
 
 	// Intialize Emit Events
-	var emitEvents EventEmitter = EmitEventFuncs{r.Recorder}
+	var emitEvent EventEmitter = EmitEventFuncs{r.Recorder}
 
-	if err := deployDruidCluster(r.Client, instance, emitEvents); err != nil {
+	if err := deployDruidCluster(r.Client, instance, emitEvent); err != nil {
 		return ctrl.Result{}, err
 	} else {
 		return ctrl.Result{RequeueAfter: r.ReconcileWait}, nil

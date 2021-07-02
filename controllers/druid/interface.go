@@ -236,7 +236,7 @@ func (e EmitEventFuncs) EmitEventOnList(obj object, listObj objectList, err erro
 // EmitEventOnUpdate shall emit event on UPDATE operation
 func (e EmitEventFuncs) EmitEventOnUpdate(obj, updateObj object, err error) {
 	if err != nil {
-		errMsg := fmt.Errorf("Failed to update [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
+		errMsg := fmt.Errorf("Failed to update [%s:%s] due to [%s].", updateObj.GetObjectKind().GroupVersionKind().Kind, updateObj.GetName(), err.Error())
 		e.Event(obj, v1.EventTypeWarning, string(druidNodeUpdateFail), errMsg.Error())
 	} else {
 		msg := fmt.Sprintf("Updated [%s:%s].", updateObj.GetObjectKind().GroupVersionKind().Kind, updateObj.GetName())
@@ -258,10 +258,10 @@ func (e EmitEventFuncs) EmitEventOnDelete(obj, deleteObj object, err error) {
 // EmitEventOnCreate shall emit event on CREATE operation
 func (e EmitEventFuncs) EmitEventOnCreate(obj, createObj object, err error) {
 	if err != nil {
-		errMsg := fmt.Errorf("Error creating object [%s] in namespace [%s] due to [%s]", createObj.GetObjectKind().GroupVersionKind().Kind, createObj.GetNamespace(), err.Error())
+		errMsg := fmt.Errorf("Error creating object [%s] in namespace [%s:%s] due to [%s]", createObj.GetObjectKind().GroupVersionKind().Kind, createObj.GetName(), createObj.GetNamespace(), err.Error())
 		e.Event(obj, v1.EventTypeWarning, string(druidNodeCreateFail), errMsg.Error())
 	} else {
-		msg := fmt.Sprintf("Successfully created object [%s] in namespace [%s]", createObj.GetObjectKind().GroupVersionKind().Kind, createObj.GetNamespace())
+		msg := fmt.Sprintf("Successfully created object [%s:%s] in namespace [%s]", createObj.GetObjectKind().GroupVersionKind().Kind, createObj.GetName(), createObj.GetNamespace())
 		e.Event(obj, v1.EventTypeNormal, string(druidNodeCreateSuccess), msg)
 	}
 }
