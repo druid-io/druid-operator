@@ -66,7 +66,7 @@ type GenericEventEmitter interface {
 	EmitEventGeneric(obj object, eventReason, msg string, err error)
 }
 
-// Methods include an obj and k8s obj, obj is druid CR ( runtime.Object) and k8s obj ( object interface )
+// Methods include an obj and k8s obj, obj is druid CR (runtime.Object) and k8s obj ( object interface )
 // K8sEventEmitter will also be displayed in logs of the operator. (only on state change)
 // All methods are tied to reader,writer interfaces. Custom errors msg's and msg's are constructed within the methods and are not expected to change.
 type K8sEventEmitter interface {
@@ -221,7 +221,7 @@ func (e EmitEventFuncs) EmitEventGeneric(obj object, eventReason, msg string, er
 
 // EmitEventOnGetError shall emit event on GET err operation
 func (e EmitEventFuncs) EmitEventOnGetError(obj, getObj object, err error) {
-	getErr := fmt.Errorf("failed to get [Object:%s] due to [%s]", getObj.GetName(), err.Error())
+	getErr := fmt.Errorf("Failed to get [Object:%s] due to [%s]", getObj.GetName(), err.Error())
 	e.Event(obj, v1.EventTypeWarning, string(druidOjectGetFail), getErr.Error())
 }
 
