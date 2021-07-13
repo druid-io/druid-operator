@@ -23,6 +23,7 @@ rules:
       - events
     verbs:
       - create
+      - patch
   - apiGroups:
       - apps
     resources:
