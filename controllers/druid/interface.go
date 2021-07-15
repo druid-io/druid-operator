@@ -247,10 +247,10 @@ func (e EmitEventFuncs) EmitEventOnUpdate(obj, updateObj object, err error) {
 // EmitEventOnDelete shall emit event on DELETE operation
 func (e EmitEventFuncs) EmitEventOnDelete(obj, deleteObj object, err error) {
 	if err != nil {
-		errMsg := fmt.Errorf("Error deleting object [%s] in namespace [%s] due to [%s]", deleteObj.GetObjectKind().GroupVersionKind().Kind, deleteObj.GetNamespace(), err.Error())
+		errMsg := fmt.Errorf("Error deleting object [%s:%s] in namespace [%s] due to [%s]", deleteObj.GetObjectKind().GroupVersionKind().Kind, deleteObj.GetName(), deleteObj.GetNamespace(), err.Error())
 		e.Event(obj, v1.EventTypeWarning, string(druidNodeDeleteFail), errMsg.Error())
 	} else {
-		msg := fmt.Sprintf("Successfully deleted object [%s] in namespace [%s]", deleteObj.GetObjectKind().GroupVersionKind().Kind, deleteObj.GetNamespace())
+		msg := fmt.Sprintf("Successfully deleted object [%s:%s] in namespace [%s]", deleteObj.GetObjectKind().GroupVersionKind().Kind, deleteObj.GetName(), deleteObj.GetNamespace())
 		e.Event(obj, v1.EventTypeNormal, string(druidNodeDeleteSuccess), msg)
 	}
 }

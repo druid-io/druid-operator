@@ -23,12 +23,11 @@ func newDruidNodeTypeStatus(
 	var reason string
 
 	if nodeCondition == v1alpha1.DruidClusterReady {
-		nodeTierOrType = ""
+		nodeTierOrType = "All"
 		reason = "All Druid Nodes are in Ready Condition"
 	} else if nodeCondition == v1alpha1.DruidNodeRollingUpdate {
 		reason = "Druid Node [" + nodeTierOrType + "] is Rolling Update"
 	} else if err != nil {
-		nodeTierOrType = ""
 		reason = err.Error()
 		nodeCondition = v1alpha1.DruidNodeErrorState
 	}
