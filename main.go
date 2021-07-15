@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	druidv1alpha1 "github.com/druid-io/druid-operator/apis/druid/v1alpha1"
-	druidcontroller "github.com/druid-io/druid-operator/controllers/druid"
+	"github.com/druid-io/druid-operator/controllers/druid"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -51,12 +51,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&druidcontroller.DruidReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("Druid"),
-		Scheme:        mgr.GetScheme(),
-		ReconcileWait: druidcontroller.LookupReconcileTime(),
-	}).SetupWithManager(mgr); err != nil {
+	if err = (druid.NewDruidReconciler(mgr)).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Druid")
 		os.Exit(1)
 	}

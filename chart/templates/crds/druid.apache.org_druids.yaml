@@ -4412,6 +4412,17 @@ spec:
                 items:
                   type: string
                 type: array
+              druidNodeStatus:
+                properties:
+                  druidNode:
+                    type: string
+                  druidNodeConditionStatus:
+                    type: string
+                  druidNodeConditionType:
+                    type: string
+                  reason:
+                    type: string
+                type: object
               hpAutoscalers:
                 items:
                   type: string
