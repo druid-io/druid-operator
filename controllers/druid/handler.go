@@ -890,7 +890,7 @@ func getServiceName(nameTemplate, nodeSpecUniqueStr string) string {
 }
 
 func getPersistentVolumeClaim(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.PersistentVolumeClaim {
-	pvc := []v1.PersistentVolumeClaim{}
+	var pvc = []v1.PersistentVolumeClaim{}
 
 	for _, val := range m.Spec.VolumeClaimTemplates {
 		pvc = append(pvc, val)
@@ -905,6 +905,7 @@ func getPersistentVolumeClaim(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Drui
 }
 
 func getVolumeMounts(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.VolumeMount {
+
 	volumeMount := []v1.VolumeMount{
 		{
 			MountPath: firstNonEmptyStr(m.Spec.CommonConfigMountPath, defaultCommonConfigMountPath),
@@ -928,7 +929,8 @@ func getNodeConfigMountPath(nodeSpec *v1alpha1.DruidNodeSpec) string {
 }
 
 func getTolerations(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.Toleration {
-	tolerations := []v1.Toleration{}
+
+	var tolerations = []v1.Toleration{}
 
 	for _, val := range m.Spec.Tolerations {
 		tolerations = append(tolerations, val)
