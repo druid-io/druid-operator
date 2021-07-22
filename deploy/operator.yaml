@@ -18,7 +18,7 @@ spec:
           # Replace this with the built image name
           image: druid-operator:latest
           command:
-          - /manager
+          - druid-operator
           imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
