@@ -83,8 +83,8 @@ kubectl logs -n tiny-cluster druid-metadata-postgresql-0
 ## 4. Install the Druid operator
 a. Clone the repo and switch to `kick-tires` branch.
 ```shell script
-git clone https://github.com/arrawatia/druid-operator.git
-git checkout kick-tires
+git clone https://github.com/confluentinc/druid-operator.git
+git checkout cc-druid-operator
 ```
 
 b. Create the required k8s resources.
@@ -94,14 +94,13 @@ kubectl create --namespace tiny-cluster -f deploy/service_account.yaml
 kubectl create --namespace tiny-cluster -f deploy/role.yaml
 kubectl create --namespace tiny-cluster -f deploy/role_binding.yaml
 # Setup the CRD
-kubectl create --namespace tiny-cluster -f deploy/crds/druid.apache.org_druids_crd.yaml
+kubectl create --namespace tiny-cluster -f deploy/crds/druid.apache.org_druids.yaml
 ```
 c. Deploy the druid-operator
 ```shell script
 eval $(minikube -p minikube docker-env)
 
 make docker-build
-
 kubectl apply --namespace tiny-cluster -f deploy/operator.yaml
 ```
 d. Check the deployed druid-operator. Make sure the pods are up and running.
@@ -116,7 +115,7 @@ kubectl -n tiny-cluster logs -l app=druid-operator
 a. Pull the image manually until I figure out how to add image secrets
 ```shell script
 eval $(minikube -p minikube docker-env)
-docker pull confluent-docker.jfrog.io/confluentinc/cc-druid:v0.46.0
+docker pull confluent-docker.jfrog.io/confluentinc/cc-druid:v1.202.0
 ```
 b. Create the zookeeper cluster.
 ```shell script
