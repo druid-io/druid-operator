@@ -245,7 +245,7 @@ spec:
     middlemanagers:
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/data/middleManager"
       nodeType: "middleManager"
-      druid.port: 8080
+      druid.port: 8091
       replicas: 1
       runtime.properties: |-
         druid.service=druid/middleManager
@@ -259,6 +259,10 @@ spec:
       extra.jvm.options: |-
         -Xmx1G
         -Xms1G
+      readinessProbe:
+        httpGet:
+          path: /status/health
+          port: 8091
       resources:
         requests:
           memory: "2Gi"

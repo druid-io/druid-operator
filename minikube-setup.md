@@ -20,9 +20,11 @@ minikube addons enable ingress-dns
 
 Please make sure that you follow the steps [here](https://github.com/kubernetes/minikube/tree/master/deploy/addons/ingress-dns) to add minikube as the dns resolver for `*.test` domain. 
 
-Hint: On MacOS you will need to kill the mDNSResponder for the dns changes to start working.
+Hint: On MacOS you will need to kill the mDNSResponder for the dns changes to start working and also reload Mac OS mDNS resolver.
 ```shell script
 sudo killall -HUP mDNSResponder
+sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.mDNSResponder.plist
+sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.mDNSResponder.plist
 ```
 
 ## 2. Install minio (storage server with S3 compatible api) for deep storage
