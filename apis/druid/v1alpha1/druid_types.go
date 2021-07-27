@@ -140,6 +140,9 @@ type DruidSpec struct {
 	Zookeeper     *ZookeeperSpec     `json:"zookeeper,omitempty"`
 	MetadataStore *MetadataStoreSpec `json:"metadataStore,omitempty"`
 	DeepStorage   *DeepStorageSpec   `json:"deepStorage,omitempty"`
+
+	// Optional: Custom Dimension Map Path for statsd emitter
+	DimensionsMapPath string `json:"metricDimensions.json,omitempty"`
 }
 
 type DruidNodeSpec struct {

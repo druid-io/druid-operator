@@ -799,11 +799,19 @@ func makeCommonConfigMap(m *v1alpha1.Druid, ls map[string]string) (*v1.ConfigMap
 		}
 	}
 
+	data := map[string]string{
+		"common.runtime.properties": prop,
+	}
+
+	if m.Spec.DimensionsMapPath != "" {
+		data["metricDimensions.json"] = m.Spec.DimensionsMapPath
+	}
+
 	cfg, err := makeConfigMap(
 		fmt.Sprintf("%s-druid-common-config", m.ObjectMeta.Name),
 		m.Namespace,
 		ls,
-		map[string]string{"common.runtime.properties": prop})
+		data)
 	return cfg, err
 }
 
