@@ -544,6 +544,8 @@ spec:
                 - spec
                 - type
                 type: object
+              metricDimensions.json:
+                type: string
               nodeSelector:
                 additionalProperties:
                   type: string
