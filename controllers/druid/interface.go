@@ -236,10 +236,10 @@ func (e EmitEventFuncs) EmitEventOnList(obj object, listObj objectList, err erro
 // EmitEventOnUpdate shall emit event on UPDATE operation
 func (e EmitEventFuncs) EmitEventOnUpdate(obj, updateObj object, err error) {
 	if err != nil {
-		errMsg := fmt.Errorf("Failed to update [%s:%s] due to [%s].", updateObj.GetObjectKind().GroupVersionKind().Kind, updateObj.GetName(), err.Error())
+		errMsg := fmt.Errorf("Failed to update [%s:%s] due to [%s].", updateObj.GetName(), updateObj.GetObjectKind().GroupVersionKind().Kind, err.Error())
 		e.Event(obj, v1.EventTypeWarning, string(druidNodeUpdateFail), errMsg.Error())
 	} else {
-		msg := fmt.Sprintf("Updated [%s:%s].", updateObj.GetObjectKind().GroupVersionKind().Kind, updateObj.GetName())
+		msg := fmt.Sprintf("Updated [%s:%s].", updateObj.GetName(), updateObj.GetObjectKind().GroupVersionKind().Kind)
 		e.Event(obj, v1.EventTypeNormal, string(druidNodeUpdateSuccess), msg)
 	}
 }
@@ -250,7 +250,7 @@ func (e EmitEventFuncs) EmitEventOnDelete(obj, deleteObj object, err error) {
 		errMsg := fmt.Errorf("Error deleting object [%s:%s] in namespace [%s] due to [%s]", deleteObj.GetObjectKind().GroupVersionKind().Kind, deleteObj.GetName(), deleteObj.GetNamespace(), err.Error())
 		e.Event(obj, v1.EventTypeWarning, string(druidNodeDeleteFail), errMsg.Error())
 	} else {
-		msg := fmt.Sprintf("Successfully deleted object [%s:%s] in namespace [%s]", deleteObj.GetObjectKind().GroupVersionKind().Kind, deleteObj.GetName(), deleteObj.GetNamespace())
+		msg := fmt.Sprintf("Successfully deleted object [%s:%s] in namespace [%s]", deleteObj.GetName(), deleteObj.GetObjectKind().GroupVersionKind().Kind, deleteObj.GetNamespace())
 		e.Event(obj, v1.EventTypeNormal, string(druidNodeDeleteSuccess), msg)
 	}
 }
@@ -258,10 +258,10 @@ func (e EmitEventFuncs) EmitEventOnDelete(obj, deleteObj object, err error) {
 // EmitEventOnCreate shall emit event on CREATE operation
 func (e EmitEventFuncs) EmitEventOnCreate(obj, createObj object, err error) {
 	if err != nil {
-		errMsg := fmt.Errorf("Error creating object [%s] in namespace [%s:%s] due to [%s]", createObj.GetObjectKind().GroupVersionKind().Kind, createObj.GetName(), createObj.GetNamespace(), err.Error())
+		errMsg := fmt.Errorf("Error creating object [%s] in namespace [%s:%s] due to [%s]", createObj.GetName(), createObj.GetObjectKind().GroupVersionKind().Kind, createObj.GetNamespace(), err.Error())
 		e.Event(obj, v1.EventTypeWarning, string(druidNodeCreateFail), errMsg.Error())
 	} else {
-		msg := fmt.Sprintf("Successfully created object [%s:%s] in namespace [%s]", createObj.GetObjectKind().GroupVersionKind().Kind, createObj.GetName(), createObj.GetNamespace())
+		msg := fmt.Sprintf("Successfully created object [%s:%s] in namespace [%s]", createObj.GetName(), createObj.GetObjectKind().GroupVersionKind().Kind, createObj.GetNamespace())
 		e.Event(obj, v1.EventTypeNormal, string(druidNodeCreateSuccess), msg)
 	}
 }
@@ -269,10 +269,10 @@ func (e EmitEventFuncs) EmitEventOnCreate(obj, createObj object, err error) {
 // EmitEventOnPatch shall emit event on PATCH operation
 func (e EmitEventFuncs) EmitEventOnPatch(obj, patchObj object, err error) {
 	if err != nil {
-		errMsg := fmt.Errorf("Error patching object [%s] in namespace [%s] due to [%s]", patchObj.GetObjectKind().GroupVersionKind().Kind, patchObj.GetNamespace(), err.Error())
+		errMsg := fmt.Errorf("Error patching object [%s:%s] in namespace [%s] due to [%s]", patchObj.GetName(), patchObj.GetObjectKind().GroupVersionKind().Kind, patchObj.GetNamespace(), err.Error())
 		e.Event(obj, v1.EventTypeWarning, string(druidNodePatchFail), errMsg.Error())
 	} else {
-		msg := fmt.Sprintf("Successfully patched object [%s] in namespace [%s]", patchObj.GetObjectKind().GroupVersionKind().Kind, patchObj.GetNamespace())
+		msg := fmt.Sprintf("Successfully patched object [%s:%s] in namespace [%s]", patchObj.GetName(), patchObj.GetObjectKind().GroupVersionKind().Kind, patchObj.GetNamespace())
 		e.Event(obj, v1.EventTypeNormal, string(druidNodePatchSucess), msg)
 	}
 }
