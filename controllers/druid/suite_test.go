@@ -79,6 +79,7 @@ func setupDruidOperator(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
 		Log:           ctrl.Log.WithName("controllers").WithName("Druid"),
 		Scheme:        testK8sCtx.k8sManager.GetScheme(),
 		ReconcileWait: LookupReconcileTime(),
+		Recorder:      testK8sCtx.k8sManager.GetEventRecorderFor("druid-operator"),
 	}).SetupWithManager(testK8sCtx.k8sManager)
 
 	require.NoError(t, err)
