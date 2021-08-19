@@ -143,6 +143,7 @@ type DruidSpec struct {
 
 	// Optional: Custom Dimension Map Path for statsd emitter
 	DimensionsMapPath string `json:"metricDimensions.json,omitempty"`
+	KafkaPropertiesPath string `json:"kafka.properties,omitempty"`
 }
 
 type DruidNodeSpec struct {

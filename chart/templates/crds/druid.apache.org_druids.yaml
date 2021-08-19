@@ -546,6 +546,8 @@ spec:
                 type: object
               metricDimensions.json:
                 type: string
+              kafka.properties:
+                type: string
               nodeSelector:
                 additionalProperties:
                   type: string
