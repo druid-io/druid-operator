@@ -3,7 +3,7 @@ FROM golang:1.16 as builder
 
 WORKDIR /workspace
 
-ARG K8S_VERSION=1.21.2
+ARG K8S_VERSION=1.19.2
 ARG KUBEBUILDER_VERSION=2.3.1
 
 # Install Kubebuilder
