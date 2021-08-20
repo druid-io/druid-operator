@@ -6,7 +6,7 @@ kind: "Druid"
 metadata:
   name: tiny-cluster
 spec:
-  image: apache/druid:0.20.0
+  image: apache/druid:0.21.1
   # Optionally specify image for all nodes. Can be specify on nodes also
   # imagePullSecrets:
   # - name: tutu
@@ -16,10 +16,6 @@ spec:
     release: alpha
   podAnnotations:
     dummykey: dummyval
-  readinessProbe:
-    httpGet:
-      path: /status/health
-      port: 8088
   securityContext:
     fsGroup: 1000
     runAsUser: 1000
@@ -167,8 +163,8 @@ spec:
         druid.processing.numMergeBuffers=1
         druid.processing.numThreads=1
         # Segment storage
-        druid.segmentCache.locations=[{\"path\":\"/druid/data/segments\",\"maxSize\":10737418240}]
-        druid.server.maxSize=10737418240
+        druid.segmentCache.locations=[{\"path\":\"/druid/data/segments\",\"maxSize\":10000000000}]
+        druid.server.maxSize=10000000000
       extra.jvm.options: |-
         -Xmx512M
         -Xms512M
