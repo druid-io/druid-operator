@@ -128,6 +128,7 @@ spec:
       extra.jvm.options: |-
         -Xmx512M
         -Xms512M
+
     coordinators:
       # Optionally specify for running coordinator as Deployment
       # kind: Deployment
@@ -150,6 +151,7 @@ spec:
       extra.jvm.options: |-
         -Xmx512M
         -Xms512M
+
     historicals:
       nodeType: "historical"
       druid.port: 8088
