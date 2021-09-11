@@ -63,3 +63,19 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+/*
+func watchNamespace(watchNamespaces string) cache.NewFunc {
+	var managerWatchCache cache.NewCacheFunc
+	if watchNamespaces != "" {
+		for i := range ns {
+			ns := strings.Split(watchNamespaces, ",")
+			ns[i] = strings.TrimSpace(ns[i])
+		}
+		return managerWatchCache == cache.MultiNamespacedCacheBuilder(ns)
+	}
+
+	return managerWatchCache == (cache.NewCacheFunc)(nil)
+
+}
+*/
