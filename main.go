@@ -3,11 +3,13 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	druidv1alpha1 "github.com/druid-io/druid-operator/apis/druid/v1alpha1"
@@ -16,8 +18,9 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme         = runtime.NewScheme()
+	setupLog       = ctrl.Log.WithName("setup")
+	watchNamespace = os.Getenv("WATCH_NAMESPACE")
 )
 
 func init() {
@@ -44,7 +47,7 @@ func main() {
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
 		LeaderElectionID:   "e6946145.apache.org",
-		Namespace:          os.Getenv("WATCH_NAMESPACE"),
+		NewCache:           watchNamespaceCache(),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -64,18 +67,16 @@ func main() {
 	}
 }
 
-/*
-func watchNamespace(watchNamespaces string) cache.NewFunc {
+func watchNamespaceCache() cache.NewCacheFunc {
 	var managerWatchCache cache.NewCacheFunc
-	if watchNamespaces != "" {
+	if watchNamespace != "" {
+		ns := strings.Split(watchNamespace, ",")
 		for i := range ns {
-			ns := strings.Split(watchNamespaces, ",")
 			ns[i] = strings.TrimSpace(ns[i])
 		}
-		return managerWatchCache == cache.MultiNamespacedCacheBuilder(ns)
+		managerWatchCache = cache.MultiNamespacedCacheBuilder(ns)
+		return managerWatchCache
 	}
-
-	return managerWatchCache == (cache.NewCacheFunc)(nil)
-
+	managerWatchCache = (cache.NewCacheFunc)(nil)
+	return managerWatchCache
 }
-*/
