@@ -49,19 +49,30 @@ spec:
       emptyDir: {}
   common.runtime.properties: |
 
+    # metadata storage
     druid.metadata.storage.type=derby
     druid.metadata.storage.connector.connectURI=jdbc:derby://localhost:1527/druid/data/derbydb/metadata.db;create=true
     druid.metadata.storage.connector.host=localhost
     druid.metadata.storage.connector.port=1527
     druid.metadata.storage.connector.createTables=true
 
+    # deep storage
     druid.storage.type=s3
-    druid.storage.bucket=bucket_name
+    druid.storage.bucket=bucketname
     druid.storage.baseKey=druid/segments
-    druid.s3.endpoint.url=nyc.digitaloceanspaces.com:443
-    druid.s3.endpoint.signingRegion=nyc
-    druid.s3.accessKey=EXAMPLEACCESSKEY
-    druid.s3.secretKey=EXAMPLESECRETACCESSKEY
+    druid.s3.endpoint.url=fra1.digitaloceanspaces.com:443
+    druid.s3.endpoint.signingRegion=fra1
+    druid.s3.accessKey=VBACCESSKEYPJ
+    druid.s3.secretKey=mSeCrEtKeyyY
+
+    # druid-k8s-extension-configuration
+    druid.zk.service.enabled=false
+    druid.serverview.type=http
+    druid.coordinator.loadqueuepeon.type=http
+    druid.indexer.runner.type=httpRemote
+    druid.discovery.type=k8s
+    druid.discovery.k8s.clusterIdentifier=us-west-do-druid
+
     #
     # Extensions
     #
@@ -90,7 +101,6 @@ spec:
       replicas: 1
       runtime.properties: |
         druid.service=druid/broker
-        
         # HTTP server threads
         druid.broker.http.numConnections=1
         druid.server.http.numThreads=1
@@ -99,14 +109,6 @@ spec:
         druid.processing.numMergeBuffers=1
         druid.processing.numThreads=1
         druid.sql.enable=true
-
-        # druid-k8s-extension-configuration
-        druid.zk.service.enabled=false
-        druid.serverview.type=http
-        druid.coordinator.loadqueuepeon.type=http
-        druid.indexer.runner.type=httpRemote
-        druid.discovery.type=k8s
-        druid.discovery.k8s.clusterIdentifier=us-west-do-druid
 
     coordinators:
       kind: Deployment
@@ -120,19 +122,10 @@ spec:
         druid.coordinator.startDelay=PT30S
         druid.coordinator.period=PT30S
 
-        # druid-k8s-extension-configuration
-        druid.zk.service.enabled=false
-        druid.serverview.type=http
-        druid.coordinator.loadqueuepeon.type=http
-        druid.indexer.runner.type=httpRemote
-        druid.discovery.type=k8s
-        druid.discovery.k8s.clusterIdentifier=us-west-do-druid
-
         # Configure this coordinator to also run as Overlord
         druid.coordinator.asOverlord.enabled=true
         druid.coordinator.asOverlord.overlordService=druid/overlord
         druid.indexer.queue.startDelay=PT30S
-        druid.discovery.k8s.clusterIdentifier=us-west-do-druid
       extra.jvm.options: |-
         -Xmx512M
         -Xms512M
@@ -165,17 +158,8 @@ spec:
         druid.processing.numMergeBuffers=1
         druid.processing.numThreads=1
 
-        # druid-k8s-extension-configuration
-        druid.zk.service.enabled=false
-        druid.serverview.type=http
-        druid.coordinator.loadqueuepeon.type=http
-        druid.indexer.runner.type=httpRemote
-        druid.discovery.type=k8s
-        druid.discovery.k8s.clusterIdentifier=us-west-do-druid
-
         druid.segmentCache.locations=[{"path":"var/druid/segment-cache","maxSize":40000000}]
         druid.server.maxSize=40000000000
-    
       extra.jvm.options: |-
         -Xmx512M
         -Xms512M
@@ -200,14 +184,6 @@ spec:
           druid.indexer.fork.property.druid.processing.numMergeBuffers=2
           druid.indexer.fork.property.druid.processing.buffer.sizeBytes=100MiB
           druid.indexer.fork.property.druid.processing.numThreads=1
-          
-          # druid-k8s-extension-configuration
-          druid.zk.service.enabled=false
-          druid.serverview.type=http
-          druid.coordinator.loadqueuepeon.type=http
-          druid.indexer.runner.type=httpRemote
-          druid.discovery.type=k8s
-          druid.discovery.k8s.clusterIdentifier=us-west-do-druid
       volumeClaimTemplates:
         -
           metadata:
@@ -237,14 +213,6 @@ spec:
         druid.router.http.readTimeout=PT5M
         druid.router.http.numMaxThreads=10
         druid.server.http.numThreads=10
-
-        # druid-k8s-extension-configuration
-        druid.zk.service.enabled=false
-        druid.serverview.type=http
-        druid.coordinator.loadqueuepeon.type=http
-        druid.indexer.runner.type=httpRemote
-        druid.discovery.type=k8s
-        druid.discovery.k8s.clusterIdentifier=us-west-do-druid
 
         # Service discovery
         druid.router.defaultBrokerServiceName=druid/broker
