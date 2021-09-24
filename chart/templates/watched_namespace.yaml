@@ -1,5 +1,8 @@
+# Import the values when being called as dependency needs this line because of the dash '-'
 {{- $relname := (index .Values "druid-operator") -}}
 
+# Namespace set into WATCH_NAMESPACE environment var needs to exists to install this operator
+# When a namespace is declared and not the default, create that namespace
 {{- if and ($relname.env.WATCH_NAMESPACE) (ne $relname.env.WATCH_NAMESPACE "default") }}
 ---
 apiVersion: v1
