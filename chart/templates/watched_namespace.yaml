@@ -1,0 +1,9 @@
+{{- $relname := (index .Values "druid-operator") -}}
+
+{{- if and ($relname.env.WATCH_NAMESPACE) (ne $relname.env.WATCH_NAMESPACE "default") }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $relname.env.WATCH_NAMESPACE }}
+{{- end }}
