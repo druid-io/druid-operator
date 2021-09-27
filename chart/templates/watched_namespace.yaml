@@ -1,12 +1,22 @@
 # Import the values when being called as dependency needs this line because of the dash '-'
+# Not looping when WATCH_NAMESPACE is 'default' or ALL
 {{- $relname := (index .Values "druid-operator") -}}
-
-# Namespace set into WATCH_NAMESPACE environment var needs to exists to install this operator
-# When a namespace is declared and not the default, create that namespace
 {{- if and ($relname.env.WATCH_NAMESPACE) (ne $relname.env.WATCH_NAMESPACE "default") }}
+
+# Split WATCH_NAMESPACE by commas and loop on them
+{{- $watchedNamespaces := (split "," $relname.env.WATCH_NAMESPACE) -}}
+{{- range $watchedNamespaces }}
+
+# Look for desired namespace to create when not existent
+{{- $relnamespace := (lookup "v1" "Namespace" "" .) -}}
+{{- if empty $relnamespace }}
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: {{ $relname.env.WATCH_NAMESPACE }}
+  name: "{{- . }}"
+{{- end }}
+
+{{- end }}
+
 {{- end }}
