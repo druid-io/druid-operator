@@ -5,14 +5,15 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"reflect"
 	"regexp"
 	"sort"
 
 	autoscalev2beta2 "k8s.io/api/autoscaling/v2beta2"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	storage "k8s.io/api/storage/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 
 	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -43,22 +44,21 @@ const (
 
 var logger = logf.Log.WithName("druid_operator_handler")
 
-func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
+func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEmitter) error {
 	if m.Spec.Ignored {
 		return nil
 	}
 
 	if err := verifyDruidSpec(m); err != nil {
 		e := fmt.Errorf("invalid DruidSpec[%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
-		sendEvent(sdk, m, v1.EventTypeWarning, DruidSpecInvalid, e.Error())
-		logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+		emitEvents.EmitEventGeneric(m, "DruidOperatorInvalidSpec", "", e)
 		return nil
 	}
 
 	allNodeSpecs, err := getAllNodeSpecsInDruidPrescribedOrder(m)
 	if err != nil {
 		e := fmt.Errorf("invalid DruidSpec[%s:%s] due to [%s]", m.Kind, m.Name, err.Error())
-		sendEvent(sdk, m, v1.EventTypeWarning, DruidSpecInvalid, e.Error())
+		emitEvents.EmitEventGeneric(m, "DruidOperatorInvalidSpec", "", e)
 		return nil
 	}
 
@@ -85,7 +85,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 		func() (object, error) { return makeCommonConfigMap(m, ls) },
 		func() object { return makeConfigMapEmptyObj() },
-		alwaysTrueIsEqualsFn, noopUpdaterFn, m, configMapNames); err != nil {
+		alwaysTrueIsEqualsFn, noopUpdaterFn, m, configMapNames, emitEvents); err != nil {
 		return err
 	}
 
@@ -102,17 +102,17 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	if m.Spec.DisablePVCDeletionFinalizer == false {
 		md := m.GetDeletionTimestamp() != nil
 		if md {
-			return executeFinalizers(sdk, m)
+			return executeFinalizers(sdk, m, emitEvents)
 		}
 		/*
 			If finalizer isn't present add it to object meta.
 			In case cr is already deleted do not call this function
 		*/
-		cr := checkIfCRExists(sdk, m)
+		cr := checkIfCRExists(sdk, m, emitEvents)
 		if cr {
 			if !ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
 				m.SetFinalizers(append(m.GetFinalizers(), finalizerName))
-				_, err := writers.Update(context.Background(), sdk, m, m)
+				_, err := writers.Update(context.Background(), sdk, m, m, emitEvents)
 				if err != nil {
 					return err
 				}
@@ -144,7 +144,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) { return nodeConfig, nil },
 			func() object { return makeConfigMapEmptyObj() },
-			alwaysTrueIsEqualsFn, noopUpdaterFn, m, configMapNames); err != nil {
+			alwaysTrueIsEqualsFn, noopUpdaterFn, m, configMapNames, emitEvents); err != nil {
 			return err
 		}
 
@@ -156,7 +156,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				func() (object, error) { return makeService(&svc, &nodeSpec, m, lm, nodeSpecUniqueStr) },
 				func() object { return makeServiceEmptyObj() }, alwaysTrueIsEqualsFn,
 				func(prev, curr object) { (curr.(*v1.Service)).Spec.ClusterIP = (prev.(*v1.Service)).Spec.ClusterIP },
-				m, serviceNames); err != nil {
+				m, serviceNames, emitEvents); err != nil {
 				return err
 			}
 			if firstServiceName == "" {
@@ -172,7 +172,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return makeDeployment(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
 				},
 				func() object { return makeDeploymentEmptyObj() },
-				deploymentIsEquals, noopUpdaterFn, m, deploymentNames); err != nil {
+				deploymentIsEquals, noopUpdaterFn, m, deploymentNames, emitEvents); err != nil {
 				return err
 			} else if m.Spec.RollingDeploy {
 
@@ -185,7 +185,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				// will be sequential.
 				if m.Generation > 1 {
 					// Check Deployment rolling update status, if in-progress then stop here
-					done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeDeploymentEmptyObj() })
+					done, err := isObjFullyDeployed(sdk, nodeSpec, nodeSpecUniqueStr, m, func() object { return makeDeploymentEmptyObj() }, emitEvents)
 					if !done {
 						return err
 					}
@@ -211,7 +211,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
 				},
 				func() object { return makeStatefulSetEmptyObj() },
-				statefulSetIsEquals, noopUpdaterFn, m, statefulSetNames); err != nil {
+				statefulSetIsEquals, noopUpdaterFn, m, statefulSetNames, emitEvents); err != nil {
 				return err
 			} else if m.Spec.RollingDeploy {
 
@@ -221,14 +221,14 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				}
 
 				// Default is set to true
-				execCheckCrashStatus(sdk, &nodeSpec, m)
+				execCheckCrashStatus(sdk, &nodeSpec, m, emitEvents)
 
 				// Ignore isObjFullyDeployed() for the first iteration ie cluster creation
 				// will force cluster creation in parallel, post first iteration rolling updates
 				// will be sequential.
 				if m.Generation > 1 {
 					//Check StatefulSet rolling update status, if in-progress then stop here
-					done, err := isObjFullyDeployed(sdk, nodeSpecUniqueStr, m, func() object { return makeStatefulSetEmptyObj() })
+					done, err := isObjFullyDeployed(sdk, nodeSpec, nodeSpecUniqueStr, m, func() object { return makeStatefulSetEmptyObj() }, emitEvents)
 					if !done {
 						return err
 					}
@@ -236,7 +236,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			}
 
 			// Default is set to true
-			execCheckCrashStatus(sdk, &nodeSpec, m)
+			execCheckCrashStatus(sdk, &nodeSpec, m, emitEvents)
 		}
 
 		// Create Ingress Spec
@@ -246,7 +246,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return makeIngress(&nodeSpec, m, ls, nodeSpecUniqueStr)
 				},
 				func() object { return makeIngressEmptyObj() },
-				alwaysTrueIsEqualsFn, noopUpdaterFn, m, ingressNames); err != nil {
+				alwaysTrueIsEqualsFn, noopUpdaterFn, m, ingressNames, emitEvents); err != nil {
 				return err
 			}
 		}
@@ -256,7 +256,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) { return makePodDisruptionBudget(&nodeSpec, m, lm, nodeSpecUniqueStr) },
 				func() object { return makePodDisruptionBudgetEmptyObj() },
-				alwaysTrueIsEqualsFn, noopUpdaterFn, m, podDisruptionBudgetNames); err != nil {
+				alwaysTrueIsEqualsFn, noopUpdaterFn, m, podDisruptionBudgetNames, emitEvents); err != nil {
 				return err
 			}
 		}
@@ -268,7 +268,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					return makeHorizontalPodAutoscaler(&nodeSpec, m, ls, nodeSpecUniqueStr)
 				},
 				func() object { return makeHorizontalPodAutoscalerEmptyObj() },
-				alwaysTrueIsEqualsFn, noopUpdaterFn, m, hpaNames); err != nil {
+				alwaysTrueIsEqualsFn, noopUpdaterFn, m, hpaNames, emitEvents); err != nil {
 				return err
 			}
 		}
@@ -279,23 +279,22 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 					func() (object, error) { return makePersistentVolumeClaim(&pvc, &nodeSpec, m, lm, nodeSpecUniqueStr) },
 					func() object { return makePersistentVolumeClaimEmptyObj() }, alwaysTrueIsEqualsFn,
 					noopUpdaterFn,
-					m, pvcNames); err != nil {
+					m, pvcNames, emitEvents); err != nil {
 					return err
 				}
 			}
 		}
 	}
 
-	if m.Spec.DeleteOrphanPvc {
-		if err := deleteOrphanPVC(sdk, m); err != nil {
-			e := fmt.Errorf("Error in deleteOrphanPVC due to [%s]", err.Error())
-			sendEvent(sdk, m, v1.EventTypeWarning, "LIST_FAIL", e.Error())
-			logger.Error(e, e.Error(), "name", m.Name, "namespace", m.Namespace)
+	// Ignore on cluster creation
+	if m.Generation > 1 && m.Spec.DeleteOrphanPvc {
+		if err := deleteOrphanPVC(sdk, m, emitEvents); err != nil {
+			return err
 		}
 	}
 
 	//update status and delete unwanted resources
-	updatedStatus := v1alpha1.DruidStatus{}
+	updatedStatus := v1alpha1.DruidClusterStatus{}
 
 	updatedStatus.StatefulSets = deleteUnusedResources(sdk, m, statefulSetNames, ls,
 		func() objectList { return makeStatefulSetListEmptyObj() },
@@ -306,7 +305,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				result[i] = &items[i]
 			}
 			return result
-		})
+		}, emitEvents)
 	sort.Strings(updatedStatus.StatefulSets)
 
 	updatedStatus.Deployments = deleteUnusedResources(sdk, m, deploymentNames, ls,
@@ -318,7 +317,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				result[i] = &items[i]
 			}
 			return result
-		})
+		}, emitEvents)
 	sort.Strings(updatedStatus.Deployments)
 
 	updatedStatus.HPAutoScalers = deleteUnusedResources(sdk, m, hpaNames, ls,
@@ -330,19 +329,19 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				result[i] = &items[i]
 			}
 			return result
-		})
+		}, emitEvents)
 	sort.Strings(updatedStatus.HPAutoScalers)
 
 	updatedStatus.Ingress = deleteUnusedResources(sdk, m, ingressNames, ls,
 		func() objectList { return makeIngressListEmptyObj() },
 		func(listObj runtime.Object) []object {
-			items := listObj.(*networkingv1beta1.IngressList).Items
+			items := listObj.(*networkingv1.IngressList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
 				result[i] = &items[i]
 			}
 			return result
-		})
+		}, emitEvents)
 	sort.Strings(updatedStatus.Ingress)
 
 	updatedStatus.PodDisruptionBudgets = deleteUnusedResources(sdk, m, podDisruptionBudgetNames, ls,
@@ -354,7 +353,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				result[i] = &items[i]
 			}
 			return result
-		})
+		}, emitEvents)
 	sort.Strings(updatedStatus.PodDisruptionBudgets)
 
 	updatedStatus.Services = deleteUnusedResources(sdk, m, serviceNames, ls,
@@ -366,7 +365,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				result[i] = &items[i]
 			}
 			return result
-		})
+		}, emitEvents)
 	sort.Strings(updatedStatus.Services)
 
 	updatedStatus.ConfigMaps = deleteUnusedResources(sdk, m, configMapNames, ls,
@@ -378,10 +377,10 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 				result[i] = &items[i]
 			}
 			return result
-		})
+		}, emitEvents)
 	sort.Strings(updatedStatus.ConfigMaps)
 
-	podList, _ := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, _ := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), emitEvents, func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -393,28 +392,39 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 	updatedStatus.Pods = getPodNames(podList)
 	sort.Strings(updatedStatus.Pods)
 
-	if !reflect.DeepEqual(updatedStatus, m.Status) {
-		patchBytes, err := json.Marshal(map[string]v1alpha1.DruidStatus{"status": updatedStatus})
-		if err != nil {
-			return fmt.Errorf("failed to serialize status patch to bytes: %v", err)
+	// All druid nodes are in Ready state.
+	// In case any druid node goes into a bad state, it shall be handled in above rollingDeploy block
+	updatedStatus.DruidNodeStatus = *newDruidNodeTypeStatus(v1.ConditionTrue, v1alpha1.DruidClusterReady, "", nil)
+
+	// In case of rolling Deploy not present OR any error not catched in the above block, check the pod ready
+	// state and condition and patch the status with the CR
+	for _, po := range podList {
+		for _, c := range po.(*v1.Pod).Status.Conditions {
+			if c.Type == v1.PodReady && c.Status == v1.ConditionFalse {
+				updatedStatus.DruidNodeStatus = *newDruidNodeTypeStatus(v1.ConditionTrue, v1alpha1.DruidNodeErrorState, po.GetName(), errors.New(c.Reason))
+			}
 		}
-		_ = writers.Patch(context.TODO(), sdk, m, m, true, client.RawPatch(types.MergePatchType, patchBytes))
+	}
+
+	err = druidClusterStatusPatcher(sdk, updatedStatus, m, emitEvents)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func deleteSTSAndPVC(sdk client.Client, drd *v1alpha1.Druid, stsList, pvcList []object) error {
+func deleteSTSAndPVC(sdk client.Client, drd *v1alpha1.Druid, stsList, pvcList []object, emitEvents EventEmitter) error {
 
 	for _, sts := range stsList {
-		err := writers.Delete(context.TODO(), sdk, drd, sts, &client.DeleteAllOfOptions{})
+		err := writers.Delete(context.TODO(), sdk, drd, sts, emitEvents, &client.DeleteAllOfOptions{})
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range pvcList {
-		err := writers.Delete(context.TODO(), sdk, drd, pvcList[i], &client.DeleteAllOfOptions{})
+		err := writers.Delete(context.TODO(), sdk, drd, pvcList[i], emitEvents, &client.DeleteAllOfOptions{})
 		if err != nil {
 			return err
 		}
@@ -423,8 +433,8 @@ func deleteSTSAndPVC(sdk client.Client, drd *v1alpha1.Druid, stsList, pvcList []
 	return nil
 }
 
-func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid) bool {
-	_, err := readers.Get(context.TODO(), sdk, m.Name, m, func() object { return makeDruidEmptyObj() })
+func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEmitter) bool {
+	_, err := readers.Get(context.TODO(), sdk, m.Name, m, func() object { return makeDruidEmptyObj() }, emitEvents)
 	if err != nil {
 		return false
 	} else {
@@ -432,9 +442,9 @@ func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid) bool {
 	}
 }
 
-func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
+func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid, emitEvents EventEmitter) error {
 
-	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), emitEvents, func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -450,7 +460,7 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 		"druid_cr": drd.Name,
 	}
 
-	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, func() objectList { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, emitEvents, func() objectList { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PersistentVolumeClaimList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -492,7 +502,7 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 		for i, pvc := range pvcList {
 
 			if !ContainsString(mountedPVC, pvc.GetName()) {
-				err := writers.Delete(context.TODO(), sdk, drd, pvcList[i], &client.DeleteAllOfOptions{})
+				err := writers.Delete(context.TODO(), sdk, drd, pvcList[i], emitEvents, &client.DeleteAllOfOptions{})
 				if err != nil {
 					return err
 				} else {
@@ -505,14 +515,14 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid) error {
 	return nil
 }
 
-func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
+func executeFinalizers(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEmitter) error {
 
 	if ContainsString(m.ObjectMeta.Finalizers, finalizerName) {
 		pvcLabels := map[string]string{
 			"druid_cr": m.Name,
 		}
 
-		pvcList, err := readers.List(context.TODO(), sdk, m, pvcLabels, func() objectList { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+		pvcList, err := readers.List(context.TODO(), sdk, m, pvcLabels, emitEvents, func() objectList { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 			items := listObj.(*v1.PersistentVolumeClaimList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
@@ -524,7 +534,7 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 			return err
 		}
 
-		stsList, err := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), func() objectList { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
+		stsList, err := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), emitEvents, func() objectList { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
 			items := listObj.(*appsv1.StatefulSetList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
@@ -537,20 +547,20 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 		}
 
 		msg := fmt.Sprintf("Trigerring finalizer for CR [%s] in namespace [%s]", m.Name, m.Namespace)
-		sendEvent(sdk, m, v1.EventTypeNormal, DruidFinalizer, msg)
+		//		sendEvent(sdk, m, v1.EventTypeNormal, DruidFinalizer, msg)
 		logger.Info(msg)
-		if err := deleteSTSAndPVC(sdk, m, stsList, pvcList); err != nil {
+		if err := deleteSTSAndPVC(sdk, m, stsList, pvcList, emitEvents); err != nil {
 			return err
 		} else {
 			msg := fmt.Sprintf("Finalizer success for CR [%s] in namespace [%s]", m.Name, m.Namespace)
-			sendEvent(sdk, m, v1.EventTypeNormal, DruidFinalizerSuccess, msg)
+			//			sendEvent(sdk, m, v1.EventTypeNormal, DruidFinalizerSuccess, msg)
 			logger.Info(msg)
 		}
 
 		// remove our finalizer from the list and update it.
 		m.ObjectMeta.Finalizers = RemoveString(m.ObjectMeta.Finalizers, finalizerName)
 
-		_, err = writers.Update(context.TODO(), sdk, m, m)
+		_, err = writers.Update(context.TODO(), sdk, m, m, emitEvents)
 		if err != nil {
 			return err
 		}
@@ -560,19 +570,19 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid) error {
 
 }
 
-func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) {
+func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, event EventEmitter) {
 	if m.Spec.ForceDeleteStsPodOnError == false {
 		return
 	} else {
 		if nodeSpec.PodManagementPolicy == "OrderedReady" {
-			checkCrashStatus(sdk, m)
+			checkCrashStatus(sdk, m, event)
 		}
 	}
 }
 
-func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) error {
+func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid, emitEvents EventEmitter) error {
 
-	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), emitEvents, func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -594,13 +604,12 @@ func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) error {
 					// OR condtion.status is false which evalutes if neither of these conditions are met
 					// 1. ContainersReady 2. PodInitialized 3. PodReady 4. PodScheduled
 					if p.(*v1.Pod).Status.Phase != v1.PodRunning || condition.Status == v1.ConditionFalse {
-						err := writers.Delete(context.TODO(), sdk, drd, p, &client.DeleteOptions{})
+						err := writers.Delete(context.TODO(), sdk, drd, p, emitEvents, &client.DeleteOptions{})
 						if err != nil {
 							return err
 						} else {
 							msg := fmt.Sprintf("Deleted pod [%s] in namespace [%s], since it was in crashloopback state.", p.GetName(), p.GetNamespace())
 							logger.Info(msg, "Object", stringifyForLogging(p, drd), "name", drd.Name, "namespace", drd.Namespace)
-							sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeDeleteSuccess, msg)
 						}
 					}
 				}
@@ -612,7 +621,7 @@ func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid) error {
 }
 
 func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
-	names map[string]bool, selectorLabels map[string]string, emptyListObjFn func() objectList, itemsExtractorFn func(obj runtime.Object) []object) []string {
+	names map[string]bool, selectorLabels map[string]string, emptyListObjFn func() objectList, itemsExtractorFn func(obj runtime.Object) []object, emitEvents EventEmitter) []string {
 
 	listOpts := []client.ListOption{
 		client.InNamespace(drd.Namespace),
@@ -625,16 +634,13 @@ func deleteUnusedResources(sdk client.Client, drd *v1alpha1.Druid,
 
 	if err := sdk.List(context.TODO(), listObj, listOpts...); err != nil {
 		e := fmt.Errorf("failed to list [%s] due to [%s]", listObj.GetObjectKind().GroupVersionKind().Kind, err.Error())
-		sendEvent(sdk, drd, v1.EventTypeWarning, DruidObjectListFail, e.Error())
 		logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
 	} else {
 		for _, s := range itemsExtractorFn(listObj) {
 			if names[s.GetName()] == false {
-				err := writers.Delete(context.TODO(), sdk, drd, s, &client.DeleteOptions{})
+				err := writers.Delete(context.TODO(), sdk, drd, s, emitEvents, &client.DeleteOptions{})
 				if err != nil {
 					survivorNames = append(survivorNames, s.GetName())
-				} else {
-					sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeDeleteSuccess, fmt.Sprintf("Deleted [%s:%s].", listObj.GetObjectKind().GroupVersionKind().Kind, s.GetName()))
 				}
 			} else {
 				survivorNames = append(survivorNames, s.GetName())
@@ -660,7 +666,8 @@ func sdkCreateOrUpdateAsNeeded(
 	isEqualFn func(prev, curr object) bool,
 	updaterFn func(prev, curr object),
 	drd *v1alpha1.Druid,
-	names map[string]bool) (DruidNodeStatus, error) {
+	names map[string]bool,
+	emitEvent EventEmitter) (DruidNodeStatus, error) {
 	if obj, err := objFn(); err != nil {
 		return "", err
 	} else {
@@ -673,7 +680,7 @@ func sdkCreateOrUpdateAsNeeded(
 		if err := sdk.Get(context.TODO(), *namespacedName(obj.GetName(), obj.GetNamespace()), prevObj); err != nil {
 			if apierrors.IsNotFound(err) {
 				// resource does not exist, create it.
-				create, err := writers.Create(context.TODO(), sdk, drd, obj)
+				create, err := writers.Create(context.TODO(), sdk, drd, obj, emitEvent)
 				if err != nil {
 					return "", err
 				} else {
@@ -682,7 +689,7 @@ func sdkCreateOrUpdateAsNeeded(
 			} else {
 				e := fmt.Errorf("Failed to get [%s:%s] due to [%s].", obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), err.Error())
 				logger.Error(e, e.Error(), "Prev object", stringifyForLogging(prevObj, drd), "name", drd.Name, "namespace", drd.Namespace)
-				sendEvent(sdk, drd, v1.EventTypeWarning, DruidOjectGetFail, e.Error())
+				emitEvent.EmitEventGeneric(drd, string(druidOjectGetFail), "", err)
 				return "", e
 			}
 		} else {
@@ -691,7 +698,7 @@ func sdkCreateOrUpdateAsNeeded(
 
 				obj.SetResourceVersion(prevObj.GetResourceVersion())
 				updaterFn(prevObj, obj)
-				update, err := writers.Update(context.TODO(), sdk, drd, obj)
+				update, err := writers.Update(context.TODO(), sdk, drd, obj, emitEvent)
 				if err != nil {
 					return "", err
 				} else {
@@ -704,33 +711,34 @@ func sdkCreateOrUpdateAsNeeded(
 	}
 }
 
-func isObjFullyDeployed(sdk client.Client, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object) (bool, error) {
+func isObjFullyDeployed(sdk client.Client, nodeSpec v1alpha1.DruidNodeSpec, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emptyObjFn func() object, emitEvent EventEmitter) (bool, error) {
 
 	// Get Object
-	obj, err := readers.Get(context.TODO(), sdk, nodeSpecUniqueStr, drd, emptyObjFn)
+	obj, err := readers.Get(context.TODO(), sdk, nodeSpecUniqueStr, drd, emptyObjFn, emitEvent)
 	if err != nil {
 		return false, err
 	}
 
-	// Detect underlying object type
-	objType := reflect.TypeOf(obj)
-
 	// In case obj is a statefulset or deployment, make sure the sts/deployment has successfully reconciled to desired state
-	if objType.String() == "*v1.StatefulSet" {
+	// TODO: @AdheipSingh once https://github.com/kubernetes/kubernetes/blob/master/pkg/apis/apps/types.go#L217 k8s conditions detect sts fail errors.
+	if detectType(obj) == "*v1.StatefulSet" {
 		if obj.(*appsv1.StatefulSet).Status.CurrentRevision != obj.(*appsv1.StatefulSet).Status.UpdateRevision {
-			msg := fmt.Sprintf("StatefulSet[%s] roll out is in progress CurrentRevision[%s] != UpdateRevision[%s], UpdatedReplicas[%d/%d]", nodeSpecUniqueStr, obj.(*appsv1.StatefulSet).Status.CurrentRevision, obj.(*appsv1.StatefulSet).Status.UpdateRevision, obj.(*appsv1.StatefulSet).Status.UpdatedReplicas, *obj.(*appsv1.StatefulSet).Spec.Replicas)
-			sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeRollingDeploymentWait, msg)
+			return false, nil
+		} else if obj.(*appsv1.StatefulSet).Status.CurrentReplicas != obj.(*appsv1.StatefulSet).Status.ReadyReplicas {
 			return false, nil
 		} else {
-			return true, nil
+			return obj.(*appsv1.StatefulSet).Status.CurrentRevision == obj.(*appsv1.StatefulSet).Status.UpdateRevision, nil
 		}
-	} else if objType.String() == "*v1.Deployment" {
-		if obj.(*appsv1.Deployment).Status.ReadyReplicas != obj.(*appsv1.Deployment).Status.Replicas {
-			msg := fmt.Sprintf("Deployment[%s] roll out is in progress, UpdatedReplicas[%d] [%d]", nodeSpecUniqueStr, obj.(*appsv1.Deployment).Status.UpdatedReplicas, *obj.(*appsv1.Deployment).Spec.Replicas)
-			sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeRollingDeploymentWait, msg)
-			return false, nil
-		} else {
-			return true, nil
+	} else if detectType(obj) == "*v1.Deployment" {
+		for _, condition := range obj.(*appsv1.Deployment).Status.Conditions {
+			// This detects a failure condition, operator should send a rolling deployment failed event
+			if condition.Type == appsv1.DeploymentReplicaFailure {
+				return false, errors.New(condition.Reason)
+			} else if condition.Type == appsv1.DeploymentProgressing && condition.Status != v1.ConditionTrue || obj.(*appsv1.Deployment).Status.ReadyReplicas != obj.(*appsv1.Deployment).Status.Replicas {
+				return false, nil
+			} else {
+				return obj.(*appsv1.Deployment).Status.ReadyReplicas == obj.(*appsv1.Deployment).Status.Replicas, nil
+			}
 		}
 	}
 	return false, nil
@@ -1087,6 +1095,16 @@ func getTolerations(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []v1.To
 	return tolerations
 }
 
+func getTopologySpreadConstraints(nodeSpec *v1alpha1.DruidNodeSpec) []v1.TopologySpreadConstraint {
+	var topologySpreadConstraint []v1.TopologySpreadConstraint
+
+	for _, val := range nodeSpec.TopologySpreadConstraints {
+		topologySpreadConstraint = append(topologySpreadConstraint, val)
+	}
+
+	return topologySpreadConstraint
+}
+
 func getVolume(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUniqueStr string) []v1.Volume {
 	volumesHolder := []v1.Volume{
 		{
@@ -1279,10 +1297,11 @@ func makePodTemplate(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 // makePodSpec shall create podSpec common to both deployment and statefulset.
 func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUniqueStr, configMapSHA string) v1.PodSpec {
 	spec := v1.PodSpec{
-		NodeSelector:     m.Spec.NodeSelector,
-		Tolerations:      getTolerations(nodeSpec, m),
-		Affinity:         getAffinity(nodeSpec, m),
-		ImagePullSecrets: firstNonNilValue(nodeSpec.ImagePullSecrets, m.Spec.ImagePullSecrets).([]v1.LocalObjectReference),
+		NodeSelector:              m.Spec.NodeSelector,
+		TopologySpreadConstraints: getTopologySpreadConstraints(nodeSpec),
+		Tolerations:               getTolerations(nodeSpec, m),
+		Affinity:                  getAffinity(nodeSpec, m),
+		ImagePullSecrets:          firstNonNilValue(nodeSpec.ImagePullSecrets, m.Spec.ImagePullSecrets).([]v1.LocalObjectReference),
 		Containers: []v1.Container{
 			{
 				Image:           firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),
@@ -1357,12 +1376,12 @@ func makeHorizontalPodAutoscaler(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.D
 	return hpa, nil
 }
 
-func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*networkingv1beta1.Ingress, error) {
+func makeIngress(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*networkingv1.Ingress, error) {
 	nodeIngressSpec := *nodeSpec.Ingress
 
-	ingress := &networkingv1beta1.Ingress{
+	ingress := &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1beta1",
+			APIVersion: "networking.k8s.io/v1",
 			Kind:       "Ingress",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -1498,10 +1517,10 @@ func makeHorizontalPodAutoscalerListEmptyObj() *autoscalev2beta2.HorizontalPodAu
 	}
 }
 
-func makeIngressListEmptyObj() *networkingv1beta1.IngressList {
-	return &networkingv1beta1.IngressList{
+func makeIngressListEmptyObj() *networkingv1.IngressList {
+	return &networkingv1.IngressList{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1beta1",
+			APIVersion: "networking.k8s.io/v1",
 			Kind:       "Ingress",
 		},
 	}
@@ -1588,10 +1607,10 @@ func makePersistentVolumeClaimListEmptyObj() *v1.PersistentVolumeClaimList {
 	}
 }
 
-func makeIngressEmptyObj() *networkingv1beta1.Ingress {
-	return &networkingv1beta1.Ingress{
+func makeIngressEmptyObj() *networkingv1.Ingress {
+	return &networkingv1.Ingress{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1beta1",
+			APIVersion: "networking.k8s.io/v1",
 			Kind:       "Ingress",
 		},
 	}

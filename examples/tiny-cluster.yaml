@@ -68,7 +68,6 @@ spec:
     # Deep Storage
     druid.storage.type=local
     druid.storage.storageDirectory=/druid/deepstorage
-
     #
     # Extensions
     #
@@ -118,11 +117,9 @@ spec:
       replicas: 1
       runtime.properties: |
         druid.service=druid/broker
-
         # HTTP server threads
         druid.broker.http.numConnections=5
         druid.server.http.numThreads=10
-
         # Processing threads and buffers
         druid.processing.buffer.sizeBytes=1
         druid.processing.numMergeBuffers=1
@@ -166,6 +163,7 @@ spec:
         druid.processing.buffer.sizeBytes=536870912
         druid.processing.numMergeBuffers=1
         druid.processing.numThreads=1
+
         # Segment storage
         druid.segmentCache.locations=[{\"path\":\"/druid/data/segments\",\"maxSize\":10737418240}]
         druid.server.maxSize=10737418240

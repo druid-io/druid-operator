@@ -6,7 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalev2beta2 "k8s.io/api/autoscaling/v2beta2"
 	v1 "k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -245,7 +245,7 @@ type DruidNodeSpec struct {
 	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
 
 	// Optional: Ingress Spec
-	Ingress *networkingv1beta1.IngressSpec `json:"ingress,omitempty"`
+	Ingress *networkingv1.IngressSpec `json:"ingress,omitempty"`
 
 	// Optional: Persistant volume claim
 	PersistentVolumeClaim []v1.PersistentVolumeClaim `json:"persistentVolumeClaim,omitempty"`
@@ -255,6 +255,9 @@ type DruidNodeSpec struct {
 
 	// Optional
 	HPAutoScaler *autoscalev2beta2.HorizontalPodAutoscalerSpec `json:"hpAutoscaler,omitempty"`
+
+	// Optional
+	TopologySpreadConstraints []v1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 	VolumeMounts         []v1.VolumeMount           `json:"volumeMounts,omitempty"`
@@ -276,20 +279,40 @@ type DeepStorageSpec struct {
 	Spec json.RawMessage `json:"spec"`
 }
 
+// These are valid conditions of a druid Node
+const (
+	// DruidClusterReady indicates the underlying druid objects is fully deployed
+	// Underlying pods are able to service requests
+	DruidClusterReady DruidNodeConditionType = "DruidClusterReady"
+	// DruidNodeRollingUpgrade means that Druid Node is rolling update.
+	DruidNodeRollingUpdate DruidNodeConditionType = "DruidNodeRollingUpdate"
+	// DruidNodeError indicates the DruidNode is in an error state.
+	DruidNodeErrorState DruidNodeConditionType = "DruidNodeErrorState"
+)
+
+type DruidNodeConditionType string
+
+type DruidNodeTypeStatus struct {
+	DruidNode                string                 `json:"druidNode,omitempty"`
+	DruidNodeConditionStatus v1.ConditionStatus     `json:"druidNodeConditionStatus,omitempty"`
+	DruidNodeConditionType   DruidNodeConditionType `json:"druidNodeConditionType,omitempty"`
+	Reason                   string                 `json:"reason,omitempty"`
+}
+
 // DruidStatus defines the observed state of Druid
-type DruidStatus struct {
+type DruidClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-
-	StatefulSets           []string `json:"statefulSets,omitempty"`
-	Deployments            []string `json:"deployments,omitempty"`
-	Services               []string `json:"services,omitempty"`
-	ConfigMaps             []string `json:"configMaps,omitempty"`
-	PodDisruptionBudgets   []string `json:"podDisruptionBudgets,omitempty"`
-	Ingress                []string `json:"ingress,omitempty"`
-	HPAutoScalers          []string `json:"hpAutoscalers,omitempty"`
-	Pods                   []string `json:"pods,omitempty"`
-	PersistentVolumeClaims []string `json:"persistentVolumeClaims,omitempty"`
+	DruidNodeStatus        DruidNodeTypeStatus `json:"druidNodeStatus,omitempty"`
+	StatefulSets           []string            `json:"statefulSets,omitempty"`
+	Deployments            []string            `json:"deployments,omitempty"`
+	Services               []string            `json:"services,omitempty"`
+	ConfigMaps             []string            `json:"configMaps,omitempty"`
+	PodDisruptionBudgets   []string            `json:"podDisruptionBudgets,omitempty"`
+	Ingress                []string            `json:"ingress,omitempty"`
+	HPAutoScalers          []string            `json:"hpAutoscalers,omitempty"`
+	Pods                   []string            `json:"pods,omitempty"`
+	PersistentVolumeClaims []string            `json:"persistentVolumeClaims,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -299,8 +322,8 @@ type Druid struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   DruidSpec   `json:"spec"`
-	Status DruidStatus `json:"status,omitempty"`
+	Spec   DruidSpec          `json:"spec"`
+	Status DruidClusterStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

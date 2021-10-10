@@ -7,29 +7,32 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-// ignoreNamespacePredicate(), called before re-concilation loop in watcher
-func ignoreNamespacePredicate() predicate.Predicate {
+// All methods to implement GenericPredicates type
+// GenericPredicates to be passed to manager
+type GenericPredicates struct {
+	predicate.Funcs
+}
+
+// create() to filter create events
+func (GenericPredicates) Create(e event.CreateEvent) bool {
+	return IgnoreNamespacePredicate(e.Object)
+}
+
+// update() to filter update events
+func (GenericPredicates) Update(e event.UpdateEvent) bool {
+	return IgnoreNamespacePredicate(e.ObjectNew)
+
+}
+
+func IgnoreNamespacePredicate(obj object) bool {
 	namespaces := getEnvAsSlice("DENY_LIST", nil, ",")
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			for _, namespace := range namespaces {
-				if e.Object.GetNamespace() == namespace {
-					msg := fmt.Sprintf("druid operator will not re-concile namespace [%s], alter DENY_LIST to re-concile", e.Object.GetNamespace())
-					logger.Info(msg)
-					return false
-				}
-			}
-			return true
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			for _, namespace := range namespaces {
-				if e.ObjectNew.GetNamespace() == namespace {
-					msg := fmt.Sprintf("druid operator will not re-concile namespace [%s], alter DENY_LIST to re-concile", e.ObjectNew.GetNamespace())
-					logger.Info(msg)
-					return false
-				}
-			}
-			return true
-		},
+
+	for _, namespace := range namespaces {
+		if obj.GetNamespace() == namespace {
+			msg := fmt.Sprintf("druid operator will not re-concile namespace [%s], alter DENY_LIST to re-concile", obj.GetNamespace())
+			logger.Info(msg)
+			return false
+		}
 	}
+	return true
 }
