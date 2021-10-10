@@ -57,6 +57,10 @@ vet:
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+# helm lint
+lint: 
+	helm lint ./chart
+
 # Build the docker image
 docker-build: generate manifests
 	docker build . -t ${IMG}
