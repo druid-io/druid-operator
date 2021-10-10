@@ -61,6 +61,9 @@ generate: controller-gen
 lint: 
 	helm lint ./chart
 
+template:
+	helm -n druid-operator template cluster-druid-operator ./chart --debug
+
 # Build the docker image
 docker-build: generate manifests
 	docker build . -t ${IMG}

@@ -16,9 +16,3 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build the Docker image
       run: docker build . -t druidio/druid-operator:$(date +%s)
-    - name: Helm lint
-    - uses: azure/setup-helm@v1
-      with:
-        version: 'default' # default is latest stable
-      id: install
-      run: make lint
