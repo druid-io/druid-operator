@@ -11,9 +11,8 @@ import (
 	"sort"
 
 	autoscalev2beta2 "k8s.io/api/autoscaling/v2beta2"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
-	storage "k8s.io/api/storage/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	storage "k8s.io/api/storage/v1"
 
 	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -196,9 +195,9 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 			//	scalePVCForSTS to be only called only if volumeExpansion is supported by the storage class.
 			//  Ignore for the first iteration ie cluster creation, else get sts shall unnecessary log errors.
 
-			if m.Generation > 1 {
-				if isVolumeExpansionEnabled(sdk, m, &nodeSpec) {
-					err := scalePVCForSts(sdk, &nodeSpec, nodeSpecUniqueStr, m)
+			if m.Generation > 1 && m.Spec.ScalePvcSts {
+				if isVolumeExpansionEnabled(sdk, m, &nodeSpec, emitEvents) {
+					err := scalePVCForSts(sdk, &nodeSpec, nodeSpecUniqueStr, m, emitEvents)
 					if err != nil {
 						return err
 					}
@@ -746,9 +745,9 @@ func isObjFullyDeployed(sdk client.Client, nodeSpec v1alpha1.DruidNodeSpec, node
 
 // scalePVCForSts shall expand the sts volumeclaimtemplates size as well as N no of pvc supported by the sts.
 // NOTE: To be called only if generation > 1
-func scalePVCForSts(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, nodeSpecUniqueStr string, drd *v1alpha1.Druid) error {
+func scalePVCForSts(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emitEvent EventEmitter) error {
 
-	getSTSList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), func() objectList { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
+	getSTSList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), emitEvent, func() objectList { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
 		items := listObj.(*appsv1.StatefulSetList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -771,7 +770,7 @@ func scalePVCForSts(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, nodeSpe
 
 	// return nil, in case return err the program halts since sts would not be able
 	// we would like the operator to create sts.
-	sts, err := readers.Get(context.TODO(), sdk, nodeSpecUniqueStr, drd, func() object { return makeStatefulSetEmptyObj() })
+	sts, err := readers.Get(context.TODO(), sdk, nodeSpecUniqueStr, drd, func() object { return makeStatefulSetEmptyObj() }, emitEvent)
 	if err != nil {
 		return nil
 	}
@@ -780,7 +779,7 @@ func scalePVCForSts(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, nodeSpe
 		"druid_cr": drd.Name,
 	}
 
-	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, func() objectList { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, emitEvent, func() objectList { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PersistentVolumeClaimList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -812,7 +811,7 @@ func scalePVCForSts(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, nodeSpe
 		if desiredSize < currentSize {
 			e := fmt.Errorf("Request for Shrinking of sts pvc size [sts:%s] in [namespace:%s] is not Supported", sts.(*appsv1.StatefulSet).Name, sts.(*appsv1.StatefulSet).Namespace)
 			logger.Error(e, e.Error(), "name", drd.Name, "namespace", drd.Namespace)
-			sendEvent(sdk, drd, v1.EventTypeWarning, DruidStsResizeFail, e.Error())
+			emitEvent.EmitEventGeneric(drd, "DruidOperatorPvcReSizeFail", "", err)
 			return e
 		}
 
@@ -821,14 +820,14 @@ func scalePVCForSts(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, nodeSpe
 		if desiredSize != currentSize {
 			msg := fmt.Sprintf("Detected Change in VolumeClaimTemplate Sizes for Statefuleset [%s] in Namespace [%s], desVolumeClaimTemplateSize: [%s], currVolumeClaimTemplateSize: [%s]\n, deleteing STS [%s] with casacde=false]", sts.(*appsv1.StatefulSet).Name, sts.(*appsv1.StatefulSet).Namespace, desVolumeClaimTemplateSize[i].String(), currVolumeClaimTemplateSize[i].String(), sts.(*appsv1.StatefulSet).Name)
 			logger.Info(msg)
-			sendEvent(sdk, drd, v1.EventTypeNormal, DruidStsSizeDetected, msg)
+			emitEvent.EmitEventGeneric(drd, "DruidOperatorPvcReSizeDetected", msg, nil)
 
-			if err := writers.Delete(context.TODO(), sdk, drd, sts, client.PropagationPolicy(metav1.DeletePropagationOrphan)); err != nil {
+			if err := writers.Delete(context.TODO(), sdk, drd, sts, emitEvent, client.PropagationPolicy(metav1.DeletePropagationOrphan)); err != nil {
 				return err
 			} else {
 				msg := fmt.Sprintf("[StatefuleSet:%s] successfully deleted with casacde=false", sts.(*appsv1.StatefulSet).Name)
 				logger.Info(msg, "name", drd.Name, "namespace", drd.Namespace)
-				sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodeDeleteSuccess, msg)
+				emitEvent.EmitEventGeneric(drd, "DruidOperatorStsOrphaned", msg, nil)
 			}
 
 		}
@@ -840,12 +839,11 @@ func scalePVCForSts(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, nodeSpe
 				// use deepcopy
 				patch := client.MergeFrom(pvcList[p].(*v1.PersistentVolumeClaim).DeepCopy())
 				pvcList[p].(*v1.PersistentVolumeClaim).Spec.Resources.Requests[v1.ResourceStorage] = desVolumeClaimTemplateSize[i]
-				if err := writers.Patch(context.TODO(), sdk, drd, pvcList[p].(*v1.PersistentVolumeClaim), false, patch); err != nil {
+				if err := writers.Patch(context.TODO(), sdk, drd, pvcList[p].(*v1.PersistentVolumeClaim), false, patch, emitEvent); err != nil {
 					return err
 				} else {
 					msg := fmt.Sprintf("[PVC:%s] successfully Patched with [Size:%s]", pvcList[p].(*v1.PersistentVolumeClaim).Name, desVolumeClaimTemplateSize[i].String())
 					logger.Info(msg, "name", drd.Name, "namespace", drd.Namespace)
-					sendEvent(sdk, drd, v1.EventTypeNormal, DruidNodePatchSucess, msg)
 				}
 			}
 		}
@@ -877,10 +875,10 @@ func getVolumeClaimTemplateSizes(sts object, nodeSpec *v1alpha1.DruidNodeSpec, p
 
 }
 
-func isVolumeExpansionEnabled(sdk client.Client, m *v1alpha1.Druid, nodeSpec *v1alpha1.DruidNodeSpec) bool {
+func isVolumeExpansionEnabled(sdk client.Client, m *v1alpha1.Druid, nodeSpec *v1alpha1.DruidNodeSpec, emitEvent EventEmitter) bool {
 
 	for _, nodeVCT := range nodeSpec.VolumeClaimTemplates {
-		sc, err := readers.Get(context.TODO(), sdk, *nodeVCT.Spec.StorageClassName, m, func() object { return makeStorageClassEmptyObj() })
+		sc, err := readers.Get(context.TODO(), sdk, *nodeVCT.Spec.StorageClassName, m, func() object { return makeStorageClassEmptyObj() }, emitEvent)
 		if err != nil {
 			return false
 		}
