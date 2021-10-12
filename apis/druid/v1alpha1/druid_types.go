@@ -41,7 +41,7 @@ type DruidSpec struct {
 	ForceDeleteStsPodOnError bool `json:"forceDeleteStsPodOnError,omitempty"`
 
 	// Optional: ScalePvcSts, defaults to false. When enabled, operator will allow volume expansion of sts and pvc's.
-	ScalePvcSts bool `json:"json:scalePvcSts,omitempty"`
+	ScalePvcSts bool `json:"scalePvcSts,omitempty"`
 
 	// Required: in-container directory to mount with common.runtime.properties
 	CommonConfigMountPath string `json:"commonConfigMountPath"`

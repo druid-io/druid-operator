@@ -776,7 +776,7 @@ func scalePVCForSts(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, nodeSpe
 	}
 
 	pvcLabels := map[string]string{
-		"druid_cr": drd.Name,
+		"component": nodeSpec.NodeType,
 	}
 
 	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, emitEvent, func() objectList { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
@@ -1251,7 +1251,10 @@ func makeStatefulSetSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls
 	stsSpec := appsv1.StatefulSetSpec{
 		ServiceName: serviceName,
 		Selector: &metav1.LabelSelector{
-			MatchLabels: ls,
+			MatchLabels: map[string]string{
+				"component": nodeSpec.NodeType,
+				"app":       "druid",
+			},
 		},
 		Replicas:             &nodeSpec.Replicas,
 		PodManagementPolicy:  appsv1.PodManagementPolicyType(firstNonEmptyStr(firstNonEmptyStr(string(nodeSpec.PodManagementPolicy), string(m.Spec.PodManagementPolicy)), string(appsv1.ParallelPodManagement))),
@@ -1268,7 +1271,10 @@ func makeStatefulSetSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls
 func makeDeploymentSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecificUniqueString, configMapSHA, serviceName string) appsv1.DeploymentSpec {
 	deploySpec := appsv1.DeploymentSpec{
 		Selector: &metav1.LabelSelector{
-			MatchLabels: ls,
+			MatchLabels: map[string]string{
+				"component": nodeSpec.NodeType,
+				"app":       "druid",
+			},
 		},
 		Replicas: &nodeSpec.Replicas,
 		Template: makePodTemplate(nodeSpec, m, ls, nodeSpecificUniqueString, configMapSHA),
@@ -1440,6 +1446,7 @@ func makeLabelsForNodeSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, 
 	labels["app"] = "druid"
 	labels["druid_cr"] = clusterName
 	labels["nodeSpecUniqueStr"] = nodeSpecUniqueStr
+	labels["component"] = nodeSpec.NodeType
 	return labels
 }
 

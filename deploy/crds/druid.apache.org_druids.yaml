@@ -3438,6 +3438,8 @@ spec:
                 type: object
               rollingDeploy:
                 type: boolean
+              scalePvcSts:
+                type: boolean
               securityContext:
                 properties:
                   fsGroup:
