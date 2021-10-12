@@ -1,10 +1,9 @@
 # Import the values when being called as dependency needs this line because of the dash '-'
 # Not looping when WATCH_NAMESPACE is 'default' or ALL
-{{- $relname := (index .Values "druid-operator") -}}
-{{- if and ($relname.env.WATCH_NAMESPACE) (ne $relname.env.WATCH_NAMESPACE "default") }}
+{{- if and (.Values.env.WATCH_NAMESPACE) (ne .Values.env.WATCH_NAMESPACE "default") }}
 
 # Split WATCH_NAMESPACE by commas and loop on them
-{{- $watchedNamespaces := (split "," $relname.env.WATCH_NAMESPACE) -}}
+{{- $watchedNamespaces := (split "," .Values.env.WATCH_NAMESPACE) -}}
 {{- range $watchedNamespaces }}
 
 # Look for desired namespace to create when not existent
