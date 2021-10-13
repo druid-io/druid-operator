@@ -3,11 +3,12 @@ kind: Service
 metadata:
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
-    druidOpResourceHash: IScIBhsS6qaK7VyK+TCCFM/s3VA=
+    druidOpResourceHash: vQE/6DfWCQnWFVvW3KxfOLBfdlA=
   labels:
     app: druid
     druid_cr: druid-test
     nodeSpecUniqueStr: druid-druid-test-brokers
+    component: broker
   name: broker-druid-druid-test-brokers-service
   namespace: test-namespace
 spec:
@@ -19,4 +20,5 @@ spec:
     app: druid
     druid_cr: druid-test
     nodeSpecUniqueStr: druid-druid-test-brokers
+    component: broker
   type: LoadBalancer

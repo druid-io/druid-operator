@@ -1251,10 +1251,7 @@ func makeStatefulSetSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls
 	stsSpec := appsv1.StatefulSetSpec{
 		ServiceName: serviceName,
 		Selector: &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				"component": nodeSpec.NodeType,
-				"app":       "druid",
-			},
+			MatchLabels: ls,
 		},
 		Replicas:             &nodeSpec.Replicas,
 		PodManagementPolicy:  appsv1.PodManagementPolicyType(firstNonEmptyStr(firstNonEmptyStr(string(nodeSpec.PodManagementPolicy), string(m.Spec.PodManagementPolicy)), string(appsv1.ParallelPodManagement))),
@@ -1271,10 +1268,7 @@ func makeStatefulSetSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls
 func makeDeploymentSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecificUniqueString, configMapSHA, serviceName string) appsv1.DeploymentSpec {
 	deploySpec := appsv1.DeploymentSpec{
 		Selector: &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				"component": nodeSpec.NodeType,
-				"app":       "druid",
-			},
+			MatchLabels: ls,
 		},
 		Replicas: &nodeSpec.Replicas,
 		Template: makePodTemplate(nodeSpec, m, ls, nodeSpecificUniqueString, configMapSHA),
