@@ -54,7 +54,7 @@
 - Druid Nodes specifically historicals run as statefulsets. Each statefulset has a pvc attached.
   NodeSpec in druid CR has a key volumeClaimTemplates where users can define the pvc's storage class as well as size.
 - In case a user wants to increase size in the node, the statefulsets cannot be directly updated.
-- Druid Operator behind the scenes shall make support seamless update of the statefulset, plus patch the pvc's with desired size defined in the druid CR.
+- Druid Operator behind the scenes performs seamless update of the statefulset, plus patch the pvc's with desired size defined in the druid CR.
 - Druid operator shall perform a cascade deletion of the sts, and shall patch the pvc. Cascade deletion has no affect to the pods running, queries are served and no downtime is experienced. 
 - While enabling this feature, druid operator will check if volume expansion is supported in the storage class mentioned in the druid CR, only then will it perform expansion.
 - Shrinkage of pvc's isnt supported, desiredSize cannot be less than currentSize as well as counts.
