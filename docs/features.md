@@ -50,7 +50,7 @@
 2. https://github.com/apache/druid/issues/8801#issuecomment-664648399
 
 ## Volume Expansion of Druid Nodes Running As StatefulSets
-```NOTE: This feature has been tested only on cloud environments and storage classes which have supported volume expansion. This feature does allow druid operator to perform cascade deletion of statefulsets.```
+```NOTE: This feature has been tested only on cloud environments and storage classes which have supported volume expansion. This feature uses cascade=orphan strategy to make sure only Stateful is deleted and recreated and pods are not deleted.```
 - Druid Nodes specifically historicals run as statefulsets. Each statefulset replica has a pvc attached.
 - NodeSpec in druid CR has key ```volumeClaimTemplates``` where users can define the pvc's storage class as well as size.
 - In case a user wants to increase size in the node, the statefulsets cannot be directly updated.
