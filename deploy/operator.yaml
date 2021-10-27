@@ -16,7 +16,7 @@ spec:
       containers:
         - name: druid-operator
           # Replace this with the built image name
-          image: druid-operator:latest
+          image: druidio/druid-operator:latest
           command:
           - /manager
           imagePullPolicy: Always
