@@ -38,7 +38,7 @@ spec:
               value: server.1=tiny-cluster-zk-0.tiny-cluster-zk:2888:3888;2181
             - name: SERVER_JVMFLAGS
               value: -Xms256m -Xmx256m
-          image: zookeeper:3.7
+          image: zookeeper:3.7.0
           name: tiny-cluster-zk
           command:
           - /bin/sh
