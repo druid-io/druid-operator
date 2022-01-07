@@ -3979,6 +3979,10 @@ spec:
                 type: array
               startScript:
                 type: string
+              entryArg:
+                type: string
+              druidScript:
+                type: string
               startUpProbe:
                 properties:
                   exec:

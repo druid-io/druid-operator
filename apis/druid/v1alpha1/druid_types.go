@@ -91,8 +91,15 @@ type DruidSpec struct {
 	// +optional
 	DeleteOrphanPvc bool `json:"deleteOrphanPvc"`
 
-	// Required: path to druid start script to be run on container start
+	// Required: Command to be run on container start
 	StartScript string `json:"startScript"`
+
+	// Optional: bash/sh entry arg. Set startScript to `sh` or `bash` to customize entryArg
+	// For example, the container can run `sh -c "${EntryArg} && ${DruidScript} {nodeType}"`
+	EntryArg string `json:"entryArg,omitempty"`
+
+	// Optional: Customized druid shell script path. If not set, the default would be "bin/run-druid.sh"
+	DruidScript string `json:"druidScript,omitempty"`
 
 	// Required here or at nodeSpec level
 	Image string `json:"image,omitempty"`
