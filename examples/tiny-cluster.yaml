@@ -6,7 +6,7 @@ kind: "Druid"
 metadata:
   name: tiny-cluster
 spec:
-  image: apache/druid:0.20.0
+  image: apache/druid:0.22.1
   # Optionally specify image for all nodes. Can be specify on nodes also
   # imagePullSecrets:
   # - name: tutu
