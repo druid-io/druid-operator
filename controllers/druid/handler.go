@@ -1442,9 +1442,17 @@ func makeLabelsForDruid(name string) map[string]string {
 // belonging to the given druid CR name.
 func makeLabelsForNodeSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, clusterName, nodeSpecUniqueStr string) map[string]string {
 	var labels = map[string]string{}
-	if nodeSpec.PodLabels != nil || m.Spec.PodLabels != nil {
-		labels = firstNonNilValue(nodeSpec.PodLabels, m.Spec.PodLabels).(map[string]string)
+
+	// if both labels are present at both cluster and node spec
+	// labels should be merged.
+	if nodeSpec.PodLabels != nil && m.Spec.PodLabels != nil {
+		labels = nodeSpec.PodLabels
 	}
+
+	for k, v := range m.Spec.PodLabels {
+		labels[k] = v
+	}
+
 	labels["app"] = "druid"
 	labels["druid_cr"] = clusterName
 	labels["nodeSpecUniqueStr"] = nodeSpecUniqueStr
