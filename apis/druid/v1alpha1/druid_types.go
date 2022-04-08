@@ -110,7 +110,7 @@ type DruidSpec struct {
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 
 	// Optional: StartupProbe for nodeSpec
-	StartUpProbes *v1.Probe `json:"startUpProbes,omitempty"`
+	StartUpProbe *v1.Probe `json:"startUpProbe,omitempty"`
 
 	// Optional: k8s service resources to be created for each Druid statefulsets
 	Services []v1.Service `json:"services,omitempty"`
