@@ -53,7 +53,7 @@ func main() {
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "e6946145.apache.org",
 		Namespace:              os.Getenv("WATCH_NAMESPACE"),
-    NewCache:               watchNamespaceCache(),
+		NewCache:               watchNamespaceCache(),
 	})
 
 	if err != nil {
