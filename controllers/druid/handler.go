@@ -1303,7 +1303,7 @@ func makePodTemplate(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map
 // makePodSpec shall create podSpec common to both deployment and statefulset.
 func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUniqueStr, configMapSHA string) v1.PodSpec {
 	spec := v1.PodSpec{
-		NodeSelector:              m.Spec.NodeSelector,
+		NodeSelector:              firstNonNilValue(m.Spec.NodeSelector, nodeSpec.NodeSelector).(map[string]string),
 		TopologySpreadConstraints: getTopologySpreadConstraints(nodeSpec),
 		Tolerations:               getTolerations(nodeSpec, m),
 		Affinity:                  getAffinity(nodeSpec, m),
