@@ -40,6 +40,9 @@ type DruidSpec struct {
 	// doc: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#forced-rollback
 	ForceDeleteStsPodOnError bool `json:"forceDeleteStsPodOnError,omitempty"`
 
+	// Optional: ScalePvcSts, defaults to false. When enabled, operator will allow volume expansion of sts and pvc's.
+	ScalePvcSts bool `json:"scalePvcSts,omitempty"`
+
 	// Required: in-container directory to mount with common.runtime.properties
 	CommonConfigMountPath string `json:"commonConfigMountPath"`
 
@@ -140,6 +143,9 @@ type DruidSpec struct {
 	Zookeeper     *ZookeeperSpec     `json:"zookeeper,omitempty"`
 	MetadataStore *MetadataStoreSpec `json:"metadataStore,omitempty"`
 	DeepStorage   *DeepStorageSpec   `json:"deepStorage,omitempty"`
+
+	// Optional: Custom Dimension Map Path for statsd emitter
+	DimensionsMapPath string `json:"metricDimensions.json,omitempty"`
 }
 
 type DruidNodeSpec struct {
