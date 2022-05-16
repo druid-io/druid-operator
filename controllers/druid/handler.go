@@ -1737,10 +1737,6 @@ func verifyDruidSpec(drd *v1alpha1.Druid) error {
 			errorMsg = fmt.Sprintf("%sImage missing from Druid Cluster Spec\n", errorMsg)
 		}
 
-		if node.Replicas < 1 {
-			errorMsg = fmt.Sprintf("%sNode[%s] missing Replicas\n", errorMsg, key)
-		}
-
 		if node.RuntimeProperties == "" {
 			errorMsg = fmt.Sprintf("%sNode[%s] missing RuntimeProperties\n", errorMsg, key)
 		}
