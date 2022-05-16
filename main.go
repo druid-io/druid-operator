@@ -3,11 +3,13 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -17,8 +19,9 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme         = runtime.NewScheme()
+	setupLog       = ctrl.Log.WithName("setup")
+	watchNamespace = os.Getenv("WATCH_NAMESPACE")
 )
 
 func init() {
@@ -50,6 +53,7 @@ func main() {
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "e6946145.apache.org",
 		Namespace:              os.Getenv("WATCH_NAMESPACE"),
+		NewCache:               watchNamespaceCache(),
 	})
 
 	if err != nil {
@@ -78,4 +82,18 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func watchNamespaceCache() cache.NewCacheFunc {
+	var managerWatchCache cache.NewCacheFunc
+	if watchNamespace != "" {
+		ns := strings.Split(watchNamespace, ",")
+		for i := range ns {
+			ns[i] = strings.TrimSpace(ns[i])
+		}
+		managerWatchCache = cache.MultiNamespacedCacheBuilder(ns)
+		return managerWatchCache
+	}
+	managerWatchCache = (cache.NewCacheFunc)(nil)
+	return managerWatchCache
 }
