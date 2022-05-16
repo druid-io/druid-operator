@@ -487,7 +487,7 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid, emitEvents EventEmi
 	for _, pod := range podList {
 		if pod.(*v1.Pod).Spec.Volumes != nil {
 			for _, vol := range pod.(*v1.Pod).Spec.Volumes {
-				if vol.PersistentVolumeClaim != nil {
+				if vol.PersistentVolumeClaim != nil && pod.(*v1.Pod).Status.Phase != v1.PodPending {
 					if !ContainsString(mountedPVC, vol.PersistentVolumeClaim.ClaimName) {
 						mountedPVC = append(mountedPVC, vol.PersistentVolumeClaim.ClaimName)
 					}
