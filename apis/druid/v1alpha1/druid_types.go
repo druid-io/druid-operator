@@ -193,6 +193,9 @@ type DruidNodeSpec struct {
 	// Optional: affinity to be used to for enabling node, pod affinity and anti-affinity
 	Affinity *v1.Affinity `json:"affinity,omitempty"`
 
+	// Optional: node selector to be used by Druid statefulsets
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
 	// Optional: terminationGracePeriod
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 
