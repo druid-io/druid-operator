@@ -9,7 +9,7 @@ metadata:
     nodeSpecUniqueStr: druid-druid-test-brokers
     component: broker
   annotations:
-    druidOpResourceHash: ZzOn5v/f82XpT1su/DEQzCViuKg=
+    druidOpResourceHash: gfGJ6aviJkM512x1ltsWOty2y5M=
 spec:
   podManagementPolicy: Parallel
   replicas: 2
