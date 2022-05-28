@@ -21,3 +21,5 @@ version: 0.1.2
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 appVersion: 0.0.8
+# icon
+icon: "https://www.apache.org/logos/res/druid/druid-1.png"
