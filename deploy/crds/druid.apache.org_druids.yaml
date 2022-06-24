@@ -3772,6 +3772,41 @@ spec:
                       type: object
                   type: object
                 type: array
+              sidecarContainer:
+                items:
+                  properties:
+                    args:
+                      items:
+                        type: string
+                      type: array
+                    configs:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    resources:
+                      properties:
+                        limits:
+                          additionalProperties:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          type: object
+                        requests:
+                          additionalProperties:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          type: object
+                      type: object
+                    user:
+                      format: int64
+                      type: integer
+                  type: object
+                type: array
               startScript:
                 type: string
               startUpProbe:

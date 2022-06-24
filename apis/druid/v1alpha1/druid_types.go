@@ -24,6 +24,16 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// AdditionalContainer defines the additional sidecar container
+type AdditionalContainer struct {
+	// List of configurations to use which are not present or to override default implementation configurations
+	// +optional
+	Configs   map[string]string       `json:"configs,omitempty"`
+	Args      []string                `json:"args,omitempty"`
+	User      int64                   `json:"user,omitempty"`
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+}
+
 // DruidSpec defines the desired state of Druid
 type DruidSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -131,6 +141,9 @@ type DruidSpec struct {
 	// placed on k8s resource names.
 	// that is, it must match regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
 	Nodes map[string]DruidNodeSpec `json:"nodes"`
+
+	// Operator deploys the sidecar container based on these properties. Sidecar will be deployed for all the Druid pods.
+	SidecarContainer []AdditionalContainer `json:"sidecarContainer,omitempty"`
 
 	// Operator deploys above list of nodes in the Druid prescribed order of Historical, Overlord, MiddleManager,
 	// Broker, Coordinator etc.

@@ -29,6 +29,20 @@ func TestMakeStatefulSetForBroker(t *testing.T) {
 	assertEquals(expected, actual, t)
 }
 
+func TestMakeStatefulSetForBrokerWithSidecar(t *testing.T) {
+	clusterSpec := readSampleDruidClusterSpecWithSidecar(t)
+
+	nodeSpecUniqueStr := makeNodeSpecificUniqueString(clusterSpec, "brokers")
+	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
+
+	actual, _ := makeStatefulSet(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(&nodeSpec, clusterSpec, clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr, "blah", nodeSpecUniqueStr)
+	addHashToObject(actual)
+
+	expected := new(appsv1.StatefulSet)
+	readAndUnmarshallResource("testdata/broker-statefulset-sidecar.yaml", &expected, t)
+	assertEquals(expected, actual, t)
+}
+
 func TestDeploymentForBroker(t *testing.T) {
 	clusterSpec := readSampleDruidClusterSpec(t)
 
@@ -118,6 +132,10 @@ func TestMakeBrokerConfigMap(t *testing.T) {
 
 func readSampleDruidClusterSpec(t *testing.T) *v1alpha1.Druid {
 	return readDruidClusterSpecFromFile(t, "testdata/druid-test-cr.yaml")
+}
+
+func readSampleDruidClusterSpecWithSidecar(t *testing.T) *v1alpha1.Druid {
+	return readDruidClusterSpecFromFile(t, "testdata/druid-test-cr-sidecar.yaml")
 }
 
 func readDruidClusterSpecFromFile(t *testing.T, filePath string) *v1alpha1.Druid {
