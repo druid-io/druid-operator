@@ -771,7 +771,7 @@ func getObjectHash(obj object) (string, error) {
 }
 
 func makeNodeSpecificUniqueString(m *v1alpha1.Druid, key string) string {
-	return fmt.Sprintf("druid-%s-%s", m.Name, key)
+	return fmt.Sprintf("druid-%s", m.Name, key)
 }
 
 func makeCommonConfigMap(m *v1alpha1.Druid, ls map[string]string) (*v1.ConfigMap, error) {
