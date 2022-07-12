@@ -125,7 +125,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 
 		//Name in k8s must pass regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
 		//So this unique string must follow same.
-		nodeSpecUniqueStr := makeNodeSpecificUniqueString(m, key)
+		nodeSpecUniqueStr := makeNodeSpecificUniqueString(key)
 
 		lm := makeLabelsForNodeSpec(&nodeSpec, m, m.Name, nodeSpecUniqueStr)
 
@@ -770,7 +770,7 @@ func getObjectHash(obj object) (string, error) {
 	}
 }
 
-func makeNodeSpecificUniqueString(m *v1alpha1.Druid, key string) string {
+func makeNodeSpecificUniqueString(key string) string {
 	return fmt.Sprintf("%s", key)
 }
 

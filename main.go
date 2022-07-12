@@ -14,6 +14,7 @@ import (
 	druidcontroller "github.com/druid-io/druid-operator/controllers/druid"
 	// +kubebuilder:scaffold:imports
 )
+
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
