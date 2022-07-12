@@ -35,13 +35,16 @@ spec:
       containers:
         - env:
             - name: ZOO_SERVERS
-              value: server.0=tiny-cluster-zk-0.tiny-cluster-zk:2888:3888
+              value: server.1=tiny-cluster-zk-0.tiny-cluster-zk:2888:3888;2181
             - name: SERVER_JVMFLAGS
               value: -Xms256m -Xmx256m
-          image: zookeeper:3.4.13
+          image: zookeeper:3.7.0
           name: tiny-cluster-zk
-          command: ["/bin/sh"]
-          args: ["-c", "ZOO_MY_ID=$(echo `hostname` | cut -d '-' -f2) /docker-entrypoint.sh zkServer.sh start-foreground"]
+          command:
+          - /bin/sh
+          args:
+          - -c
+          - ZOO_MY_ID=$(( $(echo `hostname -s` | sed 's/[^0-9]//g') + 1 )) /docker-entrypoint.sh zkServer.sh start-foreground
           ports:
             - containerPort: 2181
               name: zk-client-port

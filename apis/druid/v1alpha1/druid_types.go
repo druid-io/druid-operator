@@ -40,6 +40,9 @@ type DruidSpec struct {
 	// doc: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#forced-rollback
 	ForceDeleteStsPodOnError bool `json:"forceDeleteStsPodOnError,omitempty"`
 
+	// Optional: ScalePvcSts, defaults to false. When enabled, operator will allow volume expansion of sts and pvc's.
+	ScalePvcSts bool `json:"scalePvcSts,omitempty"`
+
 	// Required: in-container directory to mount with common.runtime.properties
 	CommonConfigMountPath string `json:"commonConfigMountPath"`
 
@@ -107,7 +110,7 @@ type DruidSpec struct {
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 
 	// Optional: StartupProbe for nodeSpec
-	StartUpProbes *v1.Probe `json:"startUpProbes,omitempty"`
+	StartUpProbe *v1.Probe `json:"startUpProbe,omitempty"`
 
 	// Optional: k8s service resources to be created for each Druid statefulsets
 	Services []v1.Service `json:"services,omitempty"`
@@ -140,6 +143,9 @@ type DruidSpec struct {
 	Zookeeper     *ZookeeperSpec     `json:"zookeeper,omitempty"`
 	MetadataStore *MetadataStoreSpec `json:"metadataStore,omitempty"`
 	DeepStorage   *DeepStorageSpec   `json:"deepStorage,omitempty"`
+
+	// Optional: Custom Dimension Map Path for statsd emitter
+	DimensionsMapPath string `json:"metricDimensions.json,omitempty"`
 }
 
 type DruidNodeSpec struct {
@@ -186,6 +192,9 @@ type DruidNodeSpec struct {
 
 	// Optional: affinity to be used to for enabling node, pod affinity and anti-affinity
 	Affinity *v1.Affinity `json:"affinity,omitempty"`
+
+	// Optional: node selector to be used by Druid statefulsets
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// Optional: terminationGracePeriod
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
@@ -279,20 +288,40 @@ type DeepStorageSpec struct {
 	Spec json.RawMessage `json:"spec"`
 }
 
+// These are valid conditions of a druid Node
+const (
+	// DruidClusterReady indicates the underlying druid objects is fully deployed
+	// Underlying pods are able to service requests
+	DruidClusterReady DruidNodeConditionType = "DruidClusterReady"
+	// DruidNodeRollingUpgrade means that Druid Node is rolling update.
+	DruidNodeRollingUpdate DruidNodeConditionType = "DruidNodeRollingUpdate"
+	// DruidNodeError indicates the DruidNode is in an error state.
+	DruidNodeErrorState DruidNodeConditionType = "DruidNodeErrorState"
+)
+
+type DruidNodeConditionType string
+
+type DruidNodeTypeStatus struct {
+	DruidNode                string                 `json:"druidNode,omitempty"`
+	DruidNodeConditionStatus v1.ConditionStatus     `json:"druidNodeConditionStatus,omitempty"`
+	DruidNodeConditionType   DruidNodeConditionType `json:"druidNodeConditionType,omitempty"`
+	Reason                   string                 `json:"reason,omitempty"`
+}
+
 // DruidStatus defines the observed state of Druid
-type DruidStatus struct {
+type DruidClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-
-	StatefulSets           []string `json:"statefulSets,omitempty"`
-	Deployments            []string `json:"deployments,omitempty"`
-	Services               []string `json:"services,omitempty"`
-	ConfigMaps             []string `json:"configMaps,omitempty"`
-	PodDisruptionBudgets   []string `json:"podDisruptionBudgets,omitempty"`
-	Ingress                []string `json:"ingress,omitempty"`
-	HPAutoScalers          []string `json:"hpAutoscalers,omitempty"`
-	Pods                   []string `json:"pods,omitempty"`
-	PersistentVolumeClaims []string `json:"persistentVolumeClaims,omitempty"`
+	DruidNodeStatus        DruidNodeTypeStatus `json:"druidNodeStatus,omitempty"`
+	StatefulSets           []string            `json:"statefulSets,omitempty"`
+	Deployments            []string            `json:"deployments,omitempty"`
+	Services               []string            `json:"services,omitempty"`
+	ConfigMaps             []string            `json:"configMaps,omitempty"`
+	PodDisruptionBudgets   []string            `json:"podDisruptionBudgets,omitempty"`
+	Ingress                []string            `json:"ingress,omitempty"`
+	HPAutoScalers          []string            `json:"hpAutoscalers,omitempty"`
+	Pods                   []string            `json:"pods,omitempty"`
+	PersistentVolumeClaims []string            `json:"persistentVolumeClaims,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -302,8 +331,8 @@ type Druid struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   DruidSpec   `json:"spec"`
-	Status DruidStatus `json:"status,omitempty"`
+	Spec   DruidSpec          `json:"spec"`
+	Status DruidClusterStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

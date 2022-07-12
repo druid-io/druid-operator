@@ -6,13 +6,15 @@ metadata:
     druid_cr: druid-test
     nodeSpecUniqueStr: brokers
   name: brokers
+    component: broker
   namespace: test-namespace
   annotations:
-    druidOpResourceHash: iF0BSmXKN+Oi1rBfod127UnVkR0=
+    druidOpResourceHash: PSUil0VZr4P6YHR8+EGWPiCSiXg=
 spec:
   maxUnavailable: 1
   selector:
     matchLabels:
       app: druid
       druid_cr: druid-test
-      nodeSpecUniqueStr: druid-druid-test-brokers
+      nodeSpecUniqueStr: brokers
+      component: broker

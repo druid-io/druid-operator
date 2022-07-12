@@ -82,6 +82,10 @@ spec:
     druid.indexer.logs.type=file
     druid.indexer.logs.directory=/druid/data/indexing-logs
     druid.lookup.enableLookupSyncOnStartup=false
+  metricDimensions.json: |-
+    {
+      "query/time" : { "dimensions" : ["dataSource", "type"], "type" : "timer"}
+    }
   volumeMounts:
     - mountPath: /druid/data
       name: data-volume

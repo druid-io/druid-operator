@@ -60,3 +60,9 @@ func RemoveString(slice []string, s string) (result []string) {
 	}
 	return
 }
+
+// returns pointer to bool
+func boolFalse() *bool {
+	bool := false
+	return &bool
+}

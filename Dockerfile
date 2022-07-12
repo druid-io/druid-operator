@@ -1,10 +1,11 @@
 # Build the manager binary
-FROM golang:1.15 as builder
+FROM golang:1.17 as builder
 
 WORKDIR /workspace
 
 ARG K8S_VERSION=1.19.2
 ARG KUBEBUILDER_VERSION=2.3.1
+ARG HELM_VERSION=3.7.0
 
 # Install Kubebuilder
 ARG OS_ARCH=amd64
@@ -19,9 +20,16 @@ RUN tar -xzvf envtest-bins.tar.gz
 RUN rm -rf /usr/local/kubebuilder/bin/kube_apiserver
 RUN mv kubebuilder/bin/kube-apiserver /usr/local/kubebuilder/bin
 
+# Install helm
+RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+RUN chmod 700 get_helm.sh
+RUN ./get_helm.sh
+
+
 COPY . .
 
 # Build
+RUN make lint && make template
 RUN go mod download
 RUN go fmt ./...
 RUN go vet ./...
