@@ -101,58 +101,58 @@ func testDruidOperator(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
 		}
 
 		expectedConfigMaps := []string{
-			fmt.Sprintf("druid-%s-brokers-config", druidCR.Name),
-			fmt.Sprintf("druid-%s-coordinators-config", druidCR.Name),
-			fmt.Sprintf("druid-%s-historicals-config", druidCR.Name),
-			fmt.Sprintf("druid-%s-routers-config", druidCR.Name),
-			fmt.Sprintf("%s-druid-common-config", druidCR.Name),
+			fmt.Sprintf("brokers-config"),
+            fmt.Sprintf("common-config"),
+			fmt.Sprintf("coordinators-config"),
+			fmt.Sprintf("historicals-config"),
+			fmt.Sprintf("routers-config"),
 		}
 		if !areStringArraysEqual(druid.Status.ConfigMaps, expectedConfigMaps) {
-			return errors.New(fmt.Sprintf("Failed to get expected ConfigMaps, got [%v]", druid.Status.ConfigMaps))
+			return errors.New(fmt.Sprintf("Failed to get expected ConfigMaps, got [%v], expected [%v]", druid.Status.ConfigMaps, expectedConfigMaps))
 		}
 
 		expectedServices := []string{
-			fmt.Sprintf("druid-%s-brokers", druidCR.Name),
-			fmt.Sprintf("druid-%s-coordinators", druidCR.Name),
-			fmt.Sprintf("druid-%s-historicals", druidCR.Name),
-			fmt.Sprintf("druid-%s-routers", druidCR.Name),
+			fmt.Sprintf("brokers"),
+			fmt.Sprintf("coordinators"),
+			fmt.Sprintf("historicals"),
+			fmt.Sprintf("routers"),
 		}
 		if !areStringArraysEqual(druid.Status.Services, expectedServices) {
 			return errors.New(fmt.Sprintf("Failed to get expected Services, got [%v]", druid.Status.Services))
 		}
 
 		expectedStatefulSets := []string{
-			fmt.Sprintf("druid-%s-coordinators", druidCR.Name),
-			fmt.Sprintf("druid-%s-historicals", druidCR.Name),
-			fmt.Sprintf("druid-%s-routers", druidCR.Name),
+			fmt.Sprintf("coordinators"),
+			fmt.Sprintf("historicals"),
+			fmt.Sprintf("routers"),
 		}
 		if !areStringArraysEqual(druid.Status.StatefulSets, expectedStatefulSets) {
 			return errors.New(fmt.Sprintf("Failed to get expected StatefulSets, got [%v]", druid.Status.StatefulSets))
 		}
 
 		expectedDeployments := []string{
-			fmt.Sprintf("druid-%s-brokers", druidCR.Name),
+			fmt.Sprintf("brokers"),
 		}
 		if !areStringArraysEqual(druid.Status.Deployments, expectedDeployments) {
 			return errors.New(fmt.Sprintf("Failed to get expected Deployments, got [%v]", druid.Status.Deployments))
 		}
 
 		expectedPDBs := []string{
-			fmt.Sprintf("druid-%s-brokers", druidCR.Name),
+			fmt.Sprintf("brokers"),
 		}
 		if !areStringArraysEqual(druid.Status.PodDisruptionBudgets, expectedPDBs) {
 			return errors.New(fmt.Sprintf("Failed to get expected PDBs, got [%v]", druid.Status.PodDisruptionBudgets))
 		}
 
 		expectedHPAs := []string{
-			fmt.Sprintf("druid-%s-brokers", druidCR.Name),
+			fmt.Sprintf("brokers"),
 		}
 		if !areStringArraysEqual(druid.Status.HPAutoScalers, expectedHPAs) {
 			return errors.New(fmt.Sprintf("Failed to get expected HPAs, got [%v]", druid.Status.HPAutoScalers))
 		}
 
 		expectedIngress := []string{
-			fmt.Sprintf("druid-%s-routers", druidCR.Name),
+			fmt.Sprintf("routers"),
 		}
 		if !areStringArraysEqual(druid.Status.Ingress, expectedIngress) {
 			return errors.New(fmt.Sprintf("Failed to get expected Ingress, got [%v]", druid.Status.Ingress))

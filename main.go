@@ -13,7 +13,6 @@ import (
 	druidv1alpha1 "github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	druidcontroller "github.com/druid-io/druid-operator/controllers/druid"
 	// +kubebuilder:scaffold:imports
-)
 
 var (
 	scheme   = runtime.NewScheme()

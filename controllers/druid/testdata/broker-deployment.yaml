@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: druid-druid-test-brokers
+  name: brokers
   namespace: test-namespace
   labels:
     app: druid
     druid_cr: druid-test
-    nodeSpecUniqueStr: druid-druid-test-brokers
+    nodeSpecUniqueStr: brokers
   annotations:
     druidOpResourceHash: UFf9ygahn6p+juXtqdzSghIjDvI=
 spec:
@@ -15,7 +15,7 @@ spec:
     matchLabels:
       app: druid
       druid_cr: druid-test
-      nodeSpecUniqueStr: druid-druid-test-brokers
+      nodeSpecUniqueStr: brokers
   strategy:
    rollingUpdate:
      maxSurge: 25
@@ -26,7 +26,7 @@ spec:
       labels:
         app: druid
         druid_cr: druid-test
-        nodeSpecUniqueStr: druid-druid-test-brokers
+        nodeSpecUniqueStr: brokers
       annotations:
         key1: value1
         key2: value2
@@ -38,7 +38,7 @@ spec:
         - bin/run-druid.sh
         - broker
         image: himanshu01/druid:druid-0.12.0-1
-        name: druid-druid-test-brokers
+        name: brokers
         env:
           - name : configMapSHA
             value : blah
@@ -75,8 +75,8 @@ spec:
         runAsUser: 106
       volumes:
       - configMap:
-          name: druid-test-druid-common-config
+          name: common-config
         name: common-config-volume
       - configMap:
-          name: druid-druid-test-brokers-config
+          name: brokers-config
         name: nodetype-config-volume

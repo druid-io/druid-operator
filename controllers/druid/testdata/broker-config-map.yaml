@@ -43,8 +43,8 @@ metadata:
   labels:
     app: druid
     druid_cr: druid-test
-    nodeSpecUniqueStr: druid-druid-test-brokers
-  name: druid-druid-test-brokers-config
+    nodeSpecUniqueStr: rokers
+  name: brokers-config
   namespace: test-namespace
   annotations:
     druidOpResourceHash: 9kOh5Qyj7xud9ED6REtjhXM6zJU=

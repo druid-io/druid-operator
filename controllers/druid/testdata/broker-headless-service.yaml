@@ -7,8 +7,8 @@ metadata:
   labels:
     app: druid
     druid_cr: druid-test
-    nodeSpecUniqueStr: druid-druid-test-brokers
-  name: druid-druid-test-brokers
+    nodeSpecUniqueStr: brokers
+  name: brokers
   namespace: test-namespace
 spec:
   clusterIP: None

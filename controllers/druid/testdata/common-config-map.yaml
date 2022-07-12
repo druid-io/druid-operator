@@ -57,7 +57,7 @@ metadata:
   labels:
     app: druid
     druid_cr: druid-test
-  name: druid-test-druid-common-config
+  name: common-config
   namespace: test-namespace
   annotations:
     druidOpResourceHash: +30qwQo2Inbc9o49vF664RAPMMQ=

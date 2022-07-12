@@ -7,8 +7,8 @@ metadata:
   labels:
     app: druid
     druid_cr: druid-test
-    nodeSpecUniqueStr: druid-druid-test-brokers
-  name: broker-druid-druid-test-brokers-service
+    nodeSpecUniqueStr: brokers
+  name: brokers-service
   namespace: test-namespace
 spec:
   ports:

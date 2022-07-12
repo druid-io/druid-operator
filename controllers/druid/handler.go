@@ -771,7 +771,7 @@ func getObjectHash(obj object) (string, error) {
 }
 
 func makeNodeSpecificUniqueString(m *v1alpha1.Druid, key string) string {
-	return fmt.Sprintf("druid-%s", m.Name, key)
+	return fmt.Sprintf("%s", key)
 }
 
 func makeCommonConfigMap(m *v1alpha1.Druid, ls map[string]string) (*v1.ConfigMap, error) {
@@ -802,7 +802,7 @@ func makeCommonConfigMap(m *v1alpha1.Druid, ls map[string]string) (*v1.ConfigMap
 	}
 
 	cfg, err := makeConfigMap(
-		fmt.Sprintf("%s-druid-common-config", m.ObjectMeta.Name),
+		fmt.Sprintf("common-config"),
 		m.Namespace,
 		ls,
 		map[string]string{"common.runtime.properties": prop})
@@ -957,7 +957,7 @@ func getVolume(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUniq
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
-						Name: fmt.Sprintf("%s-druid-common-config", m.ObjectMeta.Name),
+						Name: fmt.Sprintf("common-config"),
 					},
 				}},
 		},

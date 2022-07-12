@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: druid-druid-test-brokers
+  name: brokers
   namespace: test-namespace
   labels:
     app: druid
     druid_cr: druid-test
-    nodeSpecUniqueStr: druid-druid-test-brokers
+    nodeSpecUniqueStr: brokers
   annotations:
     druidOpResourceHash: OnEopGbFnwSCMqd84ePrk0Kvd9o=
 spec:
@@ -17,7 +17,7 @@ spec:
       app: druid
       druid_cr: druid-test
       nodeSpecUniqueStr: druid-druid-test-brokers
-  serviceName: druid-druid-test-brokers
+  serviceName: brokers
   template:
     metadata:
       labels:
@@ -35,7 +35,7 @@ spec:
         - bin/run-druid.sh
         - broker
         image: himanshu01/druid:druid-0.12.0-1
-        name: druid-druid-test-brokers
+        name: brokers
         env:
           - name : configMapSHA
             value : blah
@@ -72,10 +72,10 @@ spec:
         runAsUser: 106
       volumes:
       - configMap:
-          name: druid-test-druid-common-config
+          name: common-config
         name: common-config-volume
       - configMap:
-          name: druid-druid-test-brokers-config
+          name: brokers-config
         name: nodetype-config-volume
   volumeClaimTemplates:
   - metadata:
