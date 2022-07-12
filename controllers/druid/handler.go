@@ -123,11 +123,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid) error {
 		key := elem.key
 		nodeSpec := elem.spec
 
-		//Name in k8s must pass regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
-		//So this unique string must follow same.
-		nodeSpecUniqueStr := makeNodeSpecificUniqueString(key)
-
-		lm := makeLabelsForNodeSpec(&nodeSpec, m, m.Name, nodeSpecUniqueStr)
+		lm := makeLabelsForNodeSpec(&nodeSpec, m, m.Name, key)
 
 		// create configmap first
 		nodeConfig, err := makeConfigMapForNodeSpec(&nodeSpec, m, lm, nodeSpecUniqueStr)
@@ -768,10 +764,6 @@ func getObjectHash(obj object) (string, error) {
 		sha1Bytes := sha1.Sum(bytes)
 		return base64.StdEncoding.EncodeToString(sha1Bytes[:]), nil
 	}
-}
-
-func makeNodeSpecificUniqueString(key string) string {
-	return fmt.Sprintf("%s", key)
 }
 
 func makeCommonConfigMap(m *v1alpha1.Druid, ls map[string]string) (*v1.ConfigMap, error) {
