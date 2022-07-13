@@ -28,10 +28,16 @@ import (
 type AdditionalContainer struct {
 	// List of configurations to use which are not present or to override default implementation configurations
 	// +optional
-	Configs   map[string]string       `json:"configs,omitempty"`
-	Args      []string                `json:"args,omitempty"`
-	User      int64                   `json:"user,omitempty"`
-	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+	//Configs                  map[string]string `json:"configs,omitempty"`
+	Image 					 string `json:"image,omitempty"`
+	ContainerName			 string `json:"containerName,omitempty"`
+	Command					 []string `json:"command,omitempty"`
+	ImagePullPolicy 		 v1.PullPolicy `json:"imagePullPolicy,omitempty"`
+	Args                     []string                `json:"args,omitempty"`
+	ContainerSecurityContext *v1.SecurityContext     `json:"securityContext,omitempty"`
+	Resources                v1.ResourceRequirements `json:"resources,omitempty"`
+	VolumeMounts         	 []v1.VolumeMount           `json:"volumeMounts,omitempty"`
+	Env 					 []v1.EnvVar `json:"env,omitempty"`
 }
 
 // DruidSpec defines the desired state of Druid
@@ -143,7 +149,7 @@ type DruidSpec struct {
 	Nodes map[string]DruidNodeSpec `json:"nodes"`
 
 	// Operator deploys the sidecar container based on these properties. Sidecar will be deployed for all the Druid pods.
-	SidecarContainer []AdditionalContainer `json:"sidecarContainer,omitempty"`
+	AdditionalContainer []AdditionalContainer `json:"additionalContainer,omitempty"`
 
 	// Operator deploys above list of nodes in the Druid prescribed order of Historical, Overlord, MiddleManager,
 	// Broker, Coordinator etc.

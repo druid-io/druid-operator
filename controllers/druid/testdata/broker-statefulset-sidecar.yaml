@@ -9,7 +9,7 @@ metadata:
     nodeSpecUniqueStr: druid-druid-test-brokers
     component: broker
   annotations:
-    druidOpResourceHash: zYM8UKck32s9A4r7X/q9tuDWuLE=
+    druidOpResourceHash: qItQSuF2PU0ZPa2ZFyj3DOa7qNc=
 spec:
   podManagementPolicy: Parallel
   replicas: 2
@@ -92,15 +92,11 @@ spec:
             runAsUser: 506
           imagePullPolicy: Always
           volumeMounts:
-            - mountPath: /druid/conf/druid/_common
-              readOnly: true
-              name: common-config-volume
-            - mountPath: /druid/conf/druid/broker
-              readOnly: true
-              name: nodetype-config-volume
-            - mountPath: /druid/data
-              readOnly: true
-              name: data-volume
+            - name: logstore
+              mountPath: /logstore
+          env:
+            - name: SAMPLE_ENV
+              value: SAMPLE_VALUE
       securityContext:
         fsGroup: 107
         runAsUser: 106

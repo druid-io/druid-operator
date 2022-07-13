@@ -1323,25 +1323,21 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 		},
 	)
 
-	if m.Spec.SidecarContainer != nil {
+	if m.Spec.AdditionalContainer != nil {
 
-		for _, containerList := range m.Spec.SidecarContainer {
-			configs := containerList.Configs
-			args := containerList.Args
-			resource := containerList.Resources
+		for _, containerList := range m.Spec.AdditionalContainer {
 
 			containers = append(containers,
 				v1.Container{
-					Image:           configs["imageName"],
-					Name:            configs["containerName"],
-					Resources:       resource,
-					VolumeMounts:    getVolumeMounts(nodeSpec, m),
-					Command:         []string{configs["command"]},
-					Args:            args,
-					ImagePullPolicy: v1.PullPolicy(configs["pullPolicy"]),
-					SecurityContext: &v1.SecurityContext{
-						RunAsUser: &(containerList.User),
-					},
+					Image:           containerList.Image,
+					Name:            containerList.ContainerName,
+					Resources:       containerList.Resources,
+					VolumeMounts:    containerList.VolumeMounts,
+					Command:         containerList.Command,
+					Args:            containerList.Args,
+					ImagePullPolicy: containerList.ImagePullPolicy,
+					SecurityContext: containerList.ContainerSecurityContext,
+					Env: 			 containerList.Env,
 				},
 			)
 		}
