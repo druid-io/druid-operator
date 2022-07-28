@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	druidv1alpha1 "github.com/druid-io/druid-operator/apis/druid/v1alpha1"
@@ -74,6 +75,9 @@ func (r *DruidReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&druidv1alpha1.Druid{}).
 		WithEventFilter(GenericPredicates{}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: getMaxConcurrentReconciles(),
+		}).
 		Complete(r)
 }
 
@@ -90,4 +94,14 @@ func LookupReconcileTime() time.Duration {
 		}
 		return v
 	}
+}
+
+func getMaxConcurrentReconciles() int {
+	var MaxConcurrentReconciles = "MAX_CONCURRENT_RECONCILES"
+
+	nu, found := os.LookupEnv(MaxConcurrentReconciles)
+	if !found {
+		return 1
+	}
+	return Str2Int(nu)
 }
