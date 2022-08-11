@@ -101,6 +101,27 @@ spec:
                         - name
                         type: object
                       type: array
+                    envFrom:
+                      items:
+                        properties:
+                          configMapRef:
+                            properties:
+                              name:
+                                type: string
+                              optional:
+                                type: boolean
+                            type: object
+                          prefix:
+                            type: string
+                          secretRef:
+                            properties:
+                              name:
+                                type: string
+                              optional:
+                                type: boolean
+                            type: object
+                        type: object
+                      type: array
                     image:
                       type: string
                     imagePullPolicy:
@@ -205,6 +226,10 @@ spec:
                         - name
                         type: object
                       type: array
+                  required:
+                  - command
+                  - containerName
+                  - image
                   type: object
                 type: array
               affinity:

@@ -27,17 +27,39 @@ import (
 // AdditionalContainer defines the additional sidecar container
 type AdditionalContainer struct {
 	// List of configurations to use which are not present or to override default implementation configurations
-	// +optional
-	//Configs                  map[string]string `json:"configs,omitempty"`
-	Image 					 string `json:"image,omitempty"`
-	ContainerName			 string `json:"containerName,omitempty"`
-	Command					 []string `json:"command,omitempty"`
-	ImagePullPolicy 		 v1.PullPolicy `json:"imagePullPolicy,omitempty"`
-	Args                     []string                `json:"args,omitempty"`
-	ContainerSecurityContext *v1.SecurityContext     `json:"securityContext,omitempty"`
-	Resources                v1.ResourceRequirements `json:"resources,omitempty"`
-	VolumeMounts         	 []v1.VolumeMount           `json:"volumeMounts,omitempty"`
-	Env 					 []v1.EnvVar `json:"env,omitempty"`
+
+	// This is the image for the additional container to run.
+	// This is a required field
+	Image string `json:"image"`
+
+	// This is the name of the additional container.
+	// This is a required field
+	ContainerName string `json:"containerName"`
+
+	// This is the command for the additional container to run.
+	// This is a required field
+	Command []string `json:"command"`
+
+	// Optional: If not present, will be taken from top level spec
+	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
+
+	// Optional: Argument to call the command
+	Args []string `json:"args,omitempty"`
+
+	// Optional: ContainerSecurityContext. If not present, will be taken from top level pod
+	ContainerSecurityContext *v1.SecurityContext `json:"securityContext,omitempty"`
+
+	// Optional: CPU/Memory Resources
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Optional: volumes etc for the Druid pods
+	VolumeMounts []v1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// Optional: environment variables for the Additional Container
+	Env []v1.EnvVar `json:"env,omitempty"`
+
+	// Optional: Extra environment variables
+	EnvFrom []v1.EnvFromSource `json:"envFrom,omitempty"`
 }
 
 // DruidSpec defines the desired state of Druid

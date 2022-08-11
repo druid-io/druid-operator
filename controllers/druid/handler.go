@@ -1337,7 +1337,8 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 					Args:            containerList.Args,
 					ImagePullPolicy: containerList.ImagePullPolicy,
 					SecurityContext: containerList.ContainerSecurityContext,
-					Env: 			 containerList.Env,
+					Env:             containerList.Env,
+					EnvFrom:         containerList.EnvFrom,
 				},
 			)
 		}
