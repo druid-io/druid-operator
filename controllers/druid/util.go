@@ -3,6 +3,7 @@ package druid
 import (
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -65,4 +66,14 @@ func RemoveString(slice []string, s string) (result []string) {
 func boolFalse() *bool {
 	bool := false
 	return &bool
+}
+
+// to be used in max concurrent reconciles only
+// defaulting to return 1
+func Str2Int(s string) int {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return 1
+	}
+	return i
 }
