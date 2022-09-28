@@ -108,12 +108,12 @@ spec:
             name: druid-druid-test-brokers-config
           name: nodetype-config-volume
   volumeClaimTemplates:
-    - metadata:
-        name: data-volume
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: 2Gi
-        storageClassName: gp2
+  - metadata:
+      name: data-volume
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 2Gi
+      storageClassName: gp2
