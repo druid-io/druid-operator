@@ -238,3 +238,36 @@
           ...
           ...
 ```
+## Configure Additional Containers
+
+```
+  containers:
+        - command:
+            - bin/run-druid.sh
+            ...
+        - command:
+            - /bin/sidekick
+          image: universalforwarder-sidekick:next
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          args:
+            - -loggingEnabled=true
+          args:
+            - -loggingEnabled=true
+            - -dataCenter=dataCenter
+            ...
+          securityContext:
+            runAsUser: 506
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: logstore
+              mountPath: /logstore
+          env:
+            - name: SAMPLE_ENV
+              value: SAMPLE_VALUE
+```
