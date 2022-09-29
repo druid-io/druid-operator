@@ -7,13 +7,12 @@
 {{- range $watchedNamespaces }}
 
 # Look for desired namespace to create when not existent
-{{- $relnamespace := (lookup "v1" "Namespace" "" .) -}}
-{{- if empty $relnamespace }}
+{{ if not ( lookup "v1" "Namespace" "" . ) }}
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: "{{- . }}"
+  name:  {{ . }}
 {{- end }}
 
 {{- end }}
