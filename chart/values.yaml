@@ -7,7 +7,7 @@ env:
   RECONCILE_WAIT: "10s"            # Reconciliation delay
   WATCH_NAMESPACE: ""              # Namespace to watch or empty string to watch all namespaces, To watch multiple namespaces add , into string. Ex: WATCH_NAMESPACE: "ns1,ns2,ns3"
   #MAX_CONCURRENT_RECONCILES:: ""  # MaxConcurrentReconciles is the maximum number of concurrent Reconciles which can be run.
- 
+
 replicaCount: 1
 
 image:
@@ -76,3 +76,6 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+crd:
+  enabled: true
