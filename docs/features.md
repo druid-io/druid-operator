@@ -8,6 +8,7 @@
 * [Force Delete of Sts Pods](#Force-Delete-of-Sts-Pods)
 * [Scaling of Druid Nodes](#Scaling-of-Druid-Nodes)
 * [Volume Expansion of Druid Nodes Running As StatefulSets](#Scaling-of-Druid-Nodes)
+* [Add Additional Containers in Druid Nodes](#Add-Additional-Containers-in-Druid-Nodes)
 
 
 ## Deny List in Operator
@@ -60,3 +61,9 @@
 - Shrinkage of pvc's isnt supported, desiredSize cannot be less than currentSize as well as counts.
 - To enable this feature ```scalePvcSts``` needs to be enabled to ```true```.
 - By default, this feature is disabled.
+
+## Add Additional Containers in Druid Nodes
+- The Druid operator supports additional containers to run along with the druid services. This helps support co-located, co-managed helper processes for the primary druid application
+- This can be used for init containers or sidecars or proxies etc. 
+- To enable this features users just need to add a new container to the container list 
+- This is scoped at cluster scope only, which means that additional container will be common to all the nodes
