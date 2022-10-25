@@ -43,7 +43,7 @@ func setupK8Evn(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
 }
 
 func destroyK8Env(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
-	require.NoError(t, testK8sCtx.env.Stop())
+	testK8sCtx.env.Stop()
 }
 
 func TestAPIs(t *testing.T) {

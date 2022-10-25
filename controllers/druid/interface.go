@@ -54,8 +54,8 @@ type Writer interface {
 	Patch(ctx context.Context, sdk client.Client, drd *v1alpha1.Druid, obj object, status bool, patch client.Patch, emitEvent EventEmitter) error
 }
 
-//  EventEmitter Interface is a wrapper interface for all the emitter interface druid operator shall support.
-//  EventEmitter interface is initalized in druid_controller.go, reconcile method. The interface is passed as an arg to deployDruid(), handler.go
+// EventEmitter Interface is a wrapper interface for all the emitter interface druid operator shall support.
+// EventEmitter interface is initalized in druid_controller.go, reconcile method. The interface is passed as an arg to deployDruid(), handler.go
 type EventEmitter interface {
 	K8sEventEmitter
 	GenericEventEmitter
@@ -225,7 +225,7 @@ func (e EmitEventFuncs) EmitEventOnGetError(obj, getObj object, err error) {
 	e.Event(obj, v1.EventTypeWarning, string(druidOjectGetFail), getErr.Error())
 }
 
-//  EmitEventOnList shall emit event on LIST err operation
+// EmitEventOnList shall emit event on LIST err operation
 func (e EmitEventFuncs) EmitEventOnList(obj object, listObj objectList, err error) {
 	if err != nil {
 		errMsg := fmt.Errorf("Error listing object [%s] in namespace [%s] due to [%s]", listObj.GetObjectKind().GroupVersionKind().Kind, obj.GetNamespace(), err.Error())
