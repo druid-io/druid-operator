@@ -13,10 +13,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: run ci checks
-      run: |
-         make controller-gen
-         make test
+    - name: Clone the code
+        uses: actions/checkout@v3
+    - name: Setup Go
+      uses: actions/setup-go@v3
+      with:
+          go-version: "1.19"
+    - name: Remove pre-installed kustomize
+      run: sudo rm -f /usr/local/bin/kustomize
+    - name: Perform the test
+      run: make test
     - name: Build the Docker image
       run: docker build . -t druidio/druid-operator:$(date +%s)
