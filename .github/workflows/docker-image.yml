@@ -14,5 +14,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: run ci checks
+      run: |
+         make test
     - name: Build the Docker image
       run: docker build . -t druidio/druid-operator:$(date +%s)
