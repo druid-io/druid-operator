@@ -29,6 +29,21 @@ func TestMakeStatefulSetForBroker(t *testing.T) {
 	assertEquals(expected, actual, t)
 }
 
+func TestMakeStatefulSetForBrokerWithStartCommands(t *testing.T) {
+	clusterSpec := readDruidClusterSpecFromFile(t, "testdata/druid-test-cr-start-command.yaml")
+
+	nodeSpecUniqueStr := makeNodeSpecificUniqueString(clusterSpec, "brokers")
+	nodeSpec := clusterSpec.Spec.Nodes["brokers"]
+
+	actual, _ := makeStatefulSet(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(&nodeSpec, clusterSpec, clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr, "blah", nodeSpecUniqueStr)
+	addHashToObject(actual)
+
+	expected := new(appsv1.StatefulSet)
+	readAndUnmarshallResource("testdata/broker-statefulset-start-command.yaml", &expected, t)
+
+	assertEquals(expected, actual, t)
+}
+
 func TestMakeStatefulSetForBrokerWithSidecar(t *testing.T) {
 	clusterSpec := readSampleDruidClusterSpecWithSidecar(t)
 
