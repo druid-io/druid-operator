@@ -7,7 +7,7 @@ spec:
   image: himanshu01/druid:druid-0.12.0-1
   startScript: sh
   entryArg: echo 'Hello World'
-  DruidScript: druid-test.sh
+  druidScript: druid-test.sh
   podAnnotations:
     key1: value1
     key2: value2
