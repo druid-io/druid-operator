@@ -8,10 +8,8 @@ on:
 
 jobs:
 
-  build:
-
+  tests:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
     - name: Run Kubebuilder smoke and unit tests
@@ -20,5 +18,6 @@ jobs:
       run: make lint
     - name: Run helm template
       run: make template
+  build:
     - name: Build the Docker image
       run: docker build . -t druidio/druid-operator:$(date +%s)
