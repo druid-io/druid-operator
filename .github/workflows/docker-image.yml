@@ -14,5 +14,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Run Kubebuilder smoke and unit tests
+      run: make tests
+    - name: Run helm lint
+      run: make lint
+    - name: Run helm template
+      run: make template
     - name: Build the Docker image
-      run: make test
+      run: docker build . -t druidio/druid-operator:$(date +%s)
