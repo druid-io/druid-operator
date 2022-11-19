@@ -15,7 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Run Kubebuilder smoke and unit tests
-      run: make tests
+      run: make test
     - name: Run helm lint
       run: make lint
     - name: Run helm template
