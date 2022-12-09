@@ -7,6 +7,7 @@
 - Language used is GoLang.
 - druid-operator is available on [operatorhub.io](https://operatorhub.io/operator/druid-operator)
 - Refer to [Documentation](./docs/README.md) for getting started.
+- Join Kubernetes slack and join [druid-operator](https://kubernetes.slack.com/archives/C04F4M6HT2L)
 
 ### Supported CR
 - The operator supports CR of type ```Druid```.
