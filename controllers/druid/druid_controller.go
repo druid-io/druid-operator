@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/tools/record"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	druidv1alpha1 "github.com/druid-io/druid-operator/apis/druid/v1alpha1"
@@ -23,6 +25,17 @@ type DruidReconciler struct {
 	Scheme *runtime.Scheme
 	// reconcile time duration, defaults to 10s
 	ReconcileWait time.Duration
+	Recorder      record.EventRecorder
+}
+
+func NewDruidReconciler(mgr ctrl.Manager) *DruidReconciler {
+	return &DruidReconciler{
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("Druid"),
+		Scheme:        mgr.GetScheme(),
+		ReconcileWait: LookupReconcileTime(),
+		Recorder:      mgr.GetEventRecorderFor("druid-operator"),
+	}
 }
 
 // +kubebuilder:rbac:groups=druid.apache.org,resources=druids,verbs=get;list;watch;create;update;patch;delete
@@ -48,7 +61,10 @@ func (r *DruidReconciler) Reconcile(ctx context.Context, request reconcile.Reque
 		return ctrl.Result{}, err
 	}
 
-	if err := deployDruidCluster(r.Client, instance); err != nil {
+	// Intialize Emit Events
+	var emitEvent EventEmitter = EmitEventFuncs{r.Recorder}
+
+	if err := deployDruidCluster(r.Client, instance, emitEvent); err != nil {
 		return ctrl.Result{}, err
 	} else {
 		return ctrl.Result{RequeueAfter: r.ReconcileWait}, nil
@@ -59,6 +75,9 @@ func (r *DruidReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&druidv1alpha1.Druid{}).
 		WithEventFilter(GenericPredicates{}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: getMaxConcurrentReconciles(),
+		}).
 		Complete(r)
 }
 
@@ -75,4 +94,14 @@ func LookupReconcileTime() time.Duration {
 		}
 		return v
 	}
+}
+
+func getMaxConcurrentReconciles() int {
+	var MaxConcurrentReconciles = "MAX_CONCURRENT_RECONCILES"
+
+	nu, found := os.LookupEnv(MaxConcurrentReconciles)
+	if !found {
+		return 1
+	}
+	return Str2Int(nu)
 }

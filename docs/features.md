@@ -7,11 +7,13 @@
 * [Rolling Deploy](#Rolling-Deploy)
 * [Force Delete of Sts Pods](#Force-Delete-of-Sts-Pods)
 * [Scaling of Druid Nodes](#Scaling-of-Druid-Nodes)
+* [Volume Expansion of Druid Nodes Running As StatefulSets](#Scaling-of-Druid-Nodes)
+* [Add Additional Containers in Druid Nodes](#Add-Additional-Containers-in-Druid-Nodes)
+
 
 ## Deny List in Operator
 - There may be use cases where we want the operator to watch all namespaces but restrict few namespaces, due to security, testing flexibility etc reasons.
 - The druid operator supports such cases. In ```deploy/operator.yaml```, user can enable ```DENY_LIST``` env and pass the namespaces to be excluded.
-- 
 - Each namespace to be seperated using a comma.
 
 ## Reconcile Time in Operator
@@ -47,3 +49,21 @@
 - In order to scale MM with HPA, its recommended not to use HPA. Refer to these discussions which have adderessed the issues in details.
 1. https://github.com/apache/druid/issues/8801#issuecomment-664020630
 2. https://github.com/apache/druid/issues/8801#issuecomment-664648399
+
+## Volume Expansion of Druid Nodes Running As StatefulSets
+```NOTE: This feature has been tested only on cloud environments and storage classes which have supported volume expansion. This feature uses cascade=orphan strategy to make sure only Stateful is deleted and recreated and pods are not deleted.```
+- Druid Nodes specifically historicals run as statefulsets. Each statefulset replica has a pvc attached.
+- NodeSpec in druid CR has key ```volumeClaimTemplates``` where users can define the pvc's storage class as well as size.
+- In case a user wants to increase size in the node, the statefulsets cannot be directly updated.
+- Druid Operator behind the scenes performs seamless update of the statefulset, plus patch the pvc's with desired size defined in the druid CR.
+- Druid operator shall perform a cascade deletion of the sts, and shall patch the pvc. Cascade deletion has no affect to the pods running, queries are served and no downtime is experienced. 
+- While enabling this feature, druid operator will check if volume expansion is supported in the storage class mentioned in the druid CR, only then will it perform expansion.
+- Shrinkage of pvc's isnt supported, desiredSize cannot be less than currentSize as well as counts.
+- To enable this feature ```scalePvcSts``` needs to be enabled to ```true```.
+- By default, this feature is disabled.
+
+## Add Additional Containers in Druid Nodes
+- The Druid operator supports additional containers to run along with the druid services. This helps support co-located, co-managed helper processes for the primary druid application
+- This can be used for init containers or sidecars or proxies etc. 
+- To enable this features users just need to add a new container to the container list 
+- This is scoped at cluster scope only, which means that additional container will be common to all the nodes

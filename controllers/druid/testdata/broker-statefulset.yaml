@@ -7,8 +7,9 @@ metadata:
     app: druid
     druid_cr: druid-test
     nodeSpecUniqueStr: druid-druid-test-brokers
+    component: broker
   annotations:
-    druidOpResourceHash: OnEopGbFnwSCMqd84ePrk0Kvd9o=
+    druidOpResourceHash: gfGJ6aviJkM512x1ltsWOty2y5M=
 spec:
   podManagementPolicy: Parallel
   replicas: 2
@@ -17,6 +18,7 @@ spec:
       app: druid
       druid_cr: druid-test
       nodeSpecUniqueStr: druid-druid-test-brokers
+      component: broker
   serviceName: druid-druid-test-brokers
   template:
     metadata:
@@ -24,6 +26,7 @@ spec:
         app: druid
         druid_cr: druid-test
         nodeSpecUniqueStr: druid-druid-test-brokers
+        component: broker
       annotations:
         key1: value1
         key2: value2

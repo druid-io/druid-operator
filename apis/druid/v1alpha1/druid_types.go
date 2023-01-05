@@ -24,6 +24,44 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// AdditionalContainer defines the additional sidecar container
+type AdditionalContainer struct {
+	// List of configurations to use which are not present or to override default implementation configurations
+
+	// This is the image for the additional container to run.
+	// This is a required field
+	Image string `json:"image"`
+
+	// This is the name of the additional container.
+	// This is a required field
+	ContainerName string `json:"containerName"`
+
+	// This is the command for the additional container to run.
+	// This is a required field
+	Command []string `json:"command"`
+
+	// Optional: If not present, will be taken from top level spec
+	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
+
+	// Optional: Argument to call the command
+	Args []string `json:"args,omitempty"`
+
+	// Optional: ContainerSecurityContext. If not present, will be taken from top level pod
+	ContainerSecurityContext *v1.SecurityContext `json:"securityContext,omitempty"`
+
+	// Optional: CPU/Memory Resources
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Optional: volumes etc for the Druid pods
+	VolumeMounts []v1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// Optional: environment variables for the Additional Container
+	Env []v1.EnvVar `json:"env,omitempty"`
+
+	// Optional: Extra environment variables
+	EnvFrom []v1.EnvFromSource `json:"envFrom,omitempty"`
+}
+
 // DruidSpec defines the desired state of Druid
 type DruidSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -39,6 +77,9 @@ type DruidSpec struct {
 	// issue: https://github.com/kubernetes/kubernetes/issues/67250
 	// doc: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#forced-rollback
 	ForceDeleteStsPodOnError bool `json:"forceDeleteStsPodOnError,omitempty"`
+
+	// Optional: ScalePvcSts, defaults to false. When enabled, operator will allow volume expansion of sts and pvc's.
+	ScalePvcSts bool `json:"scalePvcSts,omitempty"`
 
 	// Required: in-container directory to mount with common.runtime.properties
 	CommonConfigMountPath string `json:"commonConfigMountPath"`
@@ -107,7 +148,7 @@ type DruidSpec struct {
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 
 	// Optional: StartupProbe for nodeSpec
-	StartUpProbes *v1.Probe `json:"startUpProbes,omitempty"`
+	StartUpProbe *v1.Probe `json:"startUpProbe,omitempty"`
 
 	// Optional: k8s service resources to be created for each Druid statefulsets
 	Services []v1.Service `json:"services,omitempty"`
@@ -129,6 +170,9 @@ type DruidSpec struct {
 	// that is, it must match regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
 	Nodes map[string]DruidNodeSpec `json:"nodes"`
 
+	// Operator deploys the sidecar container based on these properties. Sidecar will be deployed for all the Druid pods.
+	AdditionalContainer []AdditionalContainer `json:"additionalContainer,omitempty"`
+
 	// Operator deploys above list of nodes in the Druid prescribed order of Historical, Overlord, MiddleManager,
 	// Broker, Coordinator etc.
 	// Optional: If set to true then operator checks the rollout status of previous version StateSets before updating next.
@@ -140,6 +184,9 @@ type DruidSpec struct {
 	Zookeeper     *ZookeeperSpec     `json:"zookeeper,omitempty"`
 	MetadataStore *MetadataStoreSpec `json:"metadataStore,omitempty"`
 	DeepStorage   *DeepStorageSpec   `json:"deepStorage,omitempty"`
+
+	// Optional: Custom Dimension Map Path for statsd emitter
+	DimensionsMapPath string `json:"metricDimensions.json,omitempty"`
 }
 
 type DruidNodeSpec struct {
@@ -186,6 +233,9 @@ type DruidNodeSpec struct {
 
 	// Optional: affinity to be used to for enabling node, pod affinity and anti-affinity
 	Affinity *v1.Affinity `json:"affinity,omitempty"`
+
+	// Optional: node selector to be used by Druid statefulsets
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// Optional: terminationGracePeriod
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
@@ -279,20 +329,40 @@ type DeepStorageSpec struct {
 	Spec json.RawMessage `json:"spec"`
 }
 
+// These are valid conditions of a druid Node
+const (
+	// DruidClusterReady indicates the underlying druid objects is fully deployed
+	// Underlying pods are able to service requests
+	DruidClusterReady DruidNodeConditionType = "DruidClusterReady"
+	// DruidNodeRollingUpgrade means that Druid Node is rolling update.
+	DruidNodeRollingUpdate DruidNodeConditionType = "DruidNodeRollingUpdate"
+	// DruidNodeError indicates the DruidNode is in an error state.
+	DruidNodeErrorState DruidNodeConditionType = "DruidNodeErrorState"
+)
+
+type DruidNodeConditionType string
+
+type DruidNodeTypeStatus struct {
+	DruidNode                string                 `json:"druidNode,omitempty"`
+	DruidNodeConditionStatus v1.ConditionStatus     `json:"druidNodeConditionStatus,omitempty"`
+	DruidNodeConditionType   DruidNodeConditionType `json:"druidNodeConditionType,omitempty"`
+	Reason                   string                 `json:"reason,omitempty"`
+}
+
 // DruidStatus defines the observed state of Druid
-type DruidStatus struct {
+type DruidClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-
-	StatefulSets           []string `json:"statefulSets,omitempty"`
-	Deployments            []string `json:"deployments,omitempty"`
-	Services               []string `json:"services,omitempty"`
-	ConfigMaps             []string `json:"configMaps,omitempty"`
-	PodDisruptionBudgets   []string `json:"podDisruptionBudgets,omitempty"`
-	Ingress                []string `json:"ingress,omitempty"`
-	HPAutoScalers          []string `json:"hpAutoscalers,omitempty"`
-	Pods                   []string `json:"pods,omitempty"`
-	PersistentVolumeClaims []string `json:"persistentVolumeClaims,omitempty"`
+	DruidNodeStatus        DruidNodeTypeStatus `json:"druidNodeStatus,omitempty"`
+	StatefulSets           []string            `json:"statefulSets,omitempty"`
+	Deployments            []string            `json:"deployments,omitempty"`
+	Services               []string            `json:"services,omitempty"`
+	ConfigMaps             []string            `json:"configMaps,omitempty"`
+	PodDisruptionBudgets   []string            `json:"podDisruptionBudgets,omitempty"`
+	Ingress                []string            `json:"ingress,omitempty"`
+	HPAutoScalers          []string            `json:"hpAutoscalers,omitempty"`
+	Pods                   []string            `json:"pods,omitempty"`
+	PersistentVolumeClaims []string            `json:"persistentVolumeClaims,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -302,8 +372,8 @@ type Druid struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   DruidSpec   `json:"spec"`
-	Status DruidStatus `json:"status,omitempty"`
+	Spec   DruidSpec          `json:"spec"`
+	Status DruidClusterStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

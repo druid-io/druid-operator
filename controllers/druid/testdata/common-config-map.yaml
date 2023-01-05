@@ -52,6 +52,10 @@ data:
     druid.storage.baseKey=druid/segments
     druid.s3.accessKey=accesskey
     druid.s3.secretKey=secretkey
+  metricDimensions.json: |-
+    {
+      "query/time" : { "dimensions" : ["dataSource", "type"], "type" : "timer"}
+    }
 kind: ConfigMap
 metadata:
   labels:
@@ -60,4 +64,4 @@ metadata:
   name: druid-test-druid-common-config
   namespace: test-namespace
   annotations:
-    druidOpResourceHash: +30qwQo2Inbc9o49vF664RAPMMQ=
+    druidOpResourceHash: 1/BkoZEvfj+rB80LzeQeu6T7mhs=

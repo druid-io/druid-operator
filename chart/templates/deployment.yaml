@@ -34,6 +34,14 @@ spec:
           command:
           - /manager
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{ toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{ toYaml . | nindent 12 }}
+          {{- end }}
           env:
             {{- range $key, $value :=  .Values.env }}
             - name: {{ $key }}
