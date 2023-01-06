@@ -8847,6 +8847,10 @@ spec:
                 description: 'Required: path to druid start script to be run on container
                   start'
                 type: string
+              entryArg:
+                type: string
+              druidScript:
+                type: string
               startUpProbe:
                 description: 'Optional: StartupProbe for nodeSpec'
                 properties:

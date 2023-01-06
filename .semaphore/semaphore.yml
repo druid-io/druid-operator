@@ -1,0 +1,21 @@
+version: v1.0
+name: druid-operator
+agent:
+  machine:
+    type: s1-prod-ubuntu20-04-amd64-1
+
+blocks:
+  - name: Build, Test
+    task:
+      prologue:
+        commands:
+          - sem-version go 1.19
+          - checkout
+      jobs:
+        - name: Build, Test
+          commands:
+            - make build
+            - make test
+            - make lint
+            - make template
+            - make docker-build

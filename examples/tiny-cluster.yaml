@@ -6,7 +6,7 @@ kind: "Druid"
 metadata:
   name: tiny-cluster
 spec:
-  image: apache/druid:0.22.1
+  image: confluent-docker.jfrog.io/confluentinc/cc-druid:v1.202.0
   # Optionally specify image for all nodes. Can be specify on nodes also
   # imagePullSecrets:
   # - name: tutu
@@ -31,7 +31,7 @@ spec:
   commonConfigMountPath: "/opt/druid/conf/druid/cluster/_common"
   jvm.options: |-
     -server
-    -XX:MaxDirectMemorySize=10240g
+    -XX:MaxDirectMemorySize=1g
     -Duser.timezone=UTC
     -Dfile.encoding=UTF-8
     -Dlog4j.debug
@@ -52,6 +52,8 @@ spec:
         </Loggers>
     </Configuration>
   common.runtime.properties: |
+    druid.startup.logging.logProperties=true
+    druid.sql.enable=true
 
     # Zookeeper
     druid.zk.service.host=tiny-cluster-zk-0.tiny-cluster-zk
@@ -59,19 +61,37 @@ spec:
     druid.zk.service.compress=false
 
     # Metadata Store
-    druid.metadata.storage.type=derby
-    druid.metadata.storage.connector.connectURI=jdbc:derby://localhost:1527/druid/data/derbydb/metadata.db;create=true
-    druid.metadata.storage.connector.host=localhost
-    druid.metadata.storage.connector.port=1527
-    druid.metadata.storage.connector.createTables=true
+    # druid.metadata.storage.type=derby
+    # druid.metadata.storage.connector.connectURI=jdbc:derby://localhost:1527/druid/data/derbydb/metadata.db;create=true
+    # druid.metadata.storage.connector.host=localhost
+    # druid.metadata.storage.connector.port=1527
+    # druid.metadata.storage.connector.createTables=true
+    druid.metadata.storage.type=postgresql
+    druid.metadata.storage.connector.connectURI=jdbc:postgresql://druid-metadata-postgresql.tiny-cluster.svc.cluster.local:5432/druiddb
+    druid.metadata.storage.connector.user=druidpguser
+    druid.metadata.storage.connector.password=druidpgpassword
 
     # Deep Storage
-    druid.storage.type=local
-    druid.storage.storageDirectory=/druid/deepstorage
+    # druid.storage.type=local
+    # druid.storage.storageDirectory=/druid/deepstorage
+    druid.storage.type=s3
+    druid.storage.bucket=druidio
+    druid.storage.baseKey=local/segments
+
+    # Indexing service logs
+    druid.indexer.logs.type=s3
+    druid.indexer.logs.s3Bucket=druidio
+    druid.indexer.logs.s3Prefix=local/indexing-logs
+    druid.s3.protocol=http
+    druid.s3.endpoint.url=minio.minio.svc.cluster.local:9000
+    druid.s3.enablePathStyleAccess=true
+    druid.s3.accessKey=AKIAIOSFODNN7EXAMPLE
+    druid.s3.secretKey=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+
     #
     # Extensions
     #
-    druid.extensions.loadList=["druid-kafka-indexing-service"]
+    druid.extensions.loadList=["postgresql-metadata-storage", "druid-s3-extensions", "druid-kafka-indexing-service", "druid-datasketches", "druid-basic-security", "druid-opencensus-extensions", "statsd-emitter", "confluent-extensions"]
 
     #
     # Service discovery
@@ -259,6 +279,8 @@ spec:
         path: /tmp/druid/deepstorage
         type: DirectoryOrCreate
   env:
+    - name: AWS_REGION
+      value: us-east-1
     - name: POD_NAME
       valueFrom:
         fieldRef:
@@ -292,6 +314,10 @@ spec:
       extra.jvm.options: |-
         -Xmx512M
         -Xms512M
+      resources:
+        requests:
+          memory: "600Mi"
+          cpu: "200m"
 
     coordinators:
       # Optionally specify for running coordinator as Deployment
@@ -315,6 +341,10 @@ spec:
       extra.jvm.options: |-
         -Xmx512M
         -Xms512M
+      resources:
+        requests:
+          memory: "600Mi"
+          cpu: "200m"
 
     historicals:
       nodeType: "historical"
@@ -324,37 +354,78 @@ spec:
       runtime.properties: |
         druid.service=druid/historical
         druid.server.http.numThreads=5
-        druid.processing.buffer.sizeBytes=536870912
         druid.processing.numMergeBuffers=1
         druid.processing.numThreads=1
-
+        druid.processing.buffer.sizeBytes=268435456
         # Segment storage
         druid.segmentCache.locations=[{\"path\":\"/druid/data/segments\",\"maxSize\":10737418240}]
         druid.server.maxSize=10737418240
       extra.jvm.options: |-
-        -Xmx512M
-        -Xms512M
+        -Xmx1G
+        -Xms1G
+        -XX:MaxDirectMemorySize=1g
+      resources:
+        requests:
+          memory: "2G"
+          cpu: "1000m"
           
     routers:
       nodeType: "router"
+      # Optionally specify for broker nodes
+      # imagePullSecrets:
+      # - name: tutu
       druid.port: 8088
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/query/router"
       replicas: 1
       runtime.properties: |
         druid.service=druid/router
-
-        # HTTP proxy
-        druid.router.http.numConnections=10
-        druid.router.http.readTimeout=PT5M
-        druid.router.http.numMaxThreads=10
+        druid.router.managementProxy.enabled=true
+        # HTTP server threads
+        druid.router.http.numConnections=5
         druid.server.http.numThreads=10
-
-        # Service discovery
-        druid.router.defaultBrokerServiceName=druid/broker
-        druid.router.coordinatorServiceName=druid/coordinator
-
-        # Management proxy to coordinator / overlord: required for unified web console.
-        druid.router.managementProxy.enabled=true       
+        # Processing threads and buffers
+        druid.processing.buffer.sizeBytes=1
+        druid.processing.numMergeBuffers=1
+        druid.processing.numThreads=1
       extra.jvm.options: |-
-        -Xmx512M
-        -Xms512M
+        -Xmx512m
+        -Xms512m
+      resources:
+        requests:
+          memory: "600Mi"
+          cpu: "200m"
+      ingress:
+        rules:
+          - host: druid.tiny.test
+            http:
+              paths:
+                - path: /
+                  backend:
+                    serviceName: druid-tiny-cluster-routers
+                    servicePort: 8088
+
+    middlemanagers:
+      nodeConfigMountPath: "/opt/druid/conf/druid/cluster/data/middleManager"
+      nodeType: "middleManager"
+      druid.port: 8091
+      replicas: 1
+      runtime.properties: |-
+        druid.service=druid/middleManager
+        druid.worker.capacity=1
+        druid.indexer.runner.javaOpts=-server -XX:MaxDirectMemorySize=1g -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Djava.io.tmpdir=/druid/data/tmp -Dlog4j.debug -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintGCApplicationConcurrentTime -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=50 -XX:GCLogFileSize=10m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager -Xloggc:/druid/data/logs/peon.gc.%t.%p.log -XX:HeapDumpPath=/druid/data/logs/peon.%t.%p.hprof -Xms1G -Xmx1G
+        druid.indexer.task.baseTaskDir=/druid/data/baseTaskDir
+        druid.server.http.numThreads=10
+        druid.indexer.fork.property.druid.processing.buffer.sizeBytes=268435456
+        druid.indexer.fork.property.druid.processing.numMergeBuffers=1
+        druid.indexer.fork.property.druid.processing.numThreads=1
+      extra.jvm.options: |-
+        -Xmx1G
+        -Xms1G
+      readinessProbe:
+        httpGet:
+          path: /status/health
+          port: 8091
+      resources:
+        requests:
+          memory: "2Gi"
+          cpu: "400m"

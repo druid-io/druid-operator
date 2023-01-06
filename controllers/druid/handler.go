@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 
 	autoscalev2beta2 "k8s.io/api/autoscaling/v2beta2"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -1138,6 +1139,21 @@ func getVolume(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUniq
 	return volumesHolder
 }
 
+func getCommand(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []string {
+	if m.Spec.StartScript != "" && m.Spec.EntryArg != "" {
+		return []string{m.Spec.StartScript}
+	}
+	return []string{firstNonEmptyStr(m.Spec.StartScript, "bin/run-druid.sh"), nodeSpec.NodeType}
+}
+
+func getEntryArg(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid) []string {
+	if m.Spec.EntryArg != "" {
+		bashCommands := strings.Join([]string{m.Spec.EntryArg, "&&", firstNonEmptyStr(m.Spec.DruidScript, "bin/run-druid.sh"), nodeSpec.NodeType}, " ")
+		return []string{"-c", bashCommands}
+	}
+	return nil
+}
+
 func getEnv(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, configMapSHA string) []v1.EnvVar {
 	envHolder := firstNonNilValue(nodeSpec.Env, m.Spec.Env).([]v1.EnvVar)
 	// enables to do the trick to force redeployment in case of configmap changes.
@@ -1308,7 +1324,8 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 		v1.Container{
 			Image:           firstNonEmptyStr(nodeSpec.Image, m.Spec.Image),
 			Name:            fmt.Sprintf("%s", nodeSpecUniqueStr),
-			Command:         []string{firstNonEmptyStr(m.Spec.StartScript, "bin/run-druid.sh"), nodeSpec.NodeType},
+			Command:         getCommand(nodeSpec, m),
+			Args:            getEntryArg(nodeSpec, m),
 			ImagePullPolicy: v1.PullPolicy(firstNonEmptyStr(string(nodeSpec.ImagePullPolicy), string(m.Spec.ImagePullPolicy))),
 			Ports:           nodeSpec.Ports,
 			Resources:       nodeSpec.Resources,
@@ -1345,7 +1362,7 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 	}
 
 	spec := v1.PodSpec{
-		NodeSelector:                  firstNonNilValue(m.Spec.NodeSelector, nodeSpec.NodeSelector).(map[string]string),
+		NodeSelector:                  firstNonNilValue(nodeSpec.NodeSelector, m.Spec.NodeSelector).(map[string]string),
 		TopologySpreadConstraints:     getTopologySpreadConstraints(nodeSpec),
 		Tolerations:                   getTolerations(nodeSpec, m),
 		Affinity:                      getAffinity(nodeSpec, m),
