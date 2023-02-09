@@ -79,3 +79,4 @@ affinity: {}
 
 crd:
   enabled: true
+  keep: true
