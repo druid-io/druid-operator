@@ -17,6 +17,7 @@ import (
 	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -346,7 +347,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 	updatedStatus.PodDisruptionBudgets = deleteUnusedResources(sdk, m, podDisruptionBudgetNames, ls,
 		func() objectList { return &v1beta1.PodDisruptionBudgetList{} },
 		func(listObj runtime.Object) []object {
-			items := listObj.(*v1beta1.PodDisruptionBudgetList).Items
+			items := listObj.(*policyv1.PodDisruptionBudgetList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
 				result[i] = &items[i]
@@ -1366,13 +1367,13 @@ func updateDefaultPortInProbe(probe *v1.Probe, defaultPort int32) *v1.Probe {
 	return probe
 }
 
-func makePodDisruptionBudget(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*v1beta1.PodDisruptionBudget, error) {
+func makePodDisruptionBudget(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, ls map[string]string, nodeSpecUniqueStr string) (*policyv1.PodDisruptionBudget, error) {
 	pdbSpec := *nodeSpec.PodDisruptionBudgetSpec
 	pdbSpec.Selector = &metav1.LabelSelector{MatchLabels: ls}
 
-	pdb := &v1beta1.PodDisruptionBudget{
+	pdb := &policyv1.PodDisruptionBudget{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "policy/v1beta1",
+			APIVersion: "policy/v1",
 			Kind:       "PodDisruptionBudget",
 		},
 
@@ -1499,6 +1500,187 @@ func asOwner(m *v1alpha1.Druid) metav1.OwnerReference {
 		Name:       m.Name,
 		UID:        m.UID,
 		Controller: &trueVar,
+	}
+}
+
+// podList returns a v1.PodList object
+func makePodList() *v1.PodList {
+	return &v1.PodList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: "v1",
+		},
+	}
+}
+
+func makeDruidEmptyObj() *v1alpha1.Druid {
+	return &v1alpha1.Druid{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Druid",
+			APIVersion: "v1alpha1",
+		},
+	}
+}
+
+func makeStatefulSetListEmptyObj() *appsv1.StatefulSetList {
+	return &appsv1.StatefulSetList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "StatefulSet",
+			APIVersion: "apps/v1",
+		},
+	}
+}
+
+func makeDeloymentListEmptyObj() *appsv1.DeploymentList {
+	return &appsv1.DeploymentList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		},
+	}
+}
+
+func makePodDisruptionBudgetListEmptyObj() *policyv1.PodDisruptionBudgetList {
+	return &policyv1.PodDisruptionBudgetList{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "policy/v1",
+			Kind:       "PodDisruptionBudget",
+		},
+	}
+}
+
+func makeHorizontalPodAutoscalerListEmptyObj() *autoscalev2beta2.HorizontalPodAutoscalerList {
+	return &autoscalev2beta2.HorizontalPodAutoscalerList{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "autoscaling/v2beta1",
+			Kind:       "HorizontalPodAutoscaler",
+		},
+	}
+}
+
+func makeIngressListEmptyObj() *networkingv1.IngressList {
+	return &networkingv1.IngressList{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1",
+			Kind:       "Ingress",
+		},
+	}
+}
+
+func makeConfigMapListEmptyObj() *v1.ConfigMapList {
+	return &v1.ConfigMapList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+	}
+}
+
+func makeServiceListEmptyObj() *v1.ServiceList {
+	return &v1.ServiceList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
+	}
+}
+
+func makePodEmptyObj() *v1.Pod {
+	return &v1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+	}
+}
+
+func makeStatefulSetEmptyObj() *appsv1.StatefulSet {
+	return &appsv1.StatefulSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "StatefulSet",
+		},
+	}
+}
+
+func makeDeploymentEmptyObj() *appsv1.Deployment {
+	return &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+	}
+}
+
+func makePodDisruptionBudgetEmptyObj() *policyv1.PodDisruptionBudget {
+	return &policyv1.PodDisruptionBudget{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "policy/v1",
+			Kind:       "PodDisruptionBudget",
+		},
+	}
+}
+
+func makeHorizontalPodAutoscalerEmptyObj() *autoscalev2beta2.HorizontalPodAutoscaler {
+	return &autoscalev2beta2.HorizontalPodAutoscaler{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "autoscaling/v2beta1",
+			Kind:       "HorizontalPodAutoscaler",
+		},
+	}
+}
+
+func makePersistentVolumeClaimEmptyObj() *v1.PersistentVolumeClaim {
+	return &v1.PersistentVolumeClaim{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		},
+	}
+}
+
+func makePersistentVolumeClaimListEmptyObj() *v1.PersistentVolumeClaimList {
+	return &v1.PersistentVolumeClaimList{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "PersistentVolumeClaim",
+		},
+	}
+}
+
+func makeIngressEmptyObj() *networkingv1.Ingress {
+	return &networkingv1.Ingress{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "networking.k8s.io/v1",
+			Kind:       "Ingress",
+		},
+	}
+}
+
+func makeServiceEmptyObj() *v1.Service {
+	return &v1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+	}
+}
+
+func makeStorageClassEmptyObj() *storage.StorageClass {
+	return &storage.StorageClass{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "storage.k8s.io/v1",
+			Kind:       "StorageClass",
+		},
+	}
+}
+
+func makeConfigMapEmptyObj() *v1.ConfigMap {
+	return &v1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
 	}
 }
 

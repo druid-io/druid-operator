@@ -15,7 +15,7 @@ import (
 	"k8s.io/api/autoscaling/v2beta2"
 	"k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -223,7 +223,7 @@ func (in *DruidNodeSpec) DeepCopyInto(out *DruidNodeSpec) {
 	}
 	if in.PodDisruptionBudgetSpec != nil {
 		in, out := &in.PodDisruptionBudgetSpec, &out.PodDisruptionBudgetSpec
-		*out = new(v1beta1.PodDisruptionBudgetSpec)
+		*out = new(policyv1.PodDisruptionBudgetSpec)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Services != nil {

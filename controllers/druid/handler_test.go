@@ -11,7 +11,7 @@ import (
 	"github.com/ghodss/yaml"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
 )
 
 func TestMakeStatefulSetForBroker(t *testing.T) {
@@ -67,7 +67,7 @@ func TestMakePodDisruptionBudgetForBroker(t *testing.T) {
 	actual, _ := makePodDisruptionBudget(&nodeSpec, clusterSpec, makeLabelsForNodeSpec(&nodeSpec, clusterSpec, clusterSpec.Name, nodeSpecUniqueStr), nodeSpecUniqueStr)
 	addHashToObject(actual)
 
-	expected := new(v1beta1.PodDisruptionBudget)
+	expected := new(policyv1.PodDisruptionBudget)
 	readAndUnmarshallResource("testdata/broker-pod-disruption-budget.yaml", &expected, t)
 
 	assertEquals(expected, actual, t)

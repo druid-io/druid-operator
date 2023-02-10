@@ -7,7 +7,7 @@ import (
 	autoscalev2beta2 "k8s.io/api/autoscaling/v2beta2"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -208,7 +208,7 @@ type DruidNodeSpec struct {
 	PodLabels map[string]string `json:"podLabels,omitempty"`
 
 	// Optional
-	PodDisruptionBudgetSpec *v1beta1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec,omitempty"`
+	PodDisruptionBudgetSpec *policyv1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec,omitempty"`
 
 	// Required
 	RuntimeProperties string `json:"runtime.properties"`
