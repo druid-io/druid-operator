@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Druid Operator
 
 on:
   push:
@@ -19,4 +19,4 @@ jobs:
     - name: Run helm template
       run: make template
     - name: Build the Docker image
-      run: docker build . -t druidio/druid-operator:$(date +%s)
+      run: docker build . -t cloudnatively/druid-operator:$(date +%s)
