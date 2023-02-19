@@ -1,5 +1,18 @@
+# IMG TAG
+IMG_TAG ?= "latest"
 # Image URL to use all building/pushing image targets
-IMG ?= "druid-operator:latest"
+IMG ?= "druid-operator"
+# Local Image URL to be pushed to kind registery
+IMG_KIND ?= "localhost:5001/druid-operator"
+# NAMESPACE for druid operator e2e
+NAMESPACE_DRUID_OPERATOR ?= "druid-operator"
+# NAMESPACE for zk operator e2e
+NAMESPACE_ZK_OPERATOR ?= "zk-operator"
+# NAMESPACE for zk operator e2e
+NAMESPACE_MINIO_OPERATOR ?= "minio-operator"
+# NAMESPACE for druid app e2e
+NAMESPACE_DRUID ?= "druid"
+
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.24.2
 
@@ -77,11 +90,11 @@ template:
 
 .PHONY: docker-build
 docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	docker build -t ${IMG}:${IMG_TAG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+	docker push ${IMG}:${IMG_TAG}
 
 ##@ Deployment
 
@@ -99,7 +112,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}:${IMG_TAG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 .PHONY: undeploy
@@ -137,3 +150,76 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+## e2e kind deployment
+.PHONY: e2e
+e2e: fmt vet test lint template kind docker-build-local docker-push-local helm-install-druid-operator helm-install-zk-operator helm-druid-install ## Run e2e.
+
+## Build Kind
+.PHONY: kind 
+kind: ## Bootstrap Kind Locally
+	sh e2e/kind.sh
+
+## Make Docker build for kind registery
+.PHONY: docker-build-local
+docker-build-local: ## Build docker image with the manager.
+	docker build -t ${IMG_KIND}:${IMG_TAG} .
+
+## Make Docker push locally to kind registery
+.PHONY: docker-push-local
+docker-push-local: ## Build docker image with the manager.
+	docker push ${IMG_KIND}:${IMG_TAG}
+
+## Helm install to deploy the druid operator
+.PHONY: helm-install-druid-operator
+helm-install-druid-operator: ## helm upgrade/install
+	helm upgrade --install \
+	--namespace ${NAMESPACE_DRUID_OPERATOR} \
+	--create-namespace \
+	${NAMESPACE_DRUID_OPERATOR} chart/ \
+	--set image.repository=${IMG_KIND} \
+	--set image.tag=${IMG_TAG}
+
+## Helm deploy zk opeator
+.PHONY: helm-install-zk-operator
+helm-install-zk-operator:
+	helm repo add pravega https://charts.pravega.io
+	helm repo update pravega
+	helm upgrade --install \
+	--namespace ${NAMESPACE_ZK_OPERATOR} \
+	--create-namespace \
+	 ${NAMESPACE_ZK_OPERATOR} pravega/zookeeper-operator
+	
+## Helm deploy zk and druid
+.PHONY: helm-druid-install
+helm-druid-install:
+	helm upgrade --install \
+	--namespace ${NAMESPACE_DRUID} \
+	--create-namespace \
+	 ${NAMESPACE_DRUID} pravega/zookeeper \
+	--set replicas=1
+
+## Helm deploy minio operator and minio
+.PHONY: helm-minio-install
+helm-minio-install:
+	helm repo add minio https://operator.min.io/
+	helm repo update minio
+	helm upgrade --install \
+	--namespace ${NAMESPACE_MINIO_OPERATOR} \
+	--create-namespace \
+	 ${NAMESPACE_MINIO_OPERATOR} minio/operator \
+	-f e2e/minio-operator-override.yaml
+
+## Helm deploy zk and druid
+.PHONY: helm-druid-install
+helm-druid-install:
+	helm upgrade --install \
+	--namespace ${NAMESPACE_DRUID} \
+	--create-namespace \
+  	${NAMESPACE_DRUID}-minio minio/tenant \
+	-f e2e/minio-tenant-override.yaml
+	helm upgrade --install \
+	--namespace ${NAMESPACE_DRUID} \
+	--create-namespace \
+	 ${NAMESPACE_DRUID}-zk pravega/zookeeper \
+	--set replicas=1
