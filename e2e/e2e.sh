@@ -1,6 +1,7 @@
 #!/bin/bash
 #!/bin/sh
 set -o errexit
+set -x
 # Get Kind
 go install sigs.k8s.io/kind@v0.17.0
 # minio statefulset name
