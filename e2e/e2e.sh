@@ -32,7 +32,7 @@ kubectl apply -f e2e/configs/druid-cr.yaml -n ${NAMESPACE}
 # hack for druid pods
 sleep 30
 # wait for druid pods
-declare -a sts=`($(kubectl get sts -n ${NAMESPACE} -l app=${NAMESPACE} | awk '{ print $1 }' | awk '(NR>1)'))`
+declare -a sts=($(kubectl get sts -n ${NAMESPACE} -l app=${NAMESPACE} | awk '{ print $1 }' | awk '(NR>1)'))
 for s in ${sts[@]}; do
   echo $s 
   kubectl rollout status sts $s -n ${NAMESPACE}  --timeout=60s
