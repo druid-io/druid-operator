@@ -154,7 +154,7 @@ $(ENVTEST): $(LOCALBIN)
 ## e2e deployment
 .PHONY: e2e
 e2e: 
-	sh e2e/e2e.sh
+	e2e/e2e.sh
 
 ## Build Kind
 .PHONY: kind 
