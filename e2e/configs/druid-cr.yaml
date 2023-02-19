@@ -75,7 +75,7 @@ spec:
     druid.s3.enabePathStyleAccess=true
     druid.s3.endpoint.signingRegion=us-east-1
     druid.s3.enablePathStyleAccess=true
-    druid.s3.endpoint.url=http://minio1-hl.minio.svc.cluster.local:9000/
+    druid.s3.endpoint.url=http://minio1-hl.druid.svc.cluster.local:9000/
     #
     # Extensions
     #
@@ -149,11 +149,6 @@ spec:
       extra.jvm.options: |-
         -Xmx800m
         -Xms800m
-      resources:
-        requests:
-          memory: "1G"
-        limits:
-          memory: "1G"
 
     historicals:
       nodeType: "historical"
@@ -174,11 +169,6 @@ spec:
       extra.jvm.options: |-
         -Xmx512m
         -Xms512m
-      resources:
-        requests:
-          memory: "1G"
-        limits:
-          memory: "1G"
 
     routers:
       nodeType: "router"
@@ -216,10 +206,10 @@ spec:
         -Xms512m
       runtime.properties: |
         druid.service=druid/middleManager
-        druid.worker.capacity=2
+        druid.worker.capacity=1
         druid.indexer.runner.javaOpts=-server -Xms128m -Xmx128m -XX:MaxDirectMemorySize=256m -Duser.timezone=UTC -Dfile.encoding=UTF-8 -Djava.io.tmpdir=/druid/data/tmp -XX:+ExitOnOutOfMemoryError -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
         druid.indexer.task.baseTaskDir=/druid/data/baseTaskDir
-        druid.server.http.numThreads=10
+        druid.server.http.numThreads=1
         druid.indexer.fork.property.druid.processing.buffer.sizeBytes=25000000
         druid.indexer.fork.property.druid.processing.numMergeBuffers=2
         druid.indexer.fork.property.druid.processing.numThreads=1

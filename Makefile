@@ -151,9 +151,10 @@ envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-## e2e kind deployment
+## e2e deployment
 .PHONY: e2e
-e2e: fmt vet test lint template kind docker-build-local docker-push-local helm-install-druid-operator helm-install-zk-operator helm-druid-install ## Run e2e.
+e2e: 
+	sh e2e/e2e.sh
 
 ## Build Kind
 .PHONY: kind 
@@ -180,25 +181,6 @@ helm-install-druid-operator: ## helm upgrade/install
 	--set image.repository=${IMG_KIND} \
 	--set image.tag=${IMG_TAG}
 
-## Helm deploy zk opeator
-.PHONY: helm-install-zk-operator
-helm-install-zk-operator:
-	helm repo add pravega https://charts.pravega.io
-	helm repo update pravega
-	helm upgrade --install \
-	--namespace ${NAMESPACE_ZK_OPERATOR} \
-	--create-namespace \
-	 ${NAMESPACE_ZK_OPERATOR} pravega/zookeeper-operator
-	
-## Helm deploy zk and druid
-.PHONY: helm-druid-install
-helm-druid-install:
-	helm upgrade --install \
-	--namespace ${NAMESPACE_DRUID} \
-	--create-namespace \
-	 ${NAMESPACE_DRUID} pravega/zookeeper \
-	--set replicas=1
-
 ## Helm deploy minio operator and minio
 .PHONY: helm-minio-install
 helm-minio-install:
@@ -208,18 +190,10 @@ helm-minio-install:
 	--namespace ${NAMESPACE_MINIO_OPERATOR} \
 	--create-namespace \
 	 ${NAMESPACE_MINIO_OPERATOR} minio/operator \
-	-f e2e/minio-operator-override.yaml
-
-## Helm deploy zk and druid
-.PHONY: helm-druid-install
-helm-druid-install:
+	-f e2e/configs/minio-operator-override.yaml
 	helm upgrade --install \
 	--namespace ${NAMESPACE_DRUID} \
 	--create-namespace \
   	${NAMESPACE_DRUID}-minio minio/tenant \
-	-f e2e/minio-tenant-override.yaml
-	helm upgrade --install \
-	--namespace ${NAMESPACE_DRUID} \
-	--create-namespace \
-	 ${NAMESPACE_DRUID}-zk pravega/zookeeper \
-	--set replicas=1
+	-f e2e/configs/minio-tenant-override.yaml
+

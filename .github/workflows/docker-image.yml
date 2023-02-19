@@ -18,5 +18,5 @@ jobs:
       run: make lint
     - name: Run helm template
       run: make template
-    - name: Build the Docker image
-      run: docker build . -t cloudnatively/druid-operator:$(date +%s)
+    - name: Run e2e tests
+      run: make e2e
