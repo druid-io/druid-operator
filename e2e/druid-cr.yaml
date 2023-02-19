@@ -66,20 +66,28 @@ spec:
     druid.metadata.storage.connector.port=1527
     druid.metadata.storage.connector.createTables=true
     # Deep Storage
-    druid.storage.type=local
-    druid.storage.storageDirectory=/druid/data/deepstorage
+    druid.storage.type=s3
+    druid.storage.bucket=druid
+    druid.storage.baseKey=druid/segments
+    druid.s3.accessKey=minio
+    druid.s3.secretKey=minio123
+    druid.s3.protocol=http
+    druid.s3.enabePathStyleAccess=true
+    druid.s3.endpoint.signingRegion=us-east-1
+    druid.s3.enablePathStyleAccess=true
+    druid.s3.endpoint.url=http://minio1-hl.minio.svc.cluster.local:9000/
     #
     # Extensions
     #
-    druid.extensions.loadList=["druid-avro-extensions","druid-hdfs-storage", "druid-kafka-indexing-service", "druid-datasketches", "druid-kubernetes-extensions"]
+    druid.extensions.loadList=["druid-avro-extensions", "druid-s3-extensions", "druid-hdfs-storage", "druid-kafka-indexing-service", "druid-datasketches", "druid-kubernetes-extensions"]
     #
     # Service discovery
     #
     druid.selectors.indexing.serviceName=druid/overlord
     druid.selectors.coordinator.serviceName=druid/coordinator
-    druid.indexer.logs.type=file
-    druid.indexer.logs.directory=/druid/data/task-logs
-    druid.indexer.task.baseDir=/druid/data/task-base
+    druid.indexer.logs.type=s3
+    druid.indexer.logs.s3Bucket=druid
+    druid.indexer.logs.s3Prefix=druid/indexing-logs
     druid.lookup.enableLookupSyncOnStartup=false
   env:
     - name: POD_NAME
