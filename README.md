@@ -3,7 +3,7 @@
 
 # Deprecation Notice: 
 - Refer to https://github.com/druid-io/druid-operator/issues/329.
-- The project will be externally maintained in the following fork [druid-operator](https://github.com/cloudnativelyhq/druid-operator)
+- The project will be externally maintained in the following fork [druid-operator](https://github.com/datainfrahq/druid-operator)
 - The new repo is fully backward compatible with previous releases. Feel free to open issues and collaborate. Thank You.
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------
