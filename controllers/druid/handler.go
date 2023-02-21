@@ -83,7 +83,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 
 	if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 		func() (object, error) { return makeCommonConfigMap(m, ls) },
-		func() object { return makeConfigMapEmptyObj() },
+		func() object { return &v1.ConfigMap{} },
 		alwaysTrueIsEqualsFn, noopUpdaterFn, m, configMapNames, emitEvents); err != nil {
 		return err
 	}
@@ -142,7 +142,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 
 		if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 			func() (object, error) { return nodeConfig, nil },
-			func() object { return makeConfigMapEmptyObj() },
+			func() object { return &v1.ConfigMap{} },
 			alwaysTrueIsEqualsFn, noopUpdaterFn, m, configMapNames, emitEvents); err != nil {
 			return err
 		}
@@ -153,7 +153,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 		for _, svc := range services {
 			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) { return makeService(&svc, &nodeSpec, m, lm, nodeSpecUniqueStr) },
-				func() object { return makeServiceEmptyObj() }, alwaysTrueIsEqualsFn,
+				func() object { return &v1.Service{} }, alwaysTrueIsEqualsFn,
 				func(prev, curr object) { (curr.(*v1.Service)).Spec.ClusterIP = (prev.(*v1.Service)).Spec.ClusterIP },
 				m, serviceNames, emitEvents); err != nil {
 				return err
@@ -170,7 +170,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 				func() (object, error) {
 					return makeDeployment(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
 				},
-				func() object { return makeDeploymentEmptyObj() },
+				func() object { return &appsv1.Deployment{} },
 				deploymentIsEquals, noopUpdaterFn, m, deploymentNames, emitEvents); err != nil {
 				return err
 			} else if m.Spec.RollingDeploy {
@@ -184,7 +184,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 				// will be sequential.
 				if m.Generation > 1 {
 					// Check Deployment rolling update status, if in-progress then stop here
-					done, err := isObjFullyDeployed(sdk, nodeSpec, nodeSpecUniqueStr, m, func() object { return makeDeploymentEmptyObj() }, emitEvents)
+					done, err := isObjFullyDeployed(sdk, nodeSpec, nodeSpecUniqueStr, m, func() object { return &appsv1.Deployment{} }, emitEvents)
 					if !done {
 						return err
 					}
@@ -209,7 +209,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 				func() (object, error) {
 					return makeStatefulSet(&nodeSpec, m, lm, nodeSpecUniqueStr, fmt.Sprintf("%s-%s", commonConfigSHA, nodeConfigSHA), firstServiceName)
 				},
-				func() object { return makeStatefulSetEmptyObj() },
+				func() object { return &appsv1.StatefulSet{} },
 				statefulSetIsEquals, noopUpdaterFn, m, statefulSetNames, emitEvents); err != nil {
 				return err
 			} else if m.Spec.RollingDeploy {
@@ -227,7 +227,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 				// will be sequential.
 				if m.Generation > 1 {
 					//Check StatefulSet rolling update status, if in-progress then stop here
-					done, err := isObjFullyDeployed(sdk, nodeSpec, nodeSpecUniqueStr, m, func() object { return makeStatefulSetEmptyObj() }, emitEvents)
+					done, err := isObjFullyDeployed(sdk, nodeSpec, nodeSpecUniqueStr, m, func() object { return &appsv1.StatefulSet{} }, emitEvents)
 					if !done {
 						return err
 					}
@@ -244,7 +244,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 				func() (object, error) {
 					return makeIngress(&nodeSpec, m, ls, nodeSpecUniqueStr)
 				},
-				func() object { return makeIngressEmptyObj() },
+				func() object { return &networkingv1.Ingress{} },
 				alwaysTrueIsEqualsFn, noopUpdaterFn, m, ingressNames, emitEvents); err != nil {
 				return err
 			}
@@ -254,7 +254,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 		if nodeSpec.PodDisruptionBudgetSpec != nil {
 			if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 				func() (object, error) { return makePodDisruptionBudget(&nodeSpec, m, lm, nodeSpecUniqueStr) },
-				func() object { return makePodDisruptionBudgetEmptyObj() },
+				func() object { return &v1beta1.PodDisruptionBudget{} },
 				alwaysTrueIsEqualsFn, noopUpdaterFn, m, podDisruptionBudgetNames, emitEvents); err != nil {
 				return err
 			}
@@ -266,7 +266,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 				func() (object, error) {
 					return makeHorizontalPodAutoscaler(&nodeSpec, m, ls, nodeSpecUniqueStr)
 				},
-				func() object { return makeHorizontalPodAutoscalerEmptyObj() },
+				func() object { return &autoscalev2beta2.HorizontalPodAutoscaler{} },
 				alwaysTrueIsEqualsFn, noopUpdaterFn, m, hpaNames, emitEvents); err != nil {
 				return err
 			}
@@ -276,7 +276,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 			for _, pvc := range nodeSpec.PersistentVolumeClaim {
 				if _, err := sdkCreateOrUpdateAsNeeded(sdk,
 					func() (object, error) { return makePersistentVolumeClaim(&pvc, &nodeSpec, m, lm, nodeSpecUniqueStr) },
-					func() object { return makePersistentVolumeClaimEmptyObj() }, alwaysTrueIsEqualsFn,
+					func() object { return &v1.PersistentVolumeClaim{} }, alwaysTrueIsEqualsFn,
 					noopUpdaterFn,
 					m, pvcNames, emitEvents); err != nil {
 					return err
@@ -296,7 +296,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 	updatedStatus := v1alpha1.DruidClusterStatus{}
 
 	updatedStatus.StatefulSets = deleteUnusedResources(sdk, m, statefulSetNames, ls,
-		func() objectList { return makeStatefulSetListEmptyObj() },
+		func() objectList { return &appsv1.StatefulSetList{} },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*appsv1.StatefulSetList).Items
 			result := make([]object, len(items))
@@ -308,7 +308,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 	sort.Strings(updatedStatus.StatefulSets)
 
 	updatedStatus.Deployments = deleteUnusedResources(sdk, m, deploymentNames, ls,
-		func() objectList { return makeDeloymentListEmptyObj() },
+		func() objectList { return &appsv1.DeploymentList{} },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*appsv1.DeploymentList).Items
 			result := make([]object, len(items))
@@ -320,7 +320,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 	sort.Strings(updatedStatus.Deployments)
 
 	updatedStatus.HPAutoScalers = deleteUnusedResources(sdk, m, hpaNames, ls,
-		func() objectList { return makeHorizontalPodAutoscalerListEmptyObj() },
+		func() objectList { return &autoscalev2beta2.HorizontalPodAutoscalerList{} },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*autoscalev2beta2.HorizontalPodAutoscalerList).Items
 			result := make([]object, len(items))
@@ -332,7 +332,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 	sort.Strings(updatedStatus.HPAutoScalers)
 
 	updatedStatus.Ingress = deleteUnusedResources(sdk, m, ingressNames, ls,
-		func() objectList { return makeIngressListEmptyObj() },
+		func() objectList { return &networkingv1.IngressList{} },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*networkingv1.IngressList).Items
 			result := make([]object, len(items))
@@ -344,7 +344,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 	sort.Strings(updatedStatus.Ingress)
 
 	updatedStatus.PodDisruptionBudgets = deleteUnusedResources(sdk, m, podDisruptionBudgetNames, ls,
-		func() objectList { return makePodDisruptionBudgetListEmptyObj() },
+		func() objectList { return &v1beta1.PodDisruptionBudgetList{} },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*v1beta1.PodDisruptionBudgetList).Items
 			result := make([]object, len(items))
@@ -356,7 +356,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 	sort.Strings(updatedStatus.PodDisruptionBudgets)
 
 	updatedStatus.Services = deleteUnusedResources(sdk, m, serviceNames, ls,
-		func() objectList { return makeServiceListEmptyObj() },
+		func() objectList { return &v1.ServiceList{} },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*v1.ServiceList).Items
 			result := make([]object, len(items))
@@ -368,7 +368,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 	sort.Strings(updatedStatus.Services)
 
 	updatedStatus.ConfigMaps = deleteUnusedResources(sdk, m, configMapNames, ls,
-		func() objectList { return makeConfigMapListEmptyObj() },
+		func() objectList { return &v1.ConfigMapList{} },
 		func(listObj runtime.Object) []object {
 			items := listObj.(*v1.ConfigMapList).Items
 			result := make([]object, len(items))
@@ -379,7 +379,7 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 		}, emitEvents)
 	sort.Strings(updatedStatus.ConfigMaps)
 
-	podList, _ := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), emitEvents, func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, _ := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), emitEvents, func() objectList { return &v1.PodList{} }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -433,7 +433,7 @@ func deleteSTSAndPVC(sdk client.Client, drd *v1alpha1.Druid, stsList, pvcList []
 }
 
 func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEmitter) bool {
-	_, err := readers.Get(context.TODO(), sdk, m.Name, m, func() object { return makeDruidEmptyObj() }, emitEvents)
+	_, err := readers.Get(context.TODO(), sdk, m.Name, m, func() object { return &v1alpha1.Druid{} }, emitEvents)
 	if err != nil {
 		return false
 	} else {
@@ -443,7 +443,7 @@ func checkIfCRExists(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEmitt
 
 func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid, emitEvents EventEmitter) error {
 
-	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), emitEvents, func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), emitEvents, func() objectList { return &v1.PodList{} }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -459,7 +459,7 @@ func deleteOrphanPVC(sdk client.Client, drd *v1alpha1.Druid, emitEvents EventEmi
 		"druid_cr": drd.Name,
 	}
 
-	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, emitEvents, func() objectList { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, emitEvents, func() objectList { return &v1.PersistentVolumeClaimList{} }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PersistentVolumeClaimList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -521,7 +521,7 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEmi
 			"druid_cr": m.Name,
 		}
 
-		pvcList, err := readers.List(context.TODO(), sdk, m, pvcLabels, emitEvents, func() objectList { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+		pvcList, err := readers.List(context.TODO(), sdk, m, pvcLabels, emitEvents, func() objectList { return &v1.PersistentVolumeClaimList{} }, func(listObj runtime.Object) []object {
 			items := listObj.(*v1.PersistentVolumeClaimList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
@@ -533,7 +533,7 @@ func executeFinalizers(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEmi
 			return err
 		}
 
-		stsList, err := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), emitEvents, func() objectList { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
+		stsList, err := readers.List(context.TODO(), sdk, m, makeLabelsForDruid(m.Name), emitEvents, func() objectList { return &appsv1.StatefulSetList{} }, func(listObj runtime.Object) []object {
 			items := listObj.(*appsv1.StatefulSetList).Items
 			result := make([]object, len(items))
 			for i := 0; i < len(items); i++ {
@@ -581,7 +581,7 @@ func execCheckCrashStatus(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, m
 
 func checkCrashStatus(sdk client.Client, drd *v1alpha1.Druid, emitEvents EventEmitter) error {
 
-	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), emitEvents, func() objectList { return makePodList() }, func(listObj runtime.Object) []object {
+	podList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), emitEvents, func() objectList { return &v1.PodList{} }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PodList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -747,7 +747,7 @@ func isObjFullyDeployed(sdk client.Client, nodeSpec v1alpha1.DruidNodeSpec, node
 // NOTE: To be called only if generation > 1
 func scalePVCForSts(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, nodeSpecUniqueStr string, drd *v1alpha1.Druid, emitEvent EventEmitter) error {
 
-	getSTSList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), emitEvent, func() objectList { return makeStatefulSetListEmptyObj() }, func(listObj runtime.Object) []object {
+	getSTSList, err := readers.List(context.TODO(), sdk, drd, makeLabelsForDruid(drd.Name), emitEvent, func() objectList { return &appsv1.StatefulSetList{} }, func(listObj runtime.Object) []object {
 		items := listObj.(*appsv1.StatefulSetList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -770,7 +770,7 @@ func scalePVCForSts(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, nodeSpe
 
 	// return nil, in case return err the program halts since sts would not be able
 	// we would like the operator to create sts.
-	sts, err := readers.Get(context.TODO(), sdk, nodeSpecUniqueStr, drd, func() object { return makeStatefulSetEmptyObj() }, emitEvent)
+	sts, err := readers.Get(context.TODO(), sdk, nodeSpecUniqueStr, drd, func() object { return &appsv1.StatefulSet{} }, emitEvent)
 	if err != nil {
 		return nil
 	}
@@ -779,7 +779,7 @@ func scalePVCForSts(sdk client.Client, nodeSpec *v1alpha1.DruidNodeSpec, nodeSpe
 		"component": nodeSpec.NodeType,
 	}
 
-	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, emitEvent, func() objectList { return makePersistentVolumeClaimListEmptyObj() }, func(listObj runtime.Object) []object {
+	pvcList, err := readers.List(context.TODO(), sdk, drd, pvcLabels, emitEvent, func() objectList { return &v1.PersistentVolumeClaimList{} }, func(listObj runtime.Object) []object {
 		items := listObj.(*v1.PersistentVolumeClaimList).Items
 		result := make([]object, len(items))
 		for i := 0; i < len(items); i++ {
@@ -878,7 +878,7 @@ func getVolumeClaimTemplateSizes(sts object, nodeSpec *v1alpha1.DruidNodeSpec, p
 func isVolumeExpansionEnabled(sdk client.Client, m *v1alpha1.Druid, nodeSpec *v1alpha1.DruidNodeSpec, emitEvent EventEmitter) bool {
 
 	for _, nodeVCT := range nodeSpec.VolumeClaimTemplates {
-		sc, err := readers.Get(context.TODO(), sdk, *nodeVCT.Spec.StorageClassName, m, func() object { return makeStorageClassEmptyObj() }, emitEvent)
+		sc, err := readers.Get(context.TODO(), sdk, *nodeVCT.Spec.StorageClassName, m, func() object { return &storage.StorageClass{} }, emitEvent)
 		if err != nil {
 			return false
 		}
@@ -1499,187 +1499,6 @@ func asOwner(m *v1alpha1.Druid) metav1.OwnerReference {
 		Name:       m.Name,
 		UID:        m.UID,
 		Controller: &trueVar,
-	}
-}
-
-// podList returns a v1.PodList object
-func makePodList() *v1.PodList {
-	return &v1.PodList{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Pod",
-			APIVersion: "v1",
-		},
-	}
-}
-
-func makeDruidEmptyObj() *v1alpha1.Druid {
-	return &v1alpha1.Druid{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Druid",
-			APIVersion: "v1alpha1",
-		},
-	}
-}
-
-func makeStatefulSetListEmptyObj() *appsv1.StatefulSetList {
-	return &appsv1.StatefulSetList{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "StatefulSet",
-			APIVersion: "apps/v1",
-		},
-	}
-}
-
-func makeDeloymentListEmptyObj() *appsv1.DeploymentList {
-	return &appsv1.DeploymentList{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Deployment",
-			APIVersion: "apps/v1",
-		},
-	}
-}
-
-func makePodDisruptionBudgetListEmptyObj() *v1beta1.PodDisruptionBudgetList {
-	return &v1beta1.PodDisruptionBudgetList{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "policy/v1beta1",
-			Kind:       "PodDisruptionBudget",
-		},
-	}
-}
-
-func makeHorizontalPodAutoscalerListEmptyObj() *autoscalev2beta2.HorizontalPodAutoscalerList {
-	return &autoscalev2beta2.HorizontalPodAutoscalerList{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "autoscaling/v2beta1",
-			Kind:       "HorizontalPodAutoscaler",
-		},
-	}
-}
-
-func makeIngressListEmptyObj() *networkingv1.IngressList {
-	return &networkingv1.IngressList{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1",
-			Kind:       "Ingress",
-		},
-	}
-}
-
-func makeConfigMapListEmptyObj() *v1.ConfigMapList {
-	return &v1.ConfigMapList{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-		},
-	}
-}
-
-func makeServiceListEmptyObj() *v1.ServiceList {
-	return &v1.ServiceList{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Service",
-			APIVersion: "v1",
-		},
-	}
-}
-
-func makePodEmptyObj() *v1.Pod {
-	return &v1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Pod",
-		},
-	}
-}
-
-func makeStatefulSetEmptyObj() *appsv1.StatefulSet {
-	return &appsv1.StatefulSet{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "StatefulSet",
-		},
-	}
-}
-
-func makeDeploymentEmptyObj() *appsv1.Deployment {
-	return &appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-	}
-}
-
-func makePodDisruptionBudgetEmptyObj() *v1beta1.PodDisruptionBudget {
-	return &v1beta1.PodDisruptionBudget{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "policy/v1beta1",
-			Kind:       "PodDisruptionBudget",
-		},
-	}
-}
-
-func makeHorizontalPodAutoscalerEmptyObj() *autoscalev2beta2.HorizontalPodAutoscaler {
-	return &autoscalev2beta2.HorizontalPodAutoscaler{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "autoscaling/v2beta1",
-			Kind:       "HorizontalPodAutoscaler",
-		},
-	}
-}
-
-func makePersistentVolumeClaimEmptyObj() *v1.PersistentVolumeClaim {
-	return &v1.PersistentVolumeClaim{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "PersistentVolumeClaim",
-		},
-	}
-}
-
-func makePersistentVolumeClaimListEmptyObj() *v1.PersistentVolumeClaimList {
-	return &v1.PersistentVolumeClaimList{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "PersistentVolumeClaim",
-		},
-	}
-}
-
-func makeIngressEmptyObj() *networkingv1.Ingress {
-	return &networkingv1.Ingress{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1",
-			Kind:       "Ingress",
-		},
-	}
-}
-
-func makeServiceEmptyObj() *v1.Service {
-	return &v1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-	}
-}
-
-func makeStorageClassEmptyObj() *storage.StorageClass {
-	return &storage.StorageClass{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "storage.k8s.io/v1",
-			Kind:       "StorageClass",
-		},
-	}
-}
-
-func makeConfigMapEmptyObj() *v1.ConfigMap {
-	return &v1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
 	}
 }
 
