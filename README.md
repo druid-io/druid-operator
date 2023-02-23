@@ -1,6 +1,12 @@
 # Kubernetes Operator for Apache Druid
 ![Build Status](https://github.com/druid-io/druid-operator/actions/workflows/docker-image.yml/badge.svg) ![Docker pull](https://img.shields.io/docker/pulls/druidio/druid-operator.svg) [![Latest Version](https://img.shields.io/github/tag/druid-io/druid-operator)](https://github.com/druid-io/druid-operator/releases)
 
+# Deprecation Notice: 
+- Refer to https://github.com/druid-io/druid-operator/issues/329.
+- The project will be externally maintained in the following fork [druid-operator](https://github.com/datainfrahq/druid-operator)
+- The new repo is fully backward compatible with previous releases. Feel free to open issues and collaborate. Thank You.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
 - druid-operator provisions and manages [Apache Druid](https://druid.apache.org/) cluster on kubernetes.
 - druid-operator is designed to provision and manage [Apache Druid](https://druid.apache.org/) in distributed mode only.
 - It is built using the [kubebuilder](https://github.com/kubernetes-sigs/kubebuilder).
