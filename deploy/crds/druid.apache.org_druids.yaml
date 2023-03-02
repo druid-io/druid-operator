@@ -1494,6 +1494,15 @@ spec:
                 description: 'Optional: Default is set to false, pvc shall be deleted
                   on deletion of CR'
                 type: boolean
+              druidScript:
+                description: 'Optional: Customized druid shell script path. If not
+                  set, the default would be "bin/run-druid.sh"'
+                type: string
+              entryArg:
+                description: 'Optional: bash/sh entry arg. Set startScript to `sh`
+                  or `bash` to customize entryArg For example, the container can run
+                  `sh -c "${EntryArg} && ${DruidScript} {nodeType}"`'
+                type: string
               env:
                 description: 'Optional: environment variables for druid containers'
                 items:
@@ -8844,8 +8853,7 @@ spec:
                   type: object
                 type: array
               startScript:
-                description: 'Required: path to druid start script to be run on container
-                  start'
+                description: 'Required: Command to be run on container start'
                 type: string
               startUpProbe:
                 description: 'Optional: StartupProbe for nodeSpec'
