@@ -1345,7 +1345,7 @@ func makePodSpec(nodeSpec *v1alpha1.DruidNodeSpec, m *v1alpha1.Druid, nodeSpecUn
 	}
 
 	spec := v1.PodSpec{
-		NodeSelector:                  firstNonNilValue(m.Spec.NodeSelector, nodeSpec.NodeSelector).(map[string]string),
+		NodeSelector:                  firstNonNilValue(nodeSpec.NodeSelector, m.Spec.NodeSelector).(map[string]string),
 		TopologySpreadConstraints:     getTopologySpreadConstraints(nodeSpec),
 		Tolerations:                   getTolerations(nodeSpec, m),
 		Affinity:                      getAffinity(nodeSpec, m),
