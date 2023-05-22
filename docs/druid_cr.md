@@ -6,12 +6,16 @@
 - The operator supports both deployments and statefulsets for druid Nodes. ```kind``` can be specified in the druid NodeSpec's to ```Deployment``` / ```StatefulSet```.
 - ```NOTE: The default behavior shall provision all the nodes as statefulsets.```
 
-- The following are cluster scoped and common to all the druid nodes. 
+- The following are cluster scoped and common to all the druid nodes.
 
-```
+```yaml
 spec:
-# Image for druid, Required Key
-  image: apache/incubator-druid:0.16.0-incubating
+  # Enable rolling deploy for druid, not required but suggested for production setup
+  # more information in features.md and in druid documentation
+  # http://druid.io/docs/latest/operations/rolling-updates.html
+  rollingDeploy: true
+  # Image for druid, Required Key
+  image: apache/druid:25.0.0
   ....
   # Optionally specify image for all nodes. Can be specify on nodes also
   # imagePullSecrets:
@@ -36,6 +40,7 @@ spec:
   jvm.options: |-
   ...
   # log4j.config common for all druid nodes
+
   log4j.config: |-
   # common runtime properties for all druid nodes
   common.runtime.properties: |
@@ -43,7 +48,7 @@ spec:
 
  - The following are specific to a node.
 
- ```
+ ```yaml
   nodes:
     # String value, can be anything to define a node name.
     brokers:

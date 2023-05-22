@@ -15,13 +15,12 @@ type GenericPredicates struct {
 
 // create() to filter create events
 func (GenericPredicates) Create(e event.CreateEvent) bool {
-	return IgnoreNamespacePredicate(e.Object)
+	return IgnoreNamespacePredicate(e.Object) && IgnoreIgnoredObjectPredicate(e.Object)
 }
 
 // update() to filter update events
 func (GenericPredicates) Update(e event.UpdateEvent) bool {
-	return IgnoreNamespacePredicate(e.ObjectNew)
-
+	return IgnoreNamespacePredicate(e.ObjectNew) && IgnoreIgnoredObjectPredicate(e.ObjectNew)
 }
 
 func IgnoreNamespacePredicate(obj object) bool {
@@ -33,6 +32,15 @@ func IgnoreNamespacePredicate(obj object) bool {
 			logger.Info(msg)
 			return false
 		}
+	}
+	return true
+}
+
+func IgnoreIgnoredObjectPredicate(obj object) bool {
+	if ignoredStatus := obj.GetAnnotations()[ignoredAnnotation]; ignoredStatus == "true" {
+		msg := fmt.Sprintf("druid operator will not re-concile ignored Druid [%s], removed annotation to re-concile", obj.GetName())
+		logger.Info(msg)
+		return false
 	}
 	return true
 }

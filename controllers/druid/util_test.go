@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
+	"github.com/datainfrahq/druid-operator/apis/druid/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 )
 

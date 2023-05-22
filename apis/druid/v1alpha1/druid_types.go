@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalev2beta2 "k8s.io/api/autoscaling/v2beta2"
+	autoscalev2 "k8s.io/api/autoscaling/v2"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,69 +29,84 @@ type AdditionalContainer struct {
 	// List of configurations to use which are not present or to override default implementation configurations
 
 	// This is the image for the additional container to run.
-	// This is a required field
+	// +required
 	Image string `json:"image"`
 
 	// This is the name of the additional container.
-	// This is a required field
+	// +required
 	ContainerName string `json:"containerName"`
 
 	// This is the command for the additional container to run.
-	// This is a required field
+	// +required
 	Command []string `json:"command"`
 
-	// Optional: If not present, will be taken from top level spec
+	// If not present, will be taken from top level spec
+	// +optional
 	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
-	// Optional: Argument to call the command
+	// Argument to call the command
+	// +optional
 	Args []string `json:"args,omitempty"`
 
-	// Optional: ContainerSecurityContext. If not present, will be taken from top level pod
+	// ContainerSecurityContext. If not present, will be taken from top level pod
+	// +optional
 	ContainerSecurityContext *v1.SecurityContext `json:"securityContext,omitempty"`
 
-	// Optional: CPU/Memory Resources
+	// CPU/Memory Resources
+	// +optional
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 
-	// Optional: volumes etc for the Druid pods
+	// Volumes etc for the Druid pods
+	// +optional
 	VolumeMounts []v1.VolumeMount `json:"volumeMounts,omitempty"`
 
-	// Optional: environment variables for the Additional Container
+	// Environment variables for the Additional Container
+	// +optional
 	Env []v1.EnvVar `json:"env,omitempty"`
 
-	// Optional: Extra environment variables
+	// Extra environment variables
+	// +optional
 	EnvFrom []v1.EnvFromSource `json:"envFrom,omitempty"`
 }
 
 // DruidSpec defines the desired state of Druid
 type DruidSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 
-	// Optional: If true, this spec would be ignored by the operator
+	// Ignored is now deprecated API. In order to avoid reconciliation of objects use the
+	// druid.apache.org/ignored: "true" annotation
+	// +optional
+	// +kubebuilder:default:=false
 	Ignored bool `json:"ignored,omitempty"`
 
-	// Required: common.runtime.properties contents
+	// common.runtime.properties contents
+	// +required
 	CommonRuntimeProperties string `json:"common.runtime.properties"`
 
 	// Optional: Default is true, will delete the sts pod if sts is set to ordered ready to ensure
 	// issue: https://github.com/kubernetes/kubernetes/issues/67250
 	// doc: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#forced-rollback
+
+	// +optional
 	ForceDeleteStsPodOnError bool `json:"forceDeleteStsPodOnError,omitempty"`
 
-	// Optional: ScalePvcSts, defaults to false. When enabled, operator will allow volume expansion of sts and pvc's.
+	// ScalePvcSts, defaults to false. When enabled, operator will allow volume expansion of sts and pvc's.
+	// +optional
 	ScalePvcSts bool `json:"scalePvcSts,omitempty"`
 
-	// Required: in-container directory to mount with common.runtime.properties
+	// In-container directory to mount with common.runtime.properties
+	// +required
 	CommonConfigMountPath string `json:"commonConfigMountPath"`
 
-	// Optional: Default is set to false, pvc shall be deleted on deletion of CR
+	// Default is set to false, pvc shall be deleted on deletion of CR
+	// +optional
 	DisablePVCDeletionFinalizer bool `json:"disablePVCDeletionFinalizer,omitempty"`
 
-	// Optional: Default is set to true, orphaned ( unmounted pvc's ) shall be cleaned up by the operator.
+	// Default is set to true, orphaned ( unmounted pvc's ) shall be cleaned up by the operator.
 	// +optional
 	DeleteOrphanPvc bool `json:"deleteOrphanPvc"`
 
-	// Required: Command to be run on container start
+	// Path to druid start script to be run on container start
+	// +required
 	StartScript string `json:"startScript"`
 
 	// Optional: bash/sh entry arg. Set startScript to `sh` or `bash` to customize entryArg
@@ -102,71 +117,93 @@ type DruidSpec struct {
 	DruidScript string `json:"druidScript,omitempty"`
 
 	// Required here or at nodeSpec level
+	// +optional
 	Image string `json:"image,omitempty"`
 
-	// Optional: ServiceAccount for the druid cluster
+	// ServiceAccount for the druid cluster
+	// +optional
 	ServiceAccount string `json:"serviceAccount,omitempty"`
 
-	// Optional: imagePullSecrets for private registries
+	// imagePullSecrets for private registries
+	// +optional
 	ImagePullSecrets []v1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
-	// Optional:
+	// +optional
 	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
-	// Optional: environment variables for druid containers
+	// Environment variables for druid containers
+	// +optional
 	Env []v1.EnvVar `json:"env,omitempty"`
 
-	// Optional: Extra environment variables
+	// Extra environment variables
+	// +optional
 	EnvFrom []v1.EnvFromSource `json:"envFrom,omitempty"`
 
-	// Optional: jvm options for druid jvm processes
+	// jvm options for druid jvm processes
+	// +optional
 	JvmOptions string `json:"jvm.options,omitempty"`
 
-	// Optional: log4j config contents
+	// log4j config contents
+	// +optional
 	Log4jConfig string `json:"log4j.config,omitempty"`
 
-	// Optional: druid pods pod-security-context
+	// druid pods pod-security-context
+	// +optional
 	PodSecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
 
-	// Optional: druid pods container-security-context
+	// druid pods container-security-context
+	// +optional
 	ContainerSecurityContext *v1.SecurityContext `json:"containerSecurityContext,omitempty"`
 
-	// Optional: volumes etc for the Druid pods
+	// volumes etc for the Druid pods
+	// +optional
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
-	VolumeMounts         []v1.VolumeMount           `json:"volumeMounts,omitempty"`
-	Volumes              []v1.Volume                `json:"volumes,omitempty"`
+	// +optional
+	VolumeMounts []v1.VolumeMount `json:"volumeMounts,omitempty"`
+	// +optional
+	Volumes []v1.Volume `json:"volumes,omitempty"`
 
-	// Optional: custom annotations to be populated in Druid pods
+	// Custom annotations to be populated in Druid pods
+	// +optional
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 
-	// Optional: By default it is set to "parallel"
+	// By default, it is set to "parallel"
+	// +optional
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 
-	// Optional: custom labels to be populated in Druid pods
+	// Custom labels to be populated in Druid pods
+	// +optional
 	PodLabels map[string]string `json:"podLabels,omitempty"`
 
-	// Optional
+	// +optional
 	UpdateStrategy *appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
 
-	// Optional, port is set to druid.port if not specified with httpGet handler
+	// Port is set to druid.port if not specified with httpGet handler
+	// +optional
 	LivenessProbe *v1.Probe `json:"livenessProbe,omitempty"`
 
-	// Optional, port is set to druid.port if not specified with httpGet handler
+	// Port is set to druid.port if not specified with httpGet handler
+	// +optional
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 
-	// Optional: StartupProbe for nodeSpec
+	// StartupProbe for nodeSpec
+	// +optional
 	StartUpProbe *v1.Probe `json:"startUpProbe,omitempty"`
 
-	// Optional: k8s service resources to be created for each Druid statefulsets
+	// k8s service resources to be created for each Druid statefulsets
+	// +optional
 	Services []v1.Service `json:"services,omitempty"`
 
-	// Optional: node selector to be used by Druid statefulsets
+	// Node selector to be used by Druid statefulsets
+	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
-	// Optional: toleration to be used in order to run Druid on nodes tainted
+	// Toleration to be used in order to run Druid on nodes tainted
+	// +optional
 	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
 
-	// Optional: affinity to be used to for enabling node, pod affinity and anti-affinity
+	// Affinity to be used to for enabling node, pod affinity and anti-affinity
+	// +optional
 	Affinity *v1.Affinity `json:"affinity,omitempty"`
 
 	// Spec used to create StatefulSet specs etc, Many of the fields above can be overridden at the specific
@@ -175,150 +212,190 @@ type DruidSpec struct {
 	// But, it is used in the k8s resource names, so it must be compliant with restrictions
 	// placed on k8s resource names.
 	// that is, it must match regex '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
+
+	// +required
 	Nodes map[string]DruidNodeSpec `json:"nodes"`
 
 	// Operator deploys the sidecar container based on these properties. Sidecar will be deployed for all the Druid pods.
+	// +optional
 	AdditionalContainer []AdditionalContainer `json:"additionalContainer,omitempty"`
 
 	// Operator deploys above list of nodes in the Druid prescribed order of Historical, Overlord, MiddleManager,
 	// Broker, Coordinator etc.
-	// Optional: If set to true then operator checks the rollout status of previous version StateSets before updating next.
+	// If set to true then operator checks the rollout status of previous version StateSets before updating next.
 	// Used only for updates.
+
+	// +optional
 	RollingDeploy bool `json:"rollingDeploy,omitempty"`
 
 	// futuristic stuff to make Druid dependency setup extensible from within Druid operator
 	// ignore for now.
-	Zookeeper     *ZookeeperSpec     `json:"zookeeper,omitempty"`
+	// +optional
+	Zookeeper *ZookeeperSpec `json:"zookeeper,omitempty"`
+	// +optional
 	MetadataStore *MetadataStoreSpec `json:"metadataStore,omitempty"`
-	DeepStorage   *DeepStorageSpec   `json:"deepStorage,omitempty"`
+	// +optional
+	DeepStorage *DeepStorageSpec `json:"deepStorage,omitempty"`
 
-	// Optional: Custom Dimension Map Path for statsd emitter
+	// Custom Dimension Map Path for statsd emitter
+	// +optional
 	DimensionsMapPath string `json:"metricDimensions.json,omitempty"`
 }
 
 type DruidNodeSpec struct {
-	// Required: Druid node type e.g. Broker, Coordinator, Historical, MiddleManager, Router, Overlord etc
+	// Druid node type
+	// +required
+	// +kubebuilder:validation:Enum:=historical;overlord;middleManager;indexer;broker;coordinator;router
 	NodeType string `json:"nodeType"`
 
-	// Required: Port used by Druid Process
+	// Port used by Druid Process
+	// +required
 	DruidPort int32 `json:"druid.port"`
 
 	// Defaults to statefulsets.
 	// Note: volumeClaimTemplates are ignored when kind=Deployment
+	// +optional
 	Kind string `json:"kind,omitempty"`
 
-	// Required
+	// +required
 	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas"`
 
-	// Optional
+	// +optional
 	PodLabels map[string]string `json:"podLabels,omitempty"`
 
-	// Optional
-	PodDisruptionBudgetSpec *v1beta1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec,omitempty"`
+	// +optional
+	PodDisruptionBudgetSpec *policyv1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec,omitempty"`
 
-	// Required
+	// +required
 	RuntimeProperties string `json:"runtime.properties"`
 
-	// Optional: This overrides JvmOptions at top level
+	// This overrides JvmOptions at top level
+	// +optional
 	JvmOptions string `json:"jvm.options,omitempty"`
 
-	// Optional: This appends extra jvm options to JvmOptions field
+	// This appends extra jvm options to JvmOptions field
+	// +optional
 	ExtraJvmOptions string `json:"extra.jvm.options,omitempty"`
 
-	// Optional: This overrides Log4jConfig at top level
+	// This overrides Log4jConfig at top level
+	// +optional
 	Log4jConfig string `json:"log4j.config,omitempty"`
 
-	// Required: in-container directory to mount with runtime.properties, jvm.config, log4j2.xml files
+	// in-container directory to mount with runtime.properties, jvm.config, log4j2.xml files
+	// +required
 	NodeConfigMountPath string `json:"nodeConfigMountPath"`
 
-	// Optional: Overrides services at top level
+	// Overrides services at top level
+	// +optional
 	Services []v1.Service `json:"services,omitempty"`
 
-	// Optional: toleration to be used in order to run Druid on nodes tainted
+	// Toleration to be used in order to run Druid on nodes tainted
+	// +optional
 	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
 
-	// Optional: affinity to be used to for enabling node, pod affinity and anti-affinity
+	// Affinity to be used to for enabling node, pod affinity and anti-affinity
+	// +optional
 	Affinity *v1.Affinity `json:"affinity,omitempty"`
 
-	// Optional: node selector to be used by Druid statefulsets
+	// Node selector to be used by Druid statefulsets
+	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
-	// Optional: terminationGracePeriod
+	// +optional
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 
-	// Optional: extra ports to be added to pod spec
+	// Extra ports to be added to pod spec
+	// +optional
 	Ports []v1.ContainerPort `json:"ports,omitempty"`
 
-	// Optional: Overrides image from top level, Required if no image specified at top level
+	// Overrides image from top level, Required if no image specified at top level
+	// +optional
 	Image string `json:"image,omitempty"`
 
-	// Optional: Overrides imagePullSecrets from top level
+	// Overrides imagePullSecrets from top level
+	// +optional
 	ImagePullSecrets []v1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
-	// Optional: Overrides imagePullPolicy from top level
+	// Overrides imagePullPolicy from top level
+	// +optional
 	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
-	// Optional: Extra environment variables
+	// Extra environment variables
+	// +optional
 	Env []v1.EnvVar `json:"env,omitempty"`
 
-	// Optional: Extra environment variables
+	// Extra environment variables
+	// +optional
 	EnvFrom []v1.EnvFromSource `json:"envFrom,omitempty"`
 
-	// Optional: CPU/Memory Resources
+	// CPU/Memory Resources
+	// +optional
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 
-	// Optional: Overrides securityContext at top level
+	// Overrides securityContext at top level
+	// +optional
 	PodSecurityContext *v1.PodSecurityContext `json:"securityContext,omitempty"`
 
-	// Optional: druid pods container-security-context
+	// Druid pods container-security-context
+	// +optional
 	ContainerSecurityContext *v1.SecurityContext `json:"containerSecurityContext,omitempty"`
 
-	// Optional: custom annotations to be populated in Druid pods
+	// Custom annotations to be populated in Druid pods
+	// +optional
 	PodAnnotations map[string]string `json:"podAnnotations,omitempty"`
 
-	// Optional: By default it is set to "parallel"
+	// By default, it is set to "parallel"
+	// +optional
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 
-	// Optional: maxSurge for deployment object, only applicable if kind=Deployment
+	// maxSurge for deployment object, only applicable if kind=Deployment, by default set to 25%
+	// +optional
 	MaxSurge *int32 `json:"maxSurge,omitempty"`
 
-	// Optional: maxUnavailable for deployment object, only applicable if kind=Deployment
+	// maxUnavailable for deployment object, only applicable if kind=Deployment, by default set to 25%
+	// +optional
 	MaxUnavailable *int32 `json:"maxUnavailable,omitempty"`
 
-	// Optional
+	// +optional
 	UpdateStrategy *appsv1.StatefulSetUpdateStrategy `json:"updateStrategy,omitempty"`
 
-	// Optional
+	// +optional
 	LivenessProbe *v1.Probe `json:"livenessProbe,omitempty"`
 
-	// Optional
+	// +optional
 	ReadinessProbe *v1.Probe `json:"readinessProbe,omitempty"`
 
-	// Optional: StartupProbe for nodeSpec
+	// StartupProbe for nodeSpec
+	// +optional
 	StartUpProbes *v1.Probe `json:"startUpProbes,omitempty"`
 
-	// Optional: Ingress Annoatations to be populated in ingress spec
+	// Ingress Annoatations to be populated in ingress spec
+	// +optional
 	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
 
-	// Optional: Ingress Spec
+	// Ingress Spec
+	// +optional
 	Ingress *networkingv1.IngressSpec `json:"ingress,omitempty"`
 
-	// Optional: Persistant volume claim
+	// +optional
 	PersistentVolumeClaim []v1.PersistentVolumeClaim `json:"persistentVolumeClaim,omitempty"`
 
-	// Optional
+	// +optional
 	Lifecycle *v1.Lifecycle `json:"lifecycle,omitempty"`
 
-	// Optional
-	HPAutoScaler *autoscalev2beta2.HorizontalPodAutoscalerSpec `json:"hpAutoscaler,omitempty"`
+	// +optional
+	HPAutoScaler *autoscalev2.HorizontalPodAutoscalerSpec `json:"hpAutoscaler,omitempty"`
 
-	// Optional
+	// +optional
 	TopologySpreadConstraints []v1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 
+	// +optional
 	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
-	VolumeMounts         []v1.VolumeMount           `json:"volumeMounts,omitempty"`
-	Volumes              []v1.Volume                `json:"volumes,omitempty"`
+	// +optional
+	VolumeMounts []v1.VolumeMount `json:"volumeMounts,omitempty"`
+	// +optional
+	Volumes []v1.Volume `json:"volumes,omitempty"`
 }
 
 type ZookeeperSpec struct {

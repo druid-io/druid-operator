@@ -9,7 +9,7 @@ metadata:
     nodeSpecUniqueStr: druid-druid-test-brokers
     component: broker
   annotations:
-    druidOpResourceHash: rjo/DfrcRi1LUUEhdkBJch19eDs=
+    druidOpResourceHash: du7ks4I5YTmInUUcbietAP8beVI=
 spec:
   replicas: 2
   selector:
@@ -19,9 +19,7 @@ spec:
       nodeSpecUniqueStr: druid-druid-test-brokers
       component: broker
   strategy:
-   rollingUpdate:
-     maxSurge: 25
-     maxUnavailable: 25
+   rollingUpdate: {}
    type: RollingUpdate
   template:
     metadata:

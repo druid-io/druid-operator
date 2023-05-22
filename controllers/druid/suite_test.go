@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	druidv1alpha1 "github.com/druid-io/druid-operator/apis/druid/v1alpha1"
+	druidv1alpha1 "github.com/datainfrahq/druid-operator/apis/druid/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -32,8 +32,9 @@ func setupK8Evn(t *testing.T, testK8sCtx *TestK8sEnvCtx) {
 	ctrl.SetLogger(zap.New())
 	testK8sCtx.env = &envtest.Environment{
 		CRDInstallOptions: envtest.CRDInstallOptions{
-			Paths: []string{filepath.Join("..", "..", "deploy", "crds", "druid.apache.org_druids.yaml")},
+			Paths: []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		},
+		ErrorIfCRDPathMissing: true,
 	}
 
 	config, err := testK8sCtx.env.Start()

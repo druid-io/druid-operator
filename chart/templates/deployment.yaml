@@ -1,15 +1,21 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: {{ .Release.Namespace }}
-  name: {{ include "druid-operator.fullname" . }}
   labels:
     {{- include "druid-operator.labels" . | nindent 4 }}
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/created-by: druid-operator
+    app.kubernetes.io/part-of: druid-operator
+    control-plane: controller-manager
+  name: {{ include "druid-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       {{- include "druid-operator.selectorLabels" . | nindent 6 }}
+      control-plane: controller-manager
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -18,41 +24,8 @@ spec:
       {{- end }}
       labels:
         {{- include "druid-operator.selectorLabels" . | nindent 8 }}
+        control-plane: controller-manager
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "druid-operator.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          command:
-          - /manager
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- with .Values.livenessProbe }}
-          livenessProbe:
-            {{ toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.readinessProbe }}
-          readinessProbe:
-            {{ toYaml . | nindent 12 }}
-          {{- end }}
-          env:
-            {{- range $key, $value :=  .Values.env }}
-            - name: {{ $key }}
-              value: {{ tpl $value $ | quote }}
-            {{- end }}
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -65,3 +38,40 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - args:
+            - --leader-elect
+          env:
+            {{- range $key, $value :=  .Values.env }}
+            - name: {{ $key }}
+              value: {{ tpl $value $ | quote }}
+            {{- end }}
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          command:
+            - /manager
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{ toYaml . | nindent 12 }}
+          {{- end }}
+          name: manager
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{ toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      serviceAccountName: {{ include "druid-operator.fullname" . }}
+      terminationGracePeriodSeconds: 10

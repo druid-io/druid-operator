@@ -16,6 +16,6 @@ blocks:
           commands:
             - make build
             - make test
-            - make lint
-            - make template
+            - make helm-lint
+            - make helm-template
             - make docker-build

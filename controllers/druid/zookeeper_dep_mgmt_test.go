@@ -1,8 +1,9 @@
 package druid
 
 import (
-	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
 	"testing"
+
+	"github.com/datainfrahq/druid-operator/apis/druid/v1alpha1"
 )
 
 func TestIt(t *testing.T) {

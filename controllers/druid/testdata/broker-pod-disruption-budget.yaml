@@ -1,4 +1,4 @@
-apiVersion: policy/v1beta1
+apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   labels:
@@ -9,7 +9,7 @@ metadata:
   name: druid-druid-test-brokers
   namespace: test-namespace
   annotations:
-    druidOpResourceHash: PSUil0VZr4P6YHR8+EGWPiCSiXg=
+    druidOpResourceHash: DmYcIjqpkJs9KWZ/tfHgHPBJ/wo=
 spec:
   maxUnavailable: 1
   selector:

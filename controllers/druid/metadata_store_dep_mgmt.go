@@ -3,9 +3,10 @@ package druid
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/druid-io/druid-operator/apis/druid/v1alpha1"
-	"github.com/druid-io/druid-operator/controllers/druid/ext"
 	"reflect"
+
+	"github.com/datainfrahq/druid-operator/apis/druid/v1alpha1"
+	"github.com/datainfrahq/druid-operator/controllers/druid/ext"
 )
 
 var metadataStoreExtTypes = map[string]reflect.Type{}

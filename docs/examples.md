@@ -1,6 +1,6 @@
 ## Example NodeSpec Supporting Mulitple Key/Values
 
-```
+```yaml
     middlemanagers:
       podAnnotations:
         type: middlemanager
@@ -113,49 +113,82 @@
 
 ## Configure Ingress
 
-```
- brokers:
-  nodeType: "broker"
-  druid.port: 8080
-  ingressAnnotations:
-      "nginx.ingress.kubernetes.io/rewrite-target": "/"
-  ingress:
-    ingressClassName: nginx # specific to ingress controllers.
-    rules:
-    - host: broker.myhostname.com
-      http:
-        paths:
-        - backend:
-            service:
-              name: broker_svc
-              port:
-                name: http
-          path: /
-          pathType: ImplementationSpecific
-    tls:
-    - hosts:
-      - broker.myhostname.com
-      secretName: tls-broker-druid-cluster
+```yaml
+  brokers:
+    nodeType: "broker"
+    druid.port: 8080
+    ingressAnnotations:
+        "nginx.ingress.kubernetes.io/rewrite-target": "/"
+    ingress:
+      ingressClassName: nginx # specific to ingress controllers.
+      rules:
+      - host: broker.myhostname.com
+        http:
+          paths:
+          - backend:
+              service:
+                name: broker_svc
+                port:
+                  name: http
+            path: /
+            pathType: ImplementationSpecific
+      tls:
+      - hosts:
+        - broker.myhostname.com
+        secretName: tls-broker-druid-cluster
 ```
 
-## Configure Deployments 
+## Configure Deployments
 
-```
+```yaml
   nodes:
     brokers:
       kind: Deployment
+      # maxSurge: 2
+      # MaxUnavailable: 1
       nodeType: "broker"
       # Optionally specify for broker nodes
       # imagePullSecrets:
       # - name: tutu
       druid.port: 8088
       nodeConfigMountPath: "/opt/druid/conf/druid/cluster/query/broker"
-      defaultReplicas: 1
+      replicas: 2
+      podDisruptionBudgetSpec:
+        maxUnavailable: 1
+        selector:
+          matchLabels:
+            app: druid
+            component: broker
+      livenessProbe:
+        httpGet:
+          path: /status/health
+          port: 8088
+        failureThreshold: 10
+        initialDelaySeconds: 60
+        periodSeconds: 30
+        successThreshold: 1
+        timeoutSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /status/health
+          port: 8088
+        failureThreshold: 10
+        initialDelaySeconds: 60
+        periodSeconds: 30
+        successThreshold: 1
+        timeoutSeconds: 10
+      resources:
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+        requests:
+          cpu: "2"
+          memory: "4Gi"
 ```
 
 ## Configure Hot/Cold for Historicals
 
-```
+```yaml
   hot:
     druid.port: 8083
     env:
