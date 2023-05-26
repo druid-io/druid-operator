@@ -1,3 +1,6 @@
+# This is a publicly accessible repo. Please don't commit sensitive content
+
+
 **This is the official [druid-operator](https://github.com/druid-io/druid-operator)  project, now maintained by [Maintainers.md](./MAINTAINERS.md). 
 [druid-operator](https://github.com/druid-io/druid-operator) is depreacted. Ref to [issue](https://github.com/druid-io/druid-operator/issues/329) and [PR](https://github.com/druid-io/druid-operator/pull/336). Feel free to open issues and PRs! Collaborators are welcome !**
 
