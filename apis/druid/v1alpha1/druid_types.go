@@ -242,11 +242,18 @@ type DruidSpec struct {
 	DimensionsMapPath string `json:"metricDimensions.json,omitempty"`
 }
 
+// +kubebuilder:object:root=true
 type DruidNodeSpec struct {
 	// Druid node type
 	// +required
 	// +kubebuilder:validation:Enum:=historical;overlord;middleManager;indexer;broker;coordinator;router
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
 	NodeType string `json:"nodeType"`
+
+	// set only for the historical nodetype
+	DeploymentConfig *DeploymentConfig `json:"deploymentConfig,omitempty"`
 
 	// Port used by Druid Process
 	// +required
@@ -413,6 +420,11 @@ type DeepStorageSpec struct {
 	Spec json.RawMessage `json:"spec"`
 }
 
+type DeploymentConfig struct {
+	Mode      string `json:"mode"`
+	BatchSize int32  `json:"batchSize,omitempty"`
+}
+
 // These are valid conditions of a druid Node
 const (
 	// DruidClusterReady indicates the underlying druid objects is fully deployed
@@ -433,6 +445,12 @@ type DruidNodeTypeStatus struct {
 	Reason                   string                 `json:"reason,omitempty"`
 }
 
+type HistoricalStatus struct {
+	Replica            int32    `json:"replica"`
+	CurrentBatch       int32    `json:"currentBatch"`
+	DecommissionedPods []string `json:"decommissionedPods"`
+}
+
 // DruidStatus defines the observed state of Druid
 type DruidClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
@@ -447,6 +465,7 @@ type DruidClusterStatus struct {
 	HPAutoScalers          []string            `json:"hpAutoscalers,omitempty"`
 	Pods                   []string            `json:"pods,omitempty"`
 	PersistentVolumeClaims []string            `json:"persistentVolumeClaims,omitempty"`
+	Historical             HistoricalStatus    `json:"HistoricalStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -470,5 +489,5 @@ type DruidList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Druid{}, &DruidList{})
+	SchemeBuilder.Register(&Druid{}, &DruidList{}, &DruidNodeSpec{})
 }

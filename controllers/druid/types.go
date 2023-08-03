@@ -11,4 +11,6 @@ const (
 	indexer       = "indexer"
 	historical    = "historical"
 	router        = "router"
+	onDelete      = "OnDelete"
+	userName      = "admin"
 )

@@ -903,6 +903,14 @@ spec:
                 type: object
               nodes:
                 additionalProperties:
+                  enum:
+                  - historical
+                  - overlord
+                  - middleManager
+                  - indexer
+                  - broker
+                  - coordinator
+                  - router
                   properties:
                     affinity:
                       properties:
@@ -1269,6 +1277,8 @@ spec:
                               type: array
                           type: object
                       type: object
+                    apiVersion:
+                      type: string
                     containerSecurityContext:
                       properties:
                         allowPrivilegeEscalation:
@@ -1329,6 +1339,16 @@ spec:
                             runAsUserName:
                               type: string
                           type: object
+                      type: object
+                    deploymentConfig:
+                      properties:
+                        batchSize:
+                          format: int32
+                          type: integer
+                        mode:
+                          type: string
+                      required:
+                      - mode
                       type: object
                     druid.port:
                       format: int32
@@ -2079,6 +2099,8 @@ spec:
                     maxUnavailable:
                       format: int32
                       type: integer
+                    metadata:
+                      type: object
                     nodeConfigMountPath:
                       type: string
                     nodeSelector:
@@ -2086,14 +2108,6 @@ spec:
                         type: string
                       type: object
                     nodeType:
-                      enum:
-                      - historical
-                      - overlord
-                      - middleManager
-                      - indexer
-                      - broker
-                      - coordinator
-                      - router
                       type: string
                     persistentVolumeClaim:
                       items:
@@ -5078,6 +5092,23 @@ spec:
             type: object
           status:
             properties:
+              HistoricalStatus:
+                properties:
+                  currentBatch:
+                    format: int32
+                    type: integer
+                  decommissionedPods:
+                    items:
+                      type: string
+                    type: array
+                  replica:
+                    format: int32
+                    type: integer
+                required:
+                - currentBatch
+                - decommissionedPods
+                - replica
+                type: object
               configMaps:
                 items:
                   type: string

@@ -1857,6 +1857,14 @@ spec:
                 type: object
               nodes:
                 additionalProperties:
+                  enum:
+                  - historical
+                  - overlord
+                  - middleManager
+                  - indexer
+                  - broker
+                  - coordinator
+                  - router
                   properties:
                     affinity:
                       description: Affinity to be used to for enabling node, pod affinity
@@ -2740,6 +2748,12 @@ spec:
                               type: array
                           type: object
                       type: object
+                    apiVersion:
+                      description: 'APIVersion defines the versioned schema of this
+                        representation of an object. Servers should convert recognized
+                        schemas to the latest internal value, and may reject unrecognized
+                        values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                      type: string
                     containerSecurityContext:
                       description: Druid pods container-security-context
                       properties:
@@ -2912,6 +2926,17 @@ spec:
                                 takes precedence.
                               type: string
                           type: object
+                      type: object
+                    deploymentConfig:
+                      description: set only for the historical nodetype
+                      properties:
+                        batchSize:
+                          format: int32
+                          type: integer
+                        mode:
+                          type: string
+                      required:
+                      - mode
                       type: object
                     druid.port:
                       description: Port used by Druid Process
@@ -4076,8 +4101,10 @@ spec:
                       description: This overrides JvmOptions at top level
                       type: string
                     kind:
-                      description: 'Defaults to statefulsets. Note: volumeClaimTemplates
-                        are ignored when kind=Deployment'
+                      description: 'Kind is a string value representing the REST resource
+                        this object represents. Servers may infer this from the endpoint
+                        the client submits requests to. Cannot be updated. In CamelCase.
+                        More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
                       type: string
                     lifecycle:
                       description: Lifecycle describes actions that the management
@@ -4438,6 +4465,25 @@ spec:
                         if kind=Deployment, by default set to 25%
                       format: int32
                       type: integer
+                    metadata:
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        finalizers:
+                          items:
+                            type: string
+                          type: array
+                        labels:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
                     nodeConfigMountPath:
                       description: in-container directory to mount with runtime.properties,
                         jvm.config, log4j2.xml files
@@ -4448,15 +4494,6 @@ spec:
                       description: Node selector to be used by Druid statefulsets
                       type: object
                     nodeType:
-                      description: Druid node type
-                      enum:
-                      - historical
-                      - overlord
-                      - middleManager
-                      - indexer
-                      - broker
-                      - coordinator
-                      - router
                       type: string
                     persistentVolumeClaim:
                       items:
@@ -11496,6 +11533,23 @@ spec:
           status:
             description: DruidStatus defines the observed state of Druid
             properties:
+              HistoricalStatus:
+                properties:
+                  currentBatch:
+                    format: int32
+                    type: integer
+                  decommissionedPods:
+                    items:
+                      type: string
+                    type: array
+                  replica:
+                    format: int32
+                    type: integer
+                required:
+                - currentBatch
+                - decommissionedPods
+                - replica
+                type: object
               configMaps:
                 items:
                   type: string
