@@ -3,7 +3,7 @@
 * [Deny List in Operator](#Deny-List-in-Operator)
 * [Reconcile Time in Operator](#Reconcile-Time-in-Operator)
 * [Finalizer in Druid CR](#Finalizer-in-Druid-CR)
-* [Deletetion of Orphan PVC's](#Deletetion-of-Orphan-PVC's)
+* [Deletion of Orphan PVCs](#Deletion-of-Orphan-PVCs)
 * [Rolling Deploy](#Rolling-Deploy)
 * [Force Delete of Sts Pods](#Force-Delete-of-Sts-Pods)
 * [Scaling of Druid Nodes](#Scaling-of-Druid-Nodes)
@@ -26,7 +26,7 @@
 - Default behavior shall trigger finalizers and pre-delete hooks that shall be executed which shall first clean up sts and then pvc referenced by sts.
 - Default behavior is set to true ie after deletion of CR, any pvc's provisioned by sts shall be deleted.
 
-## Deletetion of Orphan PVC's
+## Deletion of Orphan PVCs
 - Assume ingestion is kicked off on druid, the sts MiddleManagers nodes are scaled to a certain number of replicas, and when the ingestion is completed. The middlemanagers are scaled down to avoid costs etc. 
 - Sts on scale down, just terminates the pods it owns not the PVC. PVC are left orpahned and are of little or no use.
 - In such cases druid-operator supports deletion of pvc orphaned by the sts. 
