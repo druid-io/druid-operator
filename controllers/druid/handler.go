@@ -41,6 +41,8 @@ const (
 	finalizerName                = "deletepvc.finalizers.druid.apache.org"
 )
 
+//Initialize the slice to store node-specific unique identity strings for historical tiers
+var historicalTierList []string
 var logger = logf.Log.WithName("druid_operator_handler")
 
 func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEmitter) error {
@@ -118,6 +120,19 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 			}
 		}
 	}
+
+	for _, elem := range allNodeSpecs {
+	    if !m.Spec.RollingDeploy {
+	        break
+	    }
+
+	    key := elem.key
+	    if elem.spec.NodeType == historical {
+	        nodeSpecUniqueStr := makeNodeSpecificUniqueString(m, key)
+	        historicalTierList = append(historicalTierList, nodeSpecUniqueStr)
+	    }
+	}
+
 
 	for _, elem := range allNodeSpecs {
 		key := elem.key
@@ -202,6 +217,16 @@ func deployDruidCluster(sdk client.Client, m *v1alpha1.Druid, emitEvents EventEm
 						return err
 					}
 				}
+			}
+
+			// In case of rollingDeploy, check if each historical tier has been successfully deployed before moving on
+			if m.Spec.RollingDeploy && elem.spec.NodeType == historical {
+			    for _, historicalTier := range historicalTierList {
+			        done, err := isObjFullyDeployed(sdk, nodeSpec, nodeSpecUniqueStr, m, func() object { return makeStatefulSetEmptyObj() }, emitEvents)
+                    if !done {
+                        return err
+                    }
+			    }
 			}
 
 			// Create/Update StatefulSet
